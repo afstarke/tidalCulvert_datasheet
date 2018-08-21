@@ -4,9 +4,6 @@ Tidal Spreadsheet fun
 read in spreadsheet with tidyxl
 
 ``` r
-# devtools::install_github("nacnudus/tidyxl")
-# devtools::install_github("nacnudus/unpivotr")
-
 library(readr)
 library(readxl)
 library(tidyxl)
@@ -48,17 +45,56 @@ There's a few issues (potential) that I've come across.
 -   cells are merged which makes it hard to determine which cell actually contains the value of interest.
 -   There are values that are selected using a formated control (like a dropdown) which can be very easily altered.
 -   accessing these values is best done through the *Data Sheet - SUMMARY* tab.
+-   There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. Unsure if this is an issue.
 
 ``` r
 characters <- cells[cells$data_type == "character", c("sheet", "address", "character")]
 numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")]
 ```
 
-``` r
-xlsx::write.xlsx(characters, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely keys") 
-xlsx::write.xlsx(numerics, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely values", append = TRUE)
+Characters:
+===========
 
+Below (and in extractedKey.xlsx) are extracted *character* values with their associated cell address. **NOTE:** Some of these cells may in fact be data values and not keys.
+
+``` r
+characters
+```
+
+    ## # A tibble: 321 x 3
+    ##    sheet                address character                                 
+    ##    <chr>                <chr>   <chr>                                     
+    ##  1 Data Sheet - SUMMARY A1      "Tidal Crossing Summary Sheet\r\nNew Hamp~
+    ##  2 Data Sheet - SUMMARY G4      Crossing ID:                              
+    ##  3 Data Sheet - SUMMARY A5      Observer(s) & Organization:               
+    ##  4 Data Sheet - SUMMARY G5      Matthew Grasso, and Matthew Hamilton      
+    ##  5 Data Sheet - SUMMARY V5      Date:                                     
+    ##  6 Data Sheet - SUMMARY V6      Start Time:                               
+    ##  7 Data Sheet - SUMMARY A7      Municipality:                             
+    ##  8 Data Sheet - SUMMARY G7      Shelter Island                            
+    ##  9 Data Sheet - SUMMARY V7      End Time:                                 
+    ## 10 Data Sheet - SUMMARY A8      Stream Name:                              
+    ## # ... with 311 more rows
+
+Numerics:
+=========
+
+Similar to the characters above, these are assumed to be data values but could in fact be keys.
+
+``` r
+# Careful here- this could overwrite work if a new file isn't created.
+# xlsx::write.xlsx(characters, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely keys") xlsx::write.xlsx(numerics, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely values", append = TRUE)
+```
+
+TO DOs:
+=======
+
+-   Using a completed (and backed up) datasheet comb through the *extractedKey.xlsx* file to match data keys with data values.
+-   **VERY IMPORTANT** save this file to new path as the code above ~~can~~ will overwrite this file if run.
+
+``` r
 # Helper function to look up values in a cell of interest.
+# 
 get.cell.value <- function(tidysheet, cellOfInterest){
   val <- tidysheet %>% filter(address == cellOfInterest)
   val[character,]
