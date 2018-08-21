@@ -5,6 +5,7 @@ output: github_document
 ---
 
 read in spreadsheet with tidyxl
+
 ```{r message=FALSE, warning=FALSE, paged.print=FALSE}
 
 library(readr)
@@ -39,7 +40,7 @@ characters <- cells[cells$data_type == "character", c("sheet", "address", "chara
 numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")]
 
 ```
-# Characters:
+## Characters:
 Below (and in extractedKey.xlsx) are extracted *character* values with their associated cell address.  
 **NOTE:** Some of these cells may in fact be data values and not keys.  
 
@@ -47,7 +48,7 @@ Below (and in extractedKey.xlsx) are extracted *character* values with their ass
 characters
 ```
 
-# Numerics:
+## Numerics:
 Similar to the characters above, these are assumed to be data values but could in fact be keys.  
 ```{r}
 numerics
@@ -65,10 +66,15 @@ numerics
   
 ```
 
-#TO DOs:  
+## TO DOs:  
 * Using a completed (and backed up) datasheet comb through the *spreadsheets/extractedKey.xlsx* file to match data keys with data values.   
 
-* **VERY IMPORTANT** save this file to new path as the code above ~~can~~ will overwrite this file if run.
+* **VERY IMPORTANT** save this file to new path as the code above ~~can~~ will overwrite this file if run.  
+
+* Once this new master lookup/key is build here's the game plan.  
+  + Create lookup in R using key-value pairs  
+  + within this lookup retain the 'expected keys' in a colum to act as an error catcher on data extractions later.  
+  + 
 
 ```{r}
 
