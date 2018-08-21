@@ -1,8 +1,6 @@
 ---
 title: "Tidal Spreadsheet fun"
-output: 
-  html_notebook:
-    keep_md:true
+output: github_document
 
 ---
 
@@ -22,7 +20,7 @@ library(tidyverse)
 ```{r}
 
 # TODO Start with basic read in of spreadsheet and extracting the proper cells.
-sheet <- "spreatsheets/Copy of Culvert37.xlsm" #IDEA perhaps build this as a shiny gadget to allow for pushing onto the web for others?
+sheet <- "spreadsheets/Copy of Culvert37.xlsm" #IDEA perhaps build this as a shiny gadget to allow for pushing onto the web for others?
 
 
 cells <- xlsx_cells(sheet) %>% 
@@ -42,12 +40,12 @@ get.cell.value <- function(tidysheet, cellOfInterest){
   val[character,]
   
 }
-
-cells %>% filter(address == "G7")[]
-  
-  
-  get.cell.value("G7")
-  
+# 
+# cells %>% filter(address == "G7")[]
+#   
+#   
+#   get.cell.value("G7")
+#   
   
 ```
 
