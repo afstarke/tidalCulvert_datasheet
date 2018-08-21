@@ -1,6 +1,9 @@
 ---
 title: "Tidal Spreadsheet fun"
-output: html_notebook
+output: 
+  html_notebook:
+    keep_md:true
+
 ---
 
 read in spreadsheet with tidyxl
