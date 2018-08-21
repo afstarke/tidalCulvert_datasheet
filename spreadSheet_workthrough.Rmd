@@ -28,7 +28,7 @@ cells <- xlsx_cells(sheet) %>%
 cells
 
 ```
-There's a few 
+There's a few issues (potential) that I've come across. 
 ```{r}
 character <- cells[cells$data_type == "character", c("sheet", "address", "character")]
 xlsx::write.xlsx(character, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely keys")
