@@ -29,10 +29,20 @@ cells <- xlsx_cells(sheet) %>%
 cells
 
 ```
-There's a few issues (potential) that I've come across. 
+There's a few issues (potential) that I've come across.  
+* cells are merged which makes it hard to determine which cell actually contains the value of interest.
+*   
+  
 ```{r}
-character <- cells[cells$data_type == "character", c("sheet", "address", "character")]
-xlsx::write.xlsx(character, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely keys")
+characters <- cells[cells$data_type == "character", c("sheet", "address", "character")]
+numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")]
+
+```
+
+```{r}
+
+xlsx::write.xlsx(characters, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely keys") 
+xlsx::write.xlsx(numerics, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely values", append = TRUE)
 
 # Helper function to look up values in a cell of interest.
 get.cell.value <- function(tidysheet, cellOfInterest){
