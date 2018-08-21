@@ -1,0 +1,50 @@
+---
+title: "Tidal Spreadsheet fun"
+output: html_notebook
+---
+
+read in spreadsheet with tidyxl
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+# devtools::install_github("nacnudus/tidyxl")
+# devtools::install_github("nacnudus/unpivotr")
+
+library(readr)
+library(readxl)
+library(tidyxl)
+library(unpivotr)
+library(tidyverse)
+
+```
+
+```{r}
+
+# TODO Start with basic read in of spreadsheet and extracting the proper cells.
+sheet <- "spreatsheets/Copy of Culvert37.xlsm" #IDEA perhaps build this as a shiny gadget to allow for pushing onto the web for others?
+
+
+cells <- xlsx_cells(sheet) %>% 
+  filter(is_blank == FALSE, sheet == "Data Sheet - SITE") 
+  
+cells
+
+```
+There's a few 
+```{r}
+character <- cells[cells$data_type == "character", c("sheet", "address", "character")]
+xlsx::write.xlsx(character, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely keys")
+
+# Helper function to look up values in a cell of interest.
+get.cell.value <- function(tidysheet, cellOfInterest){
+  val <- tidysheet %>% filter(address == cellOfInterest)
+  val[character,]
+  
+}
+
+cells %>% filter(address == "G7")[]
+  
+  
+  get.cell.value("G7")
+  
+  
+```
+
