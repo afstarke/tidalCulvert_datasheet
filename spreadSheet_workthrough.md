@@ -20,34 +20,40 @@ sheet <- "spreadsheets/Copy of Culvert37.xlsm" #IDEA perhaps build this as a shi
 
 
 cells <- xlsx_cells(sheet) %>% 
-  filter(is_blank == FALSE, sheet == "Data Sheet - SITE") 
+  filter(is_blank == FALSE, sheet == "Data Sheet - SUMMARY") 
   
 cells
 ```
 
-    ## # A tibble: 352 x 21
+    ## # A tibble: 581 x 21
     ##    sheet      address   row   col is_blank data_type error logical numeric
     ##    <chr>      <chr>   <int> <int> <lgl>    <chr>     <chr> <lgl>     <dbl>
     ##  1 Data Shee~ A1          1     1 FALSE    character <NA>  NA          NA 
-    ##  2 Data Shee~ A5          5     1 FALSE    character <NA>  NA          NA 
-    ##  3 Data Shee~ G7          7     7 FALSE    character <NA>  NA          NA 
-    ##  4 Data Shee~ L7          7    12 FALSE    numeric   <NA>  NA          37.
-    ##  5 Data Shee~ A9          9     1 FALSE    character <NA>  NA          NA 
-    ##  6 Data Shee~ G9          9     7 FALSE    character <NA>  NA          NA 
-    ##  7 Data Shee~ V9          9    22 FALSE    character <NA>  NA          NA 
-    ##  8 Data Shee~ Z9          9    26 FALSE    date      <NA>  NA          NA 
-    ##  9 Data Shee~ V10        10    22 FALSE    character <NA>  NA          NA 
-    ## 10 Data Shee~ Z10        10    26 FALSE    date      <NA>  NA          NA 
-    ## # ... with 342 more rows, and 12 more variables: date <dttm>,
+    ##  2 Data Shee~ G4          4     7 FALSE    character <NA>  NA          NA 
+    ##  3 Data Shee~ L4          4    12 FALSE    numeric   <NA>  NA          37.
+    ##  4 Data Shee~ A5          5     1 FALSE    character <NA>  NA          NA 
+    ##  5 Data Shee~ G5          5     7 FALSE    character <NA>  NA          NA 
+    ##  6 Data Shee~ V5          5    22 FALSE    character <NA>  NA          NA 
+    ##  7 Data Shee~ Z5          5    26 FALSE    date      <NA>  NA          NA 
+    ##  8 Data Shee~ V6          6    22 FALSE    character <NA>  NA          NA 
+    ##  9 Data Shee~ Z6          6    26 FALSE    date      <NA>  NA          NA 
+    ## 10 Data Shee~ A7          7     1 FALSE    character <NA>  NA          NA 
+    ## # ... with 571 more rows, and 12 more variables: date <dttm>,
     ## #   character <chr>, character_formatted <list>, formula <chr>,
     ## #   is_array <lgl>, formula_ref <chr>, formula_group <int>, comment <chr>,
     ## #   height <dbl>, width <dbl>, style_format <chr>, local_format_id <int>
 
 There's a few issues (potential) that I've come across.
+\* cells are merged which makes it hard to determine which cell actually contains the value of interest. \* There are values that are selected using a formated control (like a dropdown) which can be very easily altered + accessing these values is best done through the *Data Sheet - SUMMARY* tab.
 
 ``` r
-character <- cells[cells$data_type == "character", c("sheet", "address", "character")]
-xlsx::write.xlsx(character, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely keys")
+characters <- cells[cells$data_type == "character", c("sheet", "address", "character")]
+numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")]
+```
+
+``` r
+xlsx::write.xlsx(characters, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely keys") 
+xlsx::write.xlsx(numerics, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely values", append = TRUE)
 
 # Helper function to look up values in a cell of interest.
 get.cell.value <- function(tidysheet, cellOfInterest){
