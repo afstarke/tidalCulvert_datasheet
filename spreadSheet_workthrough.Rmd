@@ -74,7 +74,8 @@ numerics
 * Once this new master lookup/key is build here's the game plan.  
   + Create lookup in R using key-value pairs  
   + within this lookup retain the 'expected keys' in a colum to act as an error catcher on data extractions later.  
-  + 
+* Need to extract lookup tables in Lookup tab to form joins to link data value with data description (7 = Riprap under the Wingwall Materials dropdown.)  
+
 
 ```{r}
 

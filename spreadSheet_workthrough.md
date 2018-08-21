@@ -53,7 +53,7 @@ numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")
 ```
 
 Characters:
-===========
+-----------
 
 Below (and in extractedKey.xlsx) are extracted *character* values with their associated cell address.
 **NOTE:** Some of these cells may in fact be data values and not keys.
@@ -78,7 +78,7 @@ characters
     ## # ... with 311 more rows
 
 Numerics:
-=========
+---------
 
 Similar to the characters above, these are assumed to be data values but could in fact be keys.
 
@@ -112,11 +112,16 @@ numerics
 ```
 
 TO DOs:
-=======
+-------
 
 -   Using a completed (and backed up) datasheet comb through the *spreadsheets/extractedKey.xlsx* file to match data keys with data values.
 
 -   **VERY IMPORTANT** save this file to new path as the code above ~~can~~ will overwrite this file if run.
+
+-   Once this new master lookup/key is build here's the game plan.
+-   Create lookup in R using key-value pairs
+-   within this lookup retain the 'expected keys' in a colum to act as an error catcher on data extractions later.
+-   Need to extract lookup tables in Lookup tab to form joins to link data value with data description (7 = Riprap under the Wingwall Materials dropdown.)
 
 ``` r
 # Helper function to look up values in a cell of interest.
