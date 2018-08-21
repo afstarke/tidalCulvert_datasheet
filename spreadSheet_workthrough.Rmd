@@ -40,21 +40,40 @@ numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")
 
 ```
 # Characters:
-Below (and in extractedKey.xlsx) are extracted *character* values with their associated cell address. **NOTE:** Some of these cells may in fact be data values and not keys.
+Below (and in extractedKey.xlsx) are extracted *character* values with their associated cell address.  
+**NOTE:** Some of these cells may in fact be data values and not keys.  
 
 ```{r}
 characters
 ```
 
 # Numerics:
-Similar to the characters
+Similar to the characters above, these are assumed to be data values but could in fact be keys.  
+```{r}
+numerics
+```
+
+```{r}
+# Careful here- this could overwrite work if a new file isn't created.
+# xlsx::write.xlsx(characters, 
+#                  file = "spreadsheets/extractedKey.xlsx", 
+#                  sheetName = "Likely keys") 
+# xlsx::write.xlsx(numerics, 
+#                  file = "spreadsheets/extractedKey.xlsx", 
+#                  sheetName = "Likely values", append = TRUE)
+
+  
+```
+
+#TO DOs:  
+* Using a completed (and backed up) datasheet comb through the *spreadsheets/extractedKey.xlsx* file to match data keys with data values.   
+
+* **VERY IMPORTANT** save this file to new path as the code above ~~can~~ will overwrite this file if run.
 
 ```{r}
 
-xlsx::write.xlsx(characters, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely keys") 
-xlsx::write.xlsx(numerics, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely values", append = TRUE)
-
 # Helper function to look up values in a cell of interest.
+# 
 get.cell.value <- function(tidysheet, cellOfInterest){
   val <- tidysheet %>% filter(address == cellOfInterest)
   val[character,]
@@ -66,6 +85,7 @@ get.cell.value <- function(tidysheet, cellOfInterest){
 #   
 #   get.cell.value("G7")
 #   
-  
 ```
+
+
 

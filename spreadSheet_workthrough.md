@@ -55,7 +55,8 @@ numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")
 Characters:
 ===========
 
-Below (and in extractedKey.xlsx) are extracted *character* values with their associated cell address. **NOTE:** Some of these cells may in fact be data values and not keys.
+Below (and in extractedKey.xlsx) are extracted *character* values with their associated cell address.
+**NOTE:** Some of these cells may in fact be data values and not keys.
 
 ``` r
 characters
@@ -82,14 +83,39 @@ Numerics:
 Similar to the characters above, these are assumed to be data values but could in fact be keys.
 
 ``` r
+numerics
+```
+
+    ## # A tibble: 248 x 3
+    ##    sheet                address numeric
+    ##    <chr>                <chr>     <dbl>
+    ##  1 Data Sheet - SUMMARY L4        37.0 
+    ##  2 Data Sheet - SUMMARY AA10       2.15
+    ##  3 Data Sheet - SUMMARY N12        2.00
+    ##  4 Data Sheet - SUMMARY N15        1.00
+    ##  5 Data Sheet - SUMMARY P15        1.00
+    ##  6 Data Sheet - SUMMARY N21        1.00
+    ##  7 Data Sheet - SUMMARY N22        1.00
+    ##  8 Data Sheet - SUMMARY N24        4.00
+    ##  9 Data Sheet - SUMMARY N26        4.00
+    ## 10 Data Sheet - SUMMARY P26        5.00
+    ## # ... with 238 more rows
+
+``` r
 # Careful here- this could overwrite work if a new file isn't created.
-# xlsx::write.xlsx(characters, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely keys") xlsx::write.xlsx(numerics, file = "spreadsheets/extractedKey.xlsx", sheetName = "Likely values", append = TRUE)
+# xlsx::write.xlsx(characters, 
+#                  file = "spreadsheets/extractedKey.xlsx", 
+#                  sheetName = "Likely keys") 
+# xlsx::write.xlsx(numerics, 
+#                  file = "spreadsheets/extractedKey.xlsx", 
+#                  sheetName = "Likely values", append = TRUE)
 ```
 
 TO DOs:
 =======
 
--   Using a completed (and backed up) datasheet comb through the *extractedKey.xlsx* file to match data keys with data values.
+-   Using a completed (and backed up) datasheet comb through the *spreadsheets/extractedKey.xlsx* file to match data keys with data values.
+
 -   **VERY IMPORTANT** save this file to new path as the code above ~~can~~ will overwrite this file if run.
 
 ``` r
