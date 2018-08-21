@@ -6,8 +6,6 @@ output: github_document
 
 read in spreadsheet with tidyxl
 ```{r message=FALSE, warning=FALSE, paged.print=FALSE}
-# devtools::install_github("nacnudus/tidyxl")
-# devtools::install_github("nacnudus/unpivotr")
 
 library(readr)
 library(readxl)
@@ -34,12 +32,22 @@ There's a few issues (potential) that I've come across.
 * cells are merged which makes it hard to determine which cell actually contains the value of interest.  
 * There are values that are selected using a formated control (like a dropdown) which can be very easily altered.  
   + accessing these values is best done through the *Data Sheet - SUMMARY* tab.  
-  
+* There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. Unsure if this is an issue.
+
 ```{r}
 characters <- cells[cells$data_type == "character", c("sheet", "address", "character")]
 numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")]
 
 ```
+# Characters:
+Below (and in extractedKey.xlsx) are extracted *character* values with their associated cell address. **NOTE:** Some of these cells may in fact be data values and not keys.
+
+```{r}
+characters
+```
+
+# Numerics:
+Similar to the characters
 
 ```{r}
 

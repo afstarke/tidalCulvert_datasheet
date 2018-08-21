@@ -44,7 +44,10 @@ cells
     ## #   height <dbl>, width <dbl>, style_format <chr>, local_format_id <int>
 
 There's a few issues (potential) that I've come across.
-\* cells are merged which makes it hard to determine which cell actually contains the value of interest. \* There are values that are selected using a formated control (like a dropdown) which can be very easily altered + accessing these values is best done through the *Data Sheet - SUMMARY* tab.
+
+-   cells are merged which makes it hard to determine which cell actually contains the value of interest.
+-   There are values that are selected using a formated control (like a dropdown) which can be very easily altered.
+-   accessing these values is best done through the *Data Sheet - SUMMARY* tab.
 
 ``` r
 characters <- cells[cells$data_type == "character", c("sheet", "address", "character")]
