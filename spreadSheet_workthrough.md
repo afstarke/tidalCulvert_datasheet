@@ -47,18 +47,15 @@ There's a few issues (potential) that I've come across.
 -   accessing these values is best done through the *Data Sheet - SUMMARY* tab.
 -   There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. Unsure if this is an issue.
 
-``` r
-characters <- cells[cells$data_type == "character", c("sheet", "address", "character")]
-numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")]
-```
-
-Characters:
------------
+Characters (aka Potential Keys):
+--------------------------------
 
 Below (and in extractedKey.xlsx) are extracted *character* values with their associated cell address.
 **NOTE:** Some of these cells may in fact be data values and not keys.
 
 ``` r
+characters <- cells[cells$data_type == "character", c("sheet", "address", "character")]
+
 characters
 ```
 
@@ -77,12 +74,14 @@ characters
     ## 10 Data Sheet - SUMMARY A8      Stream Name:                              
     ## # ... with 311 more rows
 
-Numerics:
----------
+Numerics (aka Potential Values):
+--------------------------------
 
 Similar to the characters above, these are assumed to be data values but could in fact be keys.
 
 ``` r
+numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")]
+
 numerics
 ```
 
@@ -111,30 +110,129 @@ numerics
 #                  sheetName = "Likely values", append = TRUE)
 ```
 
+Functions/Formulas:
+-------------------
+
+Where are the formulas? And what do they do?
+
+``` r
+formulas <- cells %>% filter(!is.na(formula)) %>% select(sheet, address, formula)
+
+formulas %>% head(5)
+```
+
+    ## # A tibble: 5 x 3
+    ##   sheet                address formula                
+    ##   <chr>                <chr>   <chr>                  
+    ## 1 Data Sheet - SUMMARY G4      'Data Sheet - SITE'!G7 
+    ## 2 Data Sheet - SUMMARY A5      'Data Sheet - SITE'!A9 
+    ## 3 Data Sheet - SUMMARY V5      'Data Sheet - SITE'!V9 
+    ## 4 Data Sheet - SUMMARY V6      'Data Sheet - SITE'!V10
+    ## 5 Data Sheet - SUMMARY A7      'Data Sheet - SITE'!A11
+
+Note that there are a fair number of formulas that simply reference a single cell from another sheet. An attempt at filtering these out
+
+``` r
+#TODO: Confirm we're not filtering anything important out here accidently.
+formulas %>% filter(!str_detect(formula, "Data"))
+```
+
+    ## # A tibble: 263 x 3
+    ##    sheet                address formula                                   
+    ##    <chr>                <chr>   <chr>                                     
+    ##  1 Data Sheet - SUMMARY N12     IF(AND(Calculations!D3>=3,Calculations!F3~
+    ##  2 Data Sheet - SUMMARY N16     IF(Calculations!A2<=1,1,IF(AND(Calculatio~
+    ##  3 Data Sheet - SUMMARY P16     IF(Calculations!B2<=1,1,IF(AND(Calculatio~
+    ##  4 Data Sheet - SUMMARY N17     AVERAGE(N14,IF(N15>P15,N15,P15),IF(N16>P1~
+    ##  5 Data Sheet - SUMMARY N19     N14                                       
+    ##  6 Data Sheet - SUMMARY N26     IF(Calculations!A14>6,1,IF(AND(Calculatio~
+    ##  7 Data Sheet - SUMMARY P26     IF(Calculations!D14>6,1,IF(AND(Calculatio~
+    ##  8 Data Sheet - SUMMARY N27     IF(Calculations!E14>3,1,IF(AND(Calculatio~
+    ##  9 Data Sheet - SUMMARY P27     IF(Calculations!F14>3,1,IF(AND(Calculatio~
+    ## 10 Data Sheet - SUMMARY N31     IF(N26>P26,IF(AND(N12=1,N26<=2),1,IF(OR(N~
+    ## # ... with 253 more rows
+
+Slice into these formulas
+-------------------------
+
+If we need to extract some values or explore what a formula is doing we can use xlex by passing the row of interest to the function.
+
+Yikes! On a few of these...
+
+``` r
+# Finding constants within formulas:
+# directly from : https://nacnudus.github.io/tidyxl/articles/smells.html
+
+tokens <-
+  cells %>%
+  filter(!is.na(formula)) %>%
+  select(row, col, formula) %>%
+  mutate(tokens = map(formula, xlex)) %>%
+  select(-formula)
+
+constants <- tokens %>% 
+  unnest(tokens) %>% 
+  filter(type %in% c("error", "bool", "number", "text"))
+
+constants %>%
+  count(token, sort = TRUE) %>%
+  print(n = Inf)
+```
+
+    ## # A tibble: 22 x 2
+    ##    token       n
+    ##    <chr>   <int>
+    ##  1 0          81
+    ##  2 3          66
+    ##  3 5          56
+    ##  4 2          55
+    ##  5 1          53
+    ##  6 "\"\""     51
+    ##  7 4          45
+    ##  8 "\"D\""    35
+    ##  9 "\"R\""    35
+    ## 10 "\"U\""    35
+    ## 11 1.5         8
+    ## 12 TRUE        6
+    ## 13 1.2         4
+    ## 14 10          4
+    ## 15 12          4
+    ## 16 13          4
+    ## 17 2.3         4
+    ## 18 6           4
+    ## 19 0.5         2
+    ## 20 0.7         1
+    ## 21 0.8         1
+    ## 22 0.9         1
+
 TO DOs:
 -------
 
--   Using a completed (and backed up) datasheet comb through the *spreadsheets/extractedKey.xlsx* file to match data keys with data values.
+-   Using a completed (and backed up) datasheet comb through the *spreadsheets/extractedKey\_WORKING.xlsx* file to match data keys with data values.
 
--   **VERY IMPORTANT** save this file to new path as the code above ~~can~~ will overwrite this file if run.
+-   **VERY IMPORTANT** work only in the 'extractedKey\_WORKING' file. The other file will/can be overwritten.
 
 -   Once this new master lookup/key is build here's the game plan.
--   Create lookup in R using key-value pairs
+-   Create lookup in R using key-value pairs built from the extractedKey file
 -   within this lookup retain the 'expected keys' in a colum to act as an error catcher on data extractions later.
 -   Need to extract lookup tables in Lookup tab to form joins to link data value with data description (7 = Riprap under the Wingwall Materials dropdown.)
 
 ``` r
 # Helper function to look up values in a cell of interest.
 # 
+
 get.cell.value <- function(tidysheet, cellOfInterest){
-  val <- tidysheet %>% filter(address == cellOfInterest)
-  val[character,]
+  
+  val <- tidysheet %>% 
+    filter(address == cellOfInterest) %>% 
+    # select(formula) %>% 
+    # as.character()
+    pull(formula)
+  return(val)
   
 }
-# 
-# cells %>% filter(address == "G7")[]
 #   
-#   
-#   get.cell.value("G7")
-#   
+get.cell.value(cells, "AA65")
 ```
+
+    ## [1] "IF(AA111=0,\"\", AA111)"

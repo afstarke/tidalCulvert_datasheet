@@ -35,22 +35,22 @@ There's a few issues (potential) that I've come across.
   + accessing these values is best done through the *Data Sheet - SUMMARY* tab.  
 * There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. Unsure if this is an issue.
 
-```{r}
-characters <- cells[cells$data_type == "character", c("sheet", "address", "character")]
-numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")]
 
-```
-## Characters:
+## Characters (aka Potential Keys):
 Below (and in extractedKey.xlsx) are extracted *character* values with their associated cell address.  
 **NOTE:** Some of these cells may in fact be data values and not keys.  
 
 ```{r}
+characters <- cells[cells$data_type == "character", c("sheet", "address", "character")]
+
 characters
 ```
 
-## Numerics:
+## Numerics (aka Potential Values):
 Similar to the characters above, these are assumed to be data values but could in fact be keys.  
 ```{r}
+numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")]
+
 numerics
 ```
 
@@ -66,13 +66,59 @@ numerics
   
 ```
 
-## TO DOs:  
-* Using a completed (and backed up) datasheet comb through the *spreadsheets/extractedKey.xlsx* file to match data keys with data values.   
+## Functions/Formulas:
+Where are the formulas? And what do they do?
 
-* **VERY IMPORTANT** save this file to new path as the code above ~~can~~ will overwrite this file if run.  
+```{r}
+formulas <- cells %>% filter(!is.na(formula)) %>% select(sheet, address, formula)
+
+formulas %>% head(5)
+```
+Note that there are a fair number of formulas that simply reference a single cell from another sheet. An attempt at filtering these out
+```{r}
+#TODO: Confirm we're not filtering anything important out here accidently.
+formulas %>% filter(!str_detect(formula, "Data"))
+
+
+```
+
+
+## Slice into these formulas
+If we need to extract some values or explore what a formula is doing we can use xlex by passing the row of interest to the function.
+
+Yikes! On a few of these...
+
+```{r}
+
+# Finding constants within formulas:
+# directly from : https://nacnudus.github.io/tidyxl/articles/smells.html
+
+tokens <-
+  cells %>%
+  filter(!is.na(formula)) %>%
+  select(row, col, formula) %>%
+  mutate(tokens = map(formula, xlex)) %>%
+  select(-formula)
+
+constants <- tokens %>% 
+  unnest(tokens) %>% 
+  filter(type %in% c("error", "bool", "number", "text"))
+
+constants %>%
+  count(token, sort = TRUE) %>%
+  print(n = Inf)
+
+```
+
+
+
+## TO DOs:  
+* Using a completed (and backed up) datasheet comb through the *spreadsheets/extractedKey_WORKING.xlsx* file to match data keys with data values.   
+
+* **VERY IMPORTANT** work only in the 'extractedKey_WORKING' file. The other file will/can be overwritten.  
 
 * Once this new master lookup/key is build here's the game plan.  
-  + Create lookup in R using key-value pairs  
+  + Create lookup in R using key-value pairs  built from the extractedKey file
   + within this lookup retain the 'expected keys' in a colum to act as an error catcher on data extractions later.  
 * Need to extract lookup tables in Lookup tab to form joins to link data value with data description (7 = Riprap under the Wingwall Materials dropdown.)  
 
@@ -81,17 +127,21 @@ numerics
 
 # Helper function to look up values in a cell of interest.
 # 
+
 get.cell.value <- function(tidysheet, cellOfInterest){
-  val <- tidysheet %>% filter(address == cellOfInterest)
-  val[character,]
+  
+  val <- tidysheet %>% 
+    filter(address == cellOfInterest) %>% 
+    # select(formula) %>% 
+    # as.character()
+    pull(formula)
+  return(val)
   
 }
-# 
-# cells %>% filter(address == "G7")[]
 #   
-#   
-#   get.cell.value("G7")
-#   
+get.cell.value(cells, "AA65")
+
+
 ```
 
 
