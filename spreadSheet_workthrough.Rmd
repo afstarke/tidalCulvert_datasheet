@@ -47,7 +47,7 @@ characters
 ```
 
 ## Numerics (aka Potential Values):
-Similar to the characters above, these are assumed to be data values but could in fact be keys.  
+Similar to the characters above, these are assumed to be data values but some could in fact be keys.  
 ```{r}
 numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")]
 
