@@ -217,7 +217,7 @@ Next steps...
 
 Seems as though there are 2 approaches we can take:
 
--   Extract the RAW values from the **Data Sheet - SITE** sheet and perform the various calculations/lookups/joins etc using R or other (Python?, ArcMap?) to effectively recreate the **Data Sheet - SUMMARY** sheet.
+Extract the RAW values from the **Data Sheet - SITE** sheet and perform the various calculations/lookups/joins etc using R or other (Python?, ArcMap?) to effectively recreate the **Data Sheet - SUMMARY** sheet.
 
 #### Pros
 
@@ -231,7 +231,7 @@ Seems as though there are 2 approaches we can take:
 
 ![](spreadSheet_workthrough_files/figure-markdown_github/unnamed-chunk-7-1.png)
 
--   *OR* Just focus on extracting the values of interest, most of which are in the **Data Sheet - SUMMARY** tab.
+*OR* Just focus on extracting the values of interest, most of which are in the **Data Sheet - SUMMARY** tab.
 
 #### Pros
 

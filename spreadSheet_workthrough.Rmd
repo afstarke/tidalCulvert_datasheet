@@ -115,7 +115,7 @@ Yikes! On a few of these...
 ## Next steps...
 Seems as though there are 2 approaches we can take:  
 
-* Extract the RAW values from the **Data Sheet - SITE** sheet and perform the various calculations/lookups/joins etc using R or other (Python?, ArcMap?)  to effectively recreate the **Data Sheet - SUMMARY** sheet.
+Extract the RAW values from the **Data Sheet - SITE** sheet and perform the various calculations/lookups/joins etc using R or other (Python?, ArcMap?)  to effectively recreate the **Data Sheet - SUMMARY** sheet.
 
 
 #### Pros 
@@ -136,8 +136,7 @@ references %>% ggplot(aes(x = cellrefs)) +
 ```
 
 
-
-* *OR* Just focus on extracting the values of interest, most of which are in the **Data Sheet - SUMMARY** tab.   
+*OR* Just focus on extracting the values of interest, most of which are in the **Data Sheet - SUMMARY** tab.   
 
 #### Pros
 * It might be less work, but not clear how much less... Potentially not a huge amount less.
