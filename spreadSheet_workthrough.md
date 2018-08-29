@@ -239,7 +239,7 @@ Extract the RAW values from the **Data Sheet - SITE** sheet and perform the vari
 
 #### Cons
 
-Pretty much covered by my Pros list above for the oher tactic.
+Pretty much covered by my Pros list above for the other tactic.
 
 ### Potential pifalls
 

@@ -142,7 +142,7 @@ references %>% ggplot(aes(x = cellrefs)) +
 * It might be less work, but not clear how much less... Potentially not a huge amount less.
 
 #### Cons
-Pretty much covered by my Pros list above for the oher tactic. 
+Pretty much covered by my Pros list above for the other tactic. 
 
 ### Potential pifalls
 There's a few issues (potential) that I've come across.  
