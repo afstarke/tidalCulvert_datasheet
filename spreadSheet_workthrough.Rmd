@@ -107,16 +107,14 @@ formulas %>% head(5)
 Note that there are a fair number of formulas that simply reference a single cell from another sheet. An attempt at filtering these out
 ```{r}
 #TODO: Confirm we're not filtering anything important out here accidently.
-formulas %>% filter(!str_detect(formula, "Data"))
+formulas %>% filter(!str_detect(formula, "Data")) %>% View()
 
 
 ```
 
 
 ## Slice into these formulas
-If we need to extract some values or explore what a formula is doing we can use xlex by passing the row of interest to the function.
-
-Yikes! On a few of these...
+If we need to extract some values or explore what a formula is doing we can use xlex by passing the row of interest to the function yielding a dataframe.
 
 ```{r}
 
@@ -125,10 +123,10 @@ Yikes! On a few of these...
 
 tokens <-
   cells %>%
-  filter(!is.na(formula)) %>%
-  select(row, col, formula) %>%
-  mutate(tokens = map(formula, xlex)) %>%
-  select(-formula)
+  filter(!is.na(formula)) %>% # filter out rows that don't contain a formula
+  select(address, row, col, formula) %>% 
+  mutate(tok = map(formula, xlex))  # using map make a colum containing a dataframe with the information from xlex()
+  # select(-formula)
 
 constants <- tokens %>% 
   unnest(tokens) %>% 
@@ -138,8 +136,31 @@ constants %>%
   count(token, sort = TRUE) %>%
   print(n = Inf)
 
+reffinder <- function(tokencol){
+  refNu <- tokencol %>% as.data.frame() %>% 
+    group_by(type) %>% tally() %>% 
+    filter(type == "ref") %>% pluck(2)
+  return(refNu)
+}
+
+references <- tokens %>% 
+  mutate(cellrefs = map_int(.x = tok, .f = reffinder)) %>%  # Create cellrefs to hold the number of cells a formula references.
+  arrange(desc(cellrefs))
+
+# xlsx::write.xlsx(characters,
+#                  file = "spreadsheets/extractedKey_WORKING.xlsx",
+#                  sheetName = "Likely keys")
+# xlsx::write.xlsx(numerics,
+#                  file = "spreadsheets/extractedKey_WORKING.xlsx",
+#                  sheetName = "Likely values", append = TRUE)
+# references %>% select(-tok) %>% xlsx::write.xlsx(
+#                  file = "spreadsheets/extractedKey_WORKING.xlsx",
+#                  sheetName = "formulaKey", append = TRUE)
+
 ```
 
+
+Yikes! On a few of these...
 
 
 ## TO DOs:  
