@@ -227,7 +227,7 @@ Extract the RAW values from the **Data Sheet - SITE** sheet and perform the vari
 
 #### Cons
 
--   Will require a *fair amount* of work recoding Excel formulas into R code (or other) \*\* as mentioned above though most of the formulas are simple, single cell references, many even referencing cells that reference cells, that..etc. In fact of the 443 cells that contain some sort of formula only 139 of the cells contain references to more than one cell. And only a small proportion reference many cells (i.e. a bit messier / time consuming to dig into)
+-   Will require a *fair amount* of work recoding Excel formulas into R code (or other) \*\* as mentioned above though most of the formulas are simple, single cell references, many even referencing cells that reference cells, that..etc. In fact of the 443 cells that contain some sort of formula only 139 of the cells contain references to more than one cell. And only a small proportion reference many cells (i.e. a bit messier / time consuming to dig into). In addition, many are simple *If(CELL = 0, " ", CELL)*- essentially changing just the way excel displays the information (blank vs 0)
 
 ![](spreadSheet_workthrough_files/figure-markdown_github/unnamed-chunk-7-1.png)
 
