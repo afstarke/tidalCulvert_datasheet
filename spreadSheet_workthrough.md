@@ -9,66 +9,37 @@ library(readxl)
 library(tidyxl)
 library(unpivotr)
 library(tidyverse)
+library(sparkline)
 ```
 
-<style>
-.column-left{
-  float: left;
-  width: 50%;
-  text-align: left;
-}
-.column-center{
-  display: inline-block;
-  width: 50%;
-  text-align: center;
-}
-</style>
 ``` r
 # TODO Start with basic read in of spreadsheet and extracting the proper cells.
 sheet <- "spreadsheets/Copy of Culvert37.xlsm" 
 # Tidy up the sheets. 
 # Selecting SUMMARY sheet here.
 cells <- xlsx_cells(sheet) %>% 
-  filter(is_blank == FALSE, sheet == "Data Sheet - SUMMARY") 
+  filter(is_blank == FALSE, sheet != "Data Sheet - BLANK") 
   
 cells
 ```
 
-    ## # A tibble: 581 x 21
+    ## # A tibble: 1,162 x 21
     ##    sheet      address   row   col is_blank data_type error logical numeric
     ##    <chr>      <chr>   <int> <int> <lgl>    <chr>     <chr> <lgl>     <dbl>
     ##  1 Data Shee~ A1          1     1 FALSE    character <NA>  NA          NA 
-    ##  2 Data Shee~ G4          4     7 FALSE    character <NA>  NA          NA 
-    ##  3 Data Shee~ L4          4    12 FALSE    numeric   <NA>  NA          37.
-    ##  4 Data Shee~ A5          5     1 FALSE    character <NA>  NA          NA 
-    ##  5 Data Shee~ G5          5     7 FALSE    character <NA>  NA          NA 
-    ##  6 Data Shee~ V5          5    22 FALSE    character <NA>  NA          NA 
-    ##  7 Data Shee~ Z5          5    26 FALSE    date      <NA>  NA          NA 
-    ##  8 Data Shee~ V6          6    22 FALSE    character <NA>  NA          NA 
-    ##  9 Data Shee~ Z6          6    26 FALSE    date      <NA>  NA          NA 
-    ## 10 Data Shee~ A7          7     1 FALSE    character <NA>  NA          NA 
-    ## # ... with 571 more rows, and 12 more variables: date <dttm>,
+    ##  2 Data Shee~ A5          5     1 FALSE    character <NA>  NA          NA 
+    ##  3 Data Shee~ G7          7     7 FALSE    character <NA>  NA          NA 
+    ##  4 Data Shee~ L7          7    12 FALSE    numeric   <NA>  NA          37.
+    ##  5 Data Shee~ A9          9     1 FALSE    character <NA>  NA          NA 
+    ##  6 Data Shee~ G9          9     7 FALSE    character <NA>  NA          NA 
+    ##  7 Data Shee~ V9          9    22 FALSE    character <NA>  NA          NA 
+    ##  8 Data Shee~ Z9          9    26 FALSE    date      <NA>  NA          NA 
+    ##  9 Data Shee~ V10        10    22 FALSE    character <NA>  NA          NA 
+    ## 10 Data Shee~ Z10        10    26 FALSE    date      <NA>  NA          NA 
+    ## # ... with 1,152 more rows, and 12 more variables: date <dttm>,
     ## #   character <chr>, character_formatted <list>, formula <chr>,
     ## #   is_array <lgl>, formula_ref <chr>, formula_group <int>, comment <chr>,
     ## #   height <dbl>, width <dbl>, style_format <chr>, local_format_id <int>
-
-Seems as though there are 2 approaches we can take: \* Extract the RAW values from the **Data Sheet - SITE** sheet and perform the various calculations/lookups using R or other (ArcMap)
-
-### Pros
-
--   More freedom and flexibility of up and down stream data management/analysis approaches, not limited to embedded excel formulas
--   
-
-### Cons
-
--   Will require a fair amount of recoding Excel formulas into R code (or other)
-
-There's a few issues (potential) that I've come across.
-
--   cells are merged which makes it hard to determine which cell actually contains the value of interest.
--   There are values that are selected using a formated control (like a dropdown) which can be very easily altered.
--   accessing these values is best done through the *Data Sheet - SUMMARY* tab.
--   There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. Unsure if this is an issue.
 
 Characters (aka Potential Keys):
 --------------------------------
@@ -82,20 +53,20 @@ characters <- cells[cells$data_type == "character", c("sheet", "address", "chara
 characters
 ```
 
-    ## # A tibble: 321 x 3
-    ##    sheet                address character                                 
-    ##    <chr>                <chr>   <chr>                                     
-    ##  1 Data Sheet - SUMMARY A1      "Tidal Crossing Summary Sheet\r\nNew Hamp~
-    ##  2 Data Sheet - SUMMARY G4      Crossing ID:                              
-    ##  3 Data Sheet - SUMMARY A5      Observer(s) & Organization:               
-    ##  4 Data Sheet - SUMMARY G5      Matthew Grasso, and Matthew Hamilton      
-    ##  5 Data Sheet - SUMMARY V5      Date:                                     
-    ##  6 Data Sheet - SUMMARY V6      Start Time:                               
-    ##  7 Data Sheet - SUMMARY A7      Municipality:                             
-    ##  8 Data Sheet - SUMMARY G7      Shelter Island                            
-    ##  9 Data Sheet - SUMMARY V7      End Time:                                 
-    ## 10 Data Sheet - SUMMARY A8      Stream Name:                              
-    ## # ... with 311 more rows
+    ## # A tibble: 691 x 3
+    ##    sheet             address character                                    
+    ##    <chr>             <chr>   <chr>                                        
+    ##  1 Data Sheet - SITE A1      "New Hampshire’s Tidal Crossing Assessment P~
+    ##  2 Data Sheet - SITE A5      SITE VISIT DETAILS (field assessment)        
+    ##  3 Data Sheet - SITE G7      Crossing ID:                                 
+    ##  4 Data Sheet - SITE A9      Observer(s) & Organization:                  
+    ##  5 Data Sheet - SITE G9      Matthew Grasso, Matthew Hamilton             
+    ##  6 Data Sheet - SITE V9      Date:                                        
+    ##  7 Data Sheet - SITE V10     Start Time:                                  
+    ##  8 Data Sheet - SITE A11     Municipality:                                
+    ##  9 Data Sheet - SITE G11     Shelter Island                               
+    ## 10 Data Sheet - SITE V11     End Time:                                    
+    ## # ... with 681 more rows
 
 Numerics (aka Potential Values):
 --------------------------------
@@ -108,30 +79,20 @@ numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")
 numerics
 ```
 
-    ## # A tibble: 248 x 3
-    ##    sheet                address numeric
-    ##    <chr>                <chr>     <dbl>
-    ##  1 Data Sheet - SUMMARY L4        37.0 
-    ##  2 Data Sheet - SUMMARY AA10       2.15
-    ##  3 Data Sheet - SUMMARY N12        2.00
-    ##  4 Data Sheet - SUMMARY N15        1.00
-    ##  5 Data Sheet - SUMMARY P15        1.00
-    ##  6 Data Sheet - SUMMARY N21        1.00
-    ##  7 Data Sheet - SUMMARY N22        1.00
-    ##  8 Data Sheet - SUMMARY N24        4.00
-    ##  9 Data Sheet - SUMMARY N26        4.00
-    ## 10 Data Sheet - SUMMARY P26        5.00
-    ## # ... with 238 more rows
-
-``` r
-# Careful here- this could overwrite work if a new file isn't created.
-# xlsx::write.xlsx(characters, 
-#                  file = "spreadsheets/extractedKey.xlsx", 
-#                  sheetName = "Likely keys") 
-# xlsx::write.xlsx(numerics, 
-#                  file = "spreadsheets/extractedKey.xlsx", 
-#                  sheetName = "Likely values", append = TRUE)
-```
+    ## # A tibble: 440 x 3
+    ##    sheet             address numeric
+    ##    <chr>             <chr>     <dbl>
+    ##  1 Data Sheet - SITE L7       37.0  
+    ##  2 Data Sheet - SITE AA14      2.15 
+    ##  3 Data Sheet - SITE AE14      0.760
+    ##  4 Data Sheet - SITE E46       1.00 
+    ##  5 Data Sheet - SITE I46       1.00 
+    ##  6 Data Sheet - SITE Y48       0.700
+    ##  7 Data Sheet - SITE AC48      2.00 
+    ##  8 Data Sheet - SITE A49       5.00 
+    ##  9 Data Sheet - SITE Y49       1.10 
+    ## 10 Data Sheet - SITE AC49      1.45 
+    ## # ... with 430 more rows
 
 Functions/Formulas:
 -------------------
@@ -145,42 +106,18 @@ formulas %>% head(5)
 ```
 
     ## # A tibble: 5 x 3
-    ##   sheet                address formula                
-    ##   <chr>                <chr>   <chr>                  
-    ## 1 Data Sheet - SUMMARY G4      'Data Sheet - SITE'!G7 
-    ## 2 Data Sheet - SUMMARY A5      'Data Sheet - SITE'!A9 
-    ## 3 Data Sheet - SUMMARY V5      'Data Sheet - SITE'!V9 
-    ## 4 Data Sheet - SUMMARY V6      'Data Sheet - SITE'!V10
-    ## 5 Data Sheet - SUMMARY A7      'Data Sheet - SITE'!A11
-
-Note that there are a fair number of formulas that simply reference a single cell from another sheet. An attempt at filtering these out
-
-``` r
-#TODO: Confirm we're not filtering anything important out here accidently.
-formulas %>% filter(!str_detect(formula, "Data"))
-```
-
-    ## # A tibble: 263 x 3
-    ##    sheet                address formula                                   
-    ##    <chr>                <chr>   <chr>                                     
-    ##  1 Data Sheet - SUMMARY N12     IF(AND(Calculations!D3>=3,Calculations!F3~
-    ##  2 Data Sheet - SUMMARY N16     IF(Calculations!A2<=1,1,IF(AND(Calculatio~
-    ##  3 Data Sheet - SUMMARY P16     IF(Calculations!B2<=1,1,IF(AND(Calculatio~
-    ##  4 Data Sheet - SUMMARY N17     AVERAGE(N14,IF(N15>P15,N15,P15),IF(N16>P1~
-    ##  5 Data Sheet - SUMMARY N19     N14                                       
-    ##  6 Data Sheet - SUMMARY N26     IF(Calculations!A14>6,1,IF(AND(Calculatio~
-    ##  7 Data Sheet - SUMMARY P26     IF(Calculations!D14>6,1,IF(AND(Calculatio~
-    ##  8 Data Sheet - SUMMARY N27     IF(Calculations!E14>3,1,IF(AND(Calculatio~
-    ##  9 Data Sheet - SUMMARY P27     IF(Calculations!F14>3,1,IF(AND(Calculatio~
-    ## 10 Data Sheet - SUMMARY N31     IF(N26>P26,IF(AND(N12=1,N26<=2),1,IF(OR(N~
-    ## # ... with 253 more rows
+    ##   sheet                address formula               
+    ##   <chr>                <chr>   <chr>                 
+    ## 1 Data Sheet - SITE    Z154    U260                  
+    ## 2 Data Sheet - SITE    AE154   Z260                  
+    ## 3 Data Sheet - SUMMARY G4      'Data Sheet - SITE'!G7
+    ## 4 Data Sheet - SUMMARY A5      'Data Sheet - SITE'!A9
+    ## 5 Data Sheet - SUMMARY V5      'Data Sheet - SITE'!V9
 
 Slice into these formulas
 -------------------------
 
-If we need to extract some values or explore what a formula is doing we can use xlex by passing the row of interest to the function.
-
-Yikes! On a few of these...
+If we need to extract some values or explore what a formula is doing we can use xlex by passing the row of interest to the function yielding a dataframe.
 
 ``` r
 # Finding constants within formulas:
@@ -188,13 +125,13 @@ Yikes! On a few of these...
 
 tokens <-
   cells %>%
-  filter(!is.na(formula)) %>%
-  select(row, col, formula) %>%
-  mutate(tokens = map(formula, xlex)) %>%
-  select(-formula)
+  filter(!is.na(formula)) %>% # filter out rows that don't contain a formula
+  select(sheet, address, row, col, formula) %>% 
+  mutate(tok = map(formula, xlex))  # using map make a colum containing a dataframe with the information from xlex()
+  # select(-formula)
 
 constants <- tokens %>% 
-  unnest(tokens) %>% 
+  unnest(tok) %>% 
   filter(type %in% c("error", "bool", "number", "text"))
 
 constants %>%
@@ -202,31 +139,116 @@ constants %>%
   print(n = Inf)
 ```
 
-    ## # A tibble: 22 x 2
-    ##    token       n
-    ##    <chr>   <int>
-    ##  1 0          81
-    ##  2 3          66
-    ##  3 5          56
-    ##  4 2          55
-    ##  5 1          53
-    ##  6 "\"\""     51
-    ##  7 4          45
-    ##  8 "\"D\""    35
-    ##  9 "\"R\""    35
-    ## 10 "\"U\""    35
-    ## 11 1.5         8
-    ## 12 TRUE        6
-    ## 13 1.2         4
-    ## 14 10          4
-    ## 15 12          4
-    ## 16 13          4
-    ## 17 2.3         4
-    ## 18 6           4
-    ## 19 0.5         2
-    ## 20 0.7         1
-    ## 21 0.8         1
-    ## 22 0.9         1
+    ## # A tibble: 27 x 2
+    ##    token        n
+    ##    <chr>    <int>
+    ##  1 0           81
+    ##  2 3           66
+    ##  3 5           56
+    ##  4 2           55
+    ##  5 1           54
+    ##  6 "\"\""      51
+    ##  7 4           45
+    ##  8 "\"D\""     35
+    ##  9 "\"R\""     35
+    ## 10 "\"U\""     35
+    ## 11 1.5          8
+    ## 12 TRUE         6
+    ## 13 "\"=2\""     5
+    ## 14 "\"=3\""     5
+    ## 15 "\"=4\""     5
+    ## 16 1.2          4
+    ## 17 10           4
+    ## 18 12           4
+    ## 19 13           4
+    ## 20 2.3          4
+    ## 21 6            4
+    ## 22 "\"=5\""     3
+    ## 23 0.5          2
+    ## 24 0.9          2
+    ## 25 0.7          1
+    ## 26 0.8          1
+    ## 27 100          1
+
+``` r
+reffinder <- function(tokencol){
+  refNu <- tokencol %>% as.data.frame() %>% 
+    group_by(type) %>% tally() %>% 
+    filter(type == "ref") %>% pluck(2)
+  return(refNu)
+}
+
+references <- tokens %>% 
+  mutate(cellrefs = map_int(.x = tok, .f = reffinder)) %>%  # Create cellrefs to hold the number of cells a formula references.
+  arrange(desc(cellrefs))
+references %>% head(10)
+```
+
+    ## # A tibble: 10 x 7
+    ##    sheet                address   row   col formula         tok   cellrefs
+    ##    <chr>                <chr>   <int> <int> <chr>           <lis>    <int>
+    ##  1 Data Sheet - SUMMARY N33        33    14 IF(N26>P26,IF(~ <tib~       60
+    ##  2 Data Sheet - SUMMARY N31        31    14 IF(N26>P26,IF(~ <tib~       22
+    ##  3 Data Sheet - SUMMARY N32        32    14 IF(AND(N17<=2,~ <tib~       17
+    ##  4 Data Sheet - SUMMARY X62        62    24 "IF(AG62 = \"R~ <tib~       17
+    ##  5 Data Sheet - SUMMARY X63        63    24 "IF(AG63 = \"R~ <tib~       17
+    ##  6 Data Sheet - SUMMARY X64        64    24 "IF(AG64 = \"R~ <tib~       17
+    ##  7 Data Sheet - SUMMARY X65        65    24 "IF(AG65 = \"R~ <tib~       17
+    ##  8 Data Sheet - SUMMARY X66        66    24 "IF(AG66 = \"R~ <tib~       17
+    ##  9 Data Sheet - SUMMARY X67        67    24 "IF(AG67 = \"R~ <tib~       17
+    ## 10 Data Sheet - SUMMARY X68        68    24 "IF(AG68 = \"R~ <tib~       17
+
+``` r
+# xlsx::write.xlsx(characters,
+#                  file = "spreadsheets/extractedKey.xlsx",
+#                  sheetName = "Likely keys")
+# xlsx::write.xlsx(numerics,
+#                  file = "spreadsheets/extractedKey.xlsx",
+#                  sheetName = "Likely values", append = TRUE)
+# references %>% select(-tok) %>% xlsx::write.xlsx(
+#                  file = "spreadsheets/extractedKey.xlsx",
+#                  sheetName = "formulaKey", append = TRUE)
+```
+
+Yikes! On a few of these...
+
+Next steps...
+-------------
+
+Seems as though there are 2 approaches we can take:
+
+-   Extract the RAW values from the **Data Sheet - SITE** sheet and perform the various calculations/lookups/joins etc using R or other (Python?, ArcMap?) to effectively recreate the **Data Sheet - SUMMARY** sheet.
+
+#### Pros
+
+-   More freedom and flexibility of up and down stream data management/analysis approaches, not limited to embedded excel formulas
+-   If any sensitivity analysis or altrerations to the prioritization calculations are to be explored those calculations can easily be altered; whereas now they exist in each individual excel file.
+-   At least in R, we can quickly find missing information from the 'raw' data sheet. Currently some formulas just yield more or less useless errors and are imported into R as '\#Div/O!'
+
+#### Cons
+
+-   Will require a *fair amount* of work recoding Excel formulas into R code (or other) \*\* as mentioned above though most of the formulas are simple, single cell references, many even referencing cells that reference cells, that..etc. In fact of the 443 cells that contain some sort of formula only 139 of the cells contain references to more than one cell. And only a small proportion reference many cells (i.e. a bit messier / time consuming to dig into)
+
+![](spreadSheet_workthrough_files/figure-markdown_github/unnamed-chunk-7-1.png)
+
+-   *OR* Just focus on extracting the values of interest, most of which are in the **Data Sheet - SUMMARY** tab.
+
+#### Pros
+
+-   It might be less work, but not clear how much less... Potentially not a huge amount less.
+
+#### Cons
+
+Pretty much covered by my Pros list above for the oher tactic.
+
+### Potential pifalls
+
+There's a few issues (potential) that I've come across.
+
+-   cells are merged which makes it hard to determine which cell actually contains the value of interest.
+-   There are values that are selected using a formated control (like a dropdown) which can be very easily altered.
+-   accessing these values is best done through the *Data Sheet - SUMMARY* tab.
+-   There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. Unsure if this is an issue.
 
 TO DOs:
 -------

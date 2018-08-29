@@ -13,22 +13,11 @@ library(readxl)
 library(tidyxl)
 library(unpivotr)
 library(tidyverse)
-
+library(sparkline)
 
     
 ```
-<style>
-.column-left{
-  float: left;
-  width: 50%;
-  text-align: left;
-}
-.column-center{
-  display: inline-block;
-  width: 50%;
-  text-align: center;
-}
-</style>
+
 
 ```{r}
 
@@ -37,33 +26,12 @@ sheet <- "spreadsheets/Copy of Culvert37.xlsm"
 # Tidy up the sheets. 
 # Selecting SUMMARY sheet here.
 cells <- xlsx_cells(sheet) %>% 
-  filter(is_blank == FALSE, sheet == "Data Sheet - SUMMARY") 
+  filter(is_blank == FALSE, sheet != "Data Sheet - BLANK") 
   
 cells
 
 ```
-Seems as though there are 2 approaches we can take:
-* Extract the RAW values from the **Data Sheet - SITE** sheet and perform the various calculations/lookups using R or other (ArcMap)  
 
-<div class = "column-left">
-
-### Pros 
-* More freedom and flexibility of up and down stream data management/analysis approaches, not limited to embedded excel formulas  
-* 
-
-</div>
-<div class = "column-right">
-### Cons
-* Will require a fair amount of recoding Excel formulas into R code (or other)
-
-</div>
-
-There's a few issues (potential) that I've come across.  
-
-* cells are merged which makes it hard to determine which cell actually contains the value of interest.  
-* There are values that are selected using a formated control (like a dropdown) which can be very easily altered.  
-  + accessing these values is best done through the *Data Sheet - SUMMARY* tab.  
-* There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. Unsure if this is an issue.
 
 
 ## Characters (aka Potential Keys):
@@ -84,17 +52,7 @@ numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")
 numerics
 ```
 
-```{r}
-# Careful here- this could overwrite work if a new file isn't created.
-# xlsx::write.xlsx(characters, 
-#                  file = "spreadsheets/extractedKey.xlsx", 
-#                  sheetName = "Likely keys") 
-# xlsx::write.xlsx(numerics, 
-#                  file = "spreadsheets/extractedKey.xlsx", 
-#                  sheetName = "Likely values", append = TRUE)
 
-  
-```
 
 ## Functions/Formulas:
 Where are the formulas? And what do they do?
@@ -104,14 +62,6 @@ formulas <- cells %>% filter(!is.na(formula)) %>% select(sheet, address, formula
 
 formulas %>% head(5)
 ```
-Note that there are a fair number of formulas that simply reference a single cell from another sheet. An attempt at filtering these out
-```{r}
-#TODO: Confirm we're not filtering anything important out here accidently.
-formulas %>% filter(!str_detect(formula, "Data")) %>% View()
-
-
-```
-
 
 ## Slice into these formulas
 If we need to extract some values or explore what a formula is doing we can use xlex by passing the row of interest to the function yielding a dataframe.
@@ -124,12 +74,12 @@ If we need to extract some values or explore what a formula is doing we can use 
 tokens <-
   cells %>%
   filter(!is.na(formula)) %>% # filter out rows that don't contain a formula
-  select(address, row, col, formula) %>% 
+  select(sheet, address, row, col, formula) %>% 
   mutate(tok = map(formula, xlex))  # using map make a colum containing a dataframe with the information from xlex()
   # select(-formula)
 
 constants <- tokens %>% 
-  unnest(tokens) %>% 
+  unnest(tok) %>% 
   filter(type %in% c("error", "bool", "number", "text"))
 
 constants %>%
@@ -146,21 +96,62 @@ reffinder <- function(tokencol){
 references <- tokens %>% 
   mutate(cellrefs = map_int(.x = tok, .f = reffinder)) %>%  # Create cellrefs to hold the number of cells a formula references.
   arrange(desc(cellrefs))
-
+references %>% head(10)
 # xlsx::write.xlsx(characters,
-#                  file = "spreadsheets/extractedKey_WORKING.xlsx",
+#                  file = "spreadsheets/extractedKey.xlsx",
 #                  sheetName = "Likely keys")
 # xlsx::write.xlsx(numerics,
-#                  file = "spreadsheets/extractedKey_WORKING.xlsx",
+#                  file = "spreadsheets/extractedKey.xlsx",
 #                  sheetName = "Likely values", append = TRUE)
 # references %>% select(-tok) %>% xlsx::write.xlsx(
-#                  file = "spreadsheets/extractedKey_WORKING.xlsx",
+#                  file = "spreadsheets/extractedKey.xlsx",
 #                  sheetName = "formulaKey", append = TRUE)
 
 ```
 
 
 Yikes! On a few of these...
+
+## Next steps...
+Seems as though there are 2 approaches we can take:  
+
+* Extract the RAW values from the **Data Sheet - SITE** sheet and perform the various calculations/lookups/joins etc using R or other (Python?, ArcMap?)  to effectively recreate the **Data Sheet - SUMMARY** sheet.
+
+
+#### Pros 
+* More freedom and flexibility of up and down stream data management/analysis approaches, not limited to embedded excel formulas  
+* If any sensitivity analysis or altrerations to the prioritization calculations are to be explored those calculations can easily be altered; whereas now they exist in each individual excel file.
+* At least in R, we can quickly find missing information from the 'raw' data sheet. Currently some formulas just yield more or less useless errors and are imported into R as '#Div/O!' 
+
+#### Cons
+* Will require a _fair amount_  of work recoding Excel formulas into R code (or other)
+  ** as mentioned above though most of the formulas are simple, single cell references, many even referencing cells that reference cells, that..etc. In fact of the 443 cells that contain some sort of formula only 139 of the cells contain references to more than one cell. And only a small proportion reference many cells (i.e. a bit messier / time consuming to dig into)
+  
+```{r echo=FALSE, fig.height=3, fig.width=3, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+references %>% ggplot(aes(x = cellrefs)) + 
+  geom_histogram(binwidth = 2) + 
+  labs(x = "Number of cells \n referenced in a forumla")
+
+```
+
+
+
+* *OR* Just focus on extracting the values of interest, most of which are in the **Data Sheet - SUMMARY** tab.   
+
+#### Pros
+* It might be less work, but not clear how much less... Potentially not a huge amount less.
+
+#### Cons
+Pretty much covered by my Pros list above for the oher tactic. 
+
+### Potential pifalls
+There's a few issues (potential) that I've come across.  
+
+* cells are merged which makes it hard to determine which cell actually contains the value of interest.  
+* There are values that are selected using a formated control (like a dropdown) which can be very easily altered.  
+  + accessing these values is best done through the *Data Sheet - SUMMARY* tab.  
+* There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. Unsure if this is an issue.
 
 
 ## TO DOs:  
