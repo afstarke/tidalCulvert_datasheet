@@ -14,20 +14,50 @@ library(tidyxl)
 library(unpivotr)
 library(tidyverse)
 
+
+    
 ```
+<style>
+.column-left{
+  float: left;
+  width: 50%;
+  text-align: left;
+}
+.column-center{
+  display: inline-block;
+  width: 50%;
+  text-align: center;
+}
+</style>
 
 ```{r}
 
 # TODO Start with basic read in of spreadsheet and extracting the proper cells.
-sheet <- "spreadsheets/Copy of Culvert37.xlsm" #IDEA perhaps build this as a shiny gadget to allow for pushing onto the web for others?
-
-
+sheet <- "spreadsheets/Copy of Culvert37.xlsm" 
+# Tidy up the sheets. 
+# Selecting SUMMARY sheet here.
 cells <- xlsx_cells(sheet) %>% 
   filter(is_blank == FALSE, sheet == "Data Sheet - SUMMARY") 
   
 cells
 
 ```
+Seems as though there are 2 approaches we can take:
+* Extract the RAW values from the **Data Sheet - SITE** sheet and perform the various calculations/lookups using R or other (ArcMap)  
+
+<div class = "column-left">
+
+### Pros 
+* More freedom and flexibility of up and down stream data management/analysis approaches, not limited to embedded excel formulas  
+* 
+
+</div>
+<div class = "column-right">
+### Cons
+* Will require a fair amount of recoding Excel formulas into R code (or other)
+
+</div>
+
 There's a few issues (potential) that I've come across.  
 
 * cells are merged which makes it hard to determine which cell actually contains the value of interest.  
@@ -132,8 +162,6 @@ get.cell.value <- function(tidysheet, cellOfInterest){
   
   val <- tidysheet %>% 
     filter(address == cellOfInterest) %>% 
-    # select(formula) %>% 
-    # as.character()
     pull(formula)
   return(val)
   

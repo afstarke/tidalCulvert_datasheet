@@ -11,11 +11,23 @@ library(unpivotr)
 library(tidyverse)
 ```
 
+<style>
+.column-left{
+  float: left;
+  width: 50%;
+  text-align: left;
+}
+.column-center{
+  display: inline-block;
+  width: 50%;
+  text-align: center;
+}
+</style>
 ``` r
 # TODO Start with basic read in of spreadsheet and extracting the proper cells.
-sheet <- "spreadsheets/Copy of Culvert37.xlsm" #IDEA perhaps build this as a shiny gadget to allow for pushing onto the web for others?
-
-
+sheet <- "spreadsheets/Copy of Culvert37.xlsm" 
+# Tidy up the sheets. 
+# Selecting SUMMARY sheet here.
 cells <- xlsx_cells(sheet) %>% 
   filter(is_blank == FALSE, sheet == "Data Sheet - SUMMARY") 
   
@@ -39,6 +51,17 @@ cells
     ## #   character <chr>, character_formatted <list>, formula <chr>,
     ## #   is_array <lgl>, formula_ref <chr>, formula_group <int>, comment <chr>,
     ## #   height <dbl>, width <dbl>, style_format <chr>, local_format_id <int>
+
+Seems as though there are 2 approaches we can take: \* Extract the RAW values from the **Data Sheet - SITE** sheet and perform the various calculations/lookups using R or other (ArcMap)
+
+### Pros
+
+-   More freedom and flexibility of up and down stream data management/analysis approaches, not limited to embedded excel formulas
+-   
+
+### Cons
+
+-   Will require a fair amount of recoding Excel formulas into R code (or other)
 
 There's a few issues (potential) that I've come across.
 
@@ -77,7 +100,7 @@ characters
 Numerics (aka Potential Values):
 --------------------------------
 
-Similar to the characters above, these are assumed to be data values but could in fact be keys.
+Similar to the characters above, these are assumed to be data values but some could in fact be keys.
 
 ``` r
 numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")]
@@ -225,8 +248,6 @@ get.cell.value <- function(tidysheet, cellOfInterest){
   
   val <- tidysheet %>% 
     filter(address == cellOfInterest) %>% 
-    # select(formula) %>% 
-    # as.character()
     pull(formula)
   return(val)
   
