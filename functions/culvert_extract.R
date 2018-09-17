@@ -2,16 +2,28 @@
 
 # Helper function to look up values in a cell of interest and map them to a column in a tidy culvert sheet.
 # 
+# TODO : Recreate this using the tidied cells column 
 
-culvert_extract <- function(tidycells, sheet, targetCell, plucker){
+# culvert_extract function
+# Pulls value from specified sheet and cell to return value
+# Returns NA if NULL value returned by query of excel sheet (as happens if cell is blank and thus filtered early in the process)
+
+
+culvert_extract <- function(tidycells, sheetOI, celladdress){
   
   val <- tidycells %>% 
-    filter(sheet == sheet) %>% 
-    filter(address == targetCell) %>% 
-    pluck(plucker)
-  return(val)
+    filter(sheet == sheetOI) %>% 
+    filter(address == celladdress) %>% 
+    pull(value)
+  
+  if(length(val) == 0){
+    return(NA)
+  } else{
+    return(val)
+  }
+  
   
 }
 #   
 
-test2 <- test1 %>% mutate(observers = map_chr(.x = tidycells, .f = ~culvert_extract(.x, 'Data Sheet - SITE', "G9", 'character')))
+culvert_extract(cells, "Data Sheet - SITE", "G9")
