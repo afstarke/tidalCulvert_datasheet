@@ -47,4 +47,4 @@ test2 <- test1 %>% mutate(crossingID = map_chr(tidycells, .f = ~culvert_extract(
   
   select(-tidycells, -filePath)
 
-xlsx::write.xlsx(test2, file = "outputs/summaryRoutput.xlsx", showNA = FALSE)
+# xlsx::write.xlsx(test2, file = "outputs/summaryRoutput.xlsx", showNA = FALSE)
