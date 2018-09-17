@@ -3,7 +3,7 @@
 # using functional programming
 
 # Read in files from specified folder
-# Create tibble with columns of spreadsheet name, size, last modified, list column with tidy 'cells' 
+# Create tibble with columns of spreadsheet name, size, last modified, and list column with tidyxl 'cells' 
 # Then use map and mutate functions to extract out the bits that are needed. 
 # Can be done additively and transparently as more variables are desired.
 

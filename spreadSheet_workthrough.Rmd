@@ -150,7 +150,7 @@ There's a few issues (potential) that I've come across.
 * cells are merged which makes it hard to determine which cell actually contains the value of interest.  
 * There are values that are selected using a formated control (like a dropdown) which can be very easily altered.  
   + accessing these values is best done through the *Data Sheet - SUMMARY* tab.  
-* There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. Unsure if this is an issue.
+* There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. I believe this is caused by IF(cell = 0, " ", cell) formulas.
 
 
 ## TO DOs:  
@@ -182,6 +182,12 @@ get.cell.value(cells, "AA65")
 
 
 ```
+
+### Strategy for bringing in data
+
+There are 2 approaches: 
+1) Bring a single file in, extract all the cells/data of interest and populate a dataframe. Then iterate over the list of files.
+2) Go the purrr approach and import all files as a list column (the lists being tidyxl dataframes), then extract values as columns into the dataframe using mutate
 
 
 
