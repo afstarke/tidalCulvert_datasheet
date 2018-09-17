@@ -26,4 +26,5 @@ culvert_extract <- function(tidycells, sheetOI, celladdress){
 }
 #   
 
-culvert_extract(cells, "Data Sheet - SITE", "G9")
+culvert_extract(cells, "Data Sheet - SITE", "Z9") %>% as.numeric() %>% as.Date(origin = "1899-12-30")
+culvert_extract(cells, "Data Sheet - SITE", "Z9") %>% as.numeric()
