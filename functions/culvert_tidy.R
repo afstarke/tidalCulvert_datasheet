@@ -34,17 +34,4 @@ culvert_tidy <- function(folder){
 
 test1 <- culvert_tidy("C:/Users/astarke/Desktop/Culvert Excel Sheets")
 
-# Build off of test1
-test2 <- test1 %>% mutate(crossingID = map_chr(tidycells, .f = ~culvert_extract(.x, "Data Sheet - SITE", "L7")),
-                          observers = map_chr(tidycells, .f = ~culvert_extract(.x, "Data Sheet - SITE", "G9")),
-                          # dateAssessed = as.Date(map_dbl(tidycells, .f = ~culvert_extract(.x, "Data Sheet - SITE", "Z9"))),
-                          upstreamChannelwidth = map_chr(tidycells, .f = ~culvert_extract(.x, "Data Sheet - SITE", "F243")),
-                          dwnstreamChannelwidth = map_chr(tidycells, .f = ~culvert_extract(.x, "Data Sheet - SITE", "K243")),
-                          upstreammaxPoolwidth = map_chr(tidycells, .f = ~culvert_extract(.x, "Data Sheet - SITE", "F245")),
-                          dwnstreammaxPoolwidth = map_chr(tidycells, .f = ~culvert_extract(.x, "Data Sheet - SITE", "K245")),
-                          LiDarHt_CL = map_chr(tidycells, .f = ~culvert_extract(.x, "Data Sheet - SUMMARY", "J54")),
-                          streamName = map_chr(tidycells, .f = ~culvert_extract(.x, "Data Sheet - SITE", "G12"))) %>% 
-  
-  select(-tidycells, -filePath)
-
-# xlsx::write.xlsx(test2, file = "outputs/summaryRoutput.xlsx", showNA = FALSE)
+#
