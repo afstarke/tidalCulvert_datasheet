@@ -49,6 +49,4 @@ culvert_tidy <- function(folder){
   
 }
 
-test1 <- culvert_tidy("C:/Users/astarke/Desktop/Culvert Excel Sheets")
-
 #
