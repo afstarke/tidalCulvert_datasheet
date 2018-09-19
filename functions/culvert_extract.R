@@ -56,7 +56,3 @@ decodeSheet <- function(tidyxlcells){
 
 
 
-decodedSheet2 <- test1 %>% mutate(decoded = map(.x = tidycells, .f = ~decodeSheet(.x)))
-
-decodedSheet2 %>% select(filenames, decoded) %>% unnest() %>% select(filenames, dataName, values) %>% spread(key = dataName, value = values) -> a
-
