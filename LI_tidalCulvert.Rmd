@@ -11,6 +11,8 @@ library(readxl)
 library(tidyxl)
 library(unpivotr)
 library(tidyverse)
+library(sf)
+library(mapview)
 
 keysheet <- read_excel("spreadsheets/key.xlsx")
 
@@ -20,8 +22,18 @@ source("functions/culvert_extract.R")
 
 ```{r}
 
-test1 <- culvert_tidy("spreadsheets/Ex")
+tidysheets <- culvert_tidy("../../Desktop/Culvert Excel Sheets")
 
+LIculverts <- tidysheets %>% mutate(decoded = map(.x = tidycells, .f = ~decodeSheet(.x))) # this is where the sausage is made. 
+
+
+LIculvertData <- LIculverts %>% 
+  select(filenames, decoded) %>% 
+  unnest() %>% select(filenames, dataName, values) %>% 
+  spread(key = dataName, value = values)
+
+LIculvert_GISpts <- st_read("M:/Projects/LI/Culvert_Assessment/data/Tidal Crossings/TidalCrossings_20180712.shp")
+mapview(LIculvert_GISpts)
 
 ```
 
