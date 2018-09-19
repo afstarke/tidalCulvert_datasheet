@@ -1,0 +1,27 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+
+library(readr)
+library(readxl)
+library(tidyxl)
+library(unpivotr)
+library(tidyverse)
+
+keysheet <- read_excel("spreadsheets/key.xlsx")
+
+source("functions/culvert_tidy.R")
+source("functions/culvert_extract.R")    
+```
+
+```{r}
+
+test1 <- culvert_tidy("spreadsheets/Ex")
+
+
+```
+
