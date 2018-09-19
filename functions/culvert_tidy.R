@@ -7,8 +7,14 @@
 # Then use map and mutate functions to extract out the bits that are needed. 
 # Can be done additively and transparently as more variables are desired.
 
-
-
+# ---- culvert_fetch
+#' Tidy up spread sheet contents using tidyxl for later gathering
+#' and summarizing across several files.
+#' 
+#' @param filepath A path to excel file containing Tidal Culvert datasheet.
+#' @return tidyxl dataframe of tidy cell contents
+#' 
+#' 
 culvert_fetch <- function(filepath){
   cells <- xlsx_cells(filepath) %>% 
   filter(sheet != "Data Sheet - BLANK") %>% 
@@ -19,6 +25,17 @@ culvert_fetch <- function(filepath){
   return(cells)
 }
 
+
+# ---- culvert_tidy
+#' Create a tidy data frame of tidal culvert datasheets with 
+#' a column containing tidyxl cells for each cooresponding file.
+#' 
+#' @param folder A path to the folder containing Tidal Culvert datasheets.
+#' @return dataframe of file information along with a  column of tidy cell contents
+#' from tidyxl.
+#' 
+#'
+#'
 culvert_tidy <- function(folder){
   
   culvertFolder <- file.path(folder)
