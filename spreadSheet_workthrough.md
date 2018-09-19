@@ -1,7 +1,9 @@
 Tidal Spreadsheet fun
 ================
 
-read in spreadsheet with tidyxl
+Take 2: After some digging into the task of extracting data from these spreadsheets, and the prospects of additional analyses (prioritization sensitivity, perhaps) as well as easing the management of field and desktop assessment needs, a new(ish) approach is laid out below. In general a reboot of the teams initial proposal of using a sort of look up key to identify the locations of important data from the spreadsheets.
+
+To begin with, this process relies heavily on the tidyxl package, as well as the tidyverse packages more broadly.
 
 ``` r
 library(readr)
@@ -9,14 +11,20 @@ library(readxl)
 library(tidyxl)
 library(unpivotr)
 library(tidyverse)
-library(sparkline)
+
+keysheet <- read_excel("spreadsheets/key.xlsx")
+
+source("functions/culvert_tidy.R")
+source("functions/culvert_extract.R")    
 ```
+
+Using tidyxl's xlsx\_cells() function we pull in all the cells from a given excel file. The cells arrive in a tidy data fashion where each row holds the data value, some formating information, data type, and the location in which it lives (the sheet and cell, specifically).
+Below is a snippet of a single sheet read into R using tidxl::xlsx\_cells()
 
 ``` r
 # TODO Start with basic read in of spreadsheet and extracting the proper cells.
 sheet <- "spreadsheets/Copy of Culvert37.xlsm" 
 # Tidy up the sheets. 
-# Selecting SUMMARY sheet here.
 cells <- xlsx_cells(sheet) %>% 
   filter(is_blank == FALSE, sheet != "Data Sheet - BLANK") 
   
@@ -41,195 +49,54 @@ cells
     ## #   is_array <lgl>, formula_ref <chr>, formula_group <int>, comment <chr>,
     ## #   height <dbl>, width <dbl>, style_format <chr>, local_format_id <int>
 
-Characters (aka Potential Keys):
---------------------------------
-
-Below (and in extractedKey.xlsx) are extracted *character* values with their associated cell address.
-**NOTE:** Some of these cells may in fact be data values and not keys.
+The next step is to scale this up to capture all the datasheets on hand. We do this by creating two functions that work together. The first, **culvert\_fetch()**, fetches the tidyxl cells when given a file path name. The second function, **culvert\_tidy**, produces a data frame containing all the files within the supplied folder, a few helpful bits of info and a column containing the tidyxl cells from the output of **culvert\_fetch()** for each data sheet.
 
 ``` r
-characters <- cells[cells$data_type == "character", c("sheet", "address", "character")]
-
-characters
+culvert_fetch
 ```
 
-    ## # A tibble: 691 x 3
-    ##    sheet             address character                                    
-    ##    <chr>             <chr>   <chr>                                        
-    ##  1 Data Sheet - SITE A1      "New Hampshire’s Tidal Crossing Assessment P~
-    ##  2 Data Sheet - SITE A5      SITE VISIT DETAILS (field assessment)        
-    ##  3 Data Sheet - SITE G7      Crossing ID:                                 
-    ##  4 Data Sheet - SITE A9      Observer(s) & Organization:                  
-    ##  5 Data Sheet - SITE G9      Matthew Grasso, Matthew Hamilton             
-    ##  6 Data Sheet - SITE V9      Date:                                        
-    ##  7 Data Sheet - SITE V10     Start Time:                                  
-    ##  8 Data Sheet - SITE A11     Municipality:                                
-    ##  9 Data Sheet - SITE G11     Shelter Island                               
-    ## 10 Data Sheet - SITE V11     End Time:                                    
-    ## # ... with 681 more rows
-
-Numerics (aka Potential Values):
---------------------------------
-
-Similar to the characters above, these are assumed to be data values but some could in fact be keys.
+    ## function (filepath) 
+    ## {
+    ##     cells <- xlsx_cells(filepath) %>% filter(sheet != "Data Sheet - BLANK") %>% 
+    ##         select(sheet, address, data_type:character) %>% gather(error:character, 
+    ##         key = "dataType", value = "value") %>% filter(!is.na(value)) %>% 
+    ##         mutate(same = ifelse(data_type == dataType, 1, 0))
+    ##     return(cells)
+    ## }
 
 ``` r
-numerics <- cells[cells$data_type == "numeric", c("sheet", "address", "numeric")]
-
-numerics
+culvert_tidy
 ```
 
-    ## # A tibble: 440 x 3
-    ##    sheet             address numeric
-    ##    <chr>             <chr>     <dbl>
-    ##  1 Data Sheet - SITE L7       37.0  
-    ##  2 Data Sheet - SITE AA14      2.15 
-    ##  3 Data Sheet - SITE AE14      0.760
-    ##  4 Data Sheet - SITE E46       1.00 
-    ##  5 Data Sheet - SITE I46       1.00 
-    ##  6 Data Sheet - SITE Y48       0.700
-    ##  7 Data Sheet - SITE AC48      2.00 
-    ##  8 Data Sheet - SITE A49       5.00 
-    ##  9 Data Sheet - SITE Y49       1.10 
-    ## 10 Data Sheet - SITE AC49      1.45 
-    ## # ... with 430 more rows
-
-Functions/Formulas:
--------------------
-
-Where are the formulas? And what do they do?
+    ## function (folder) 
+    ## {
+    ##     culvertFolder <- file.path(folder)
+    ##     culvertFiles <- list.files(culvertFolder) %>% as.tibble()
+    ##     culvertFiles <- culvertFiles %>% rename(filenames = value)
+    ##     culvertFiles <- culvertFiles %>% mutate(lastChanges = as.POSIXct(map_dbl(.x = filenames, 
+    ##         .f = ~file.info(paste(folder, .x, sep = "/"))$mtime), 
+    ##         origin = "1970-01-01"), filePath = paste(folder, filenames, 
+    ##         sep = "/"))
+    ##     culvertFiles <- culvertFiles %>% mutate(tidycells = map(.x = filePath, 
+    ##         .f = culvert_fetch))
+    ##     return(culvertFiles)
+    ## }
 
 ``` r
-formulas <- cells %>% filter(!is.na(formula)) %>% select(sheet, address, formula)
-
-formulas %>% head(5)
+test1 <- culvert_tidy("spreadsheets/Ex")
 ```
 
-    ## # A tibble: 5 x 3
-    ##   sheet                address formula               
-    ##   <chr>                <chr>   <chr>                 
-    ## 1 Data Sheet - SITE    Z154    U260                  
-    ## 2 Data Sheet - SITE    AE154   Z260                  
-    ## 3 Data Sheet - SUMMARY G4      'Data Sheet - SITE'!G7
-    ## 4 Data Sheet - SUMMARY A5      'Data Sheet - SITE'!A9
-    ## 5 Data Sheet - SUMMARY V5      'Data Sheet - SITE'!V9
-
-Slice into these formulas
--------------------------
-
-If we need to extract some values or explore what a formula is doing we can use xlex by passing the row of interest to the function yielding a dataframe.
-
-``` r
-# Finding constants within formulas:
-# directly from : https://nacnudus.github.io/tidyxl/articles/smells.html
-
-tokens <-
-  cells %>%
-  filter(!is.na(formula)) %>% # filter out rows that don't contain a formula
-  select(sheet, address, row, col, formula) %>% 
-  mutate(tok = map(formula, xlex))  # using map make a colum containing a dataframe with the information from xlex()
-  # select(-formula)
-
-constants <- tokens %>% 
-  unnest(tok) %>% 
-  filter(type %in% c("error", "bool", "number", "text"))
-
-constants %>%
-  count(token, sort = TRUE) %>%
-  print(n = Inf)
-```
-
-    ## # A tibble: 27 x 2
-    ##    token        n
-    ##    <chr>    <int>
-    ##  1 0           81
-    ##  2 3           66
-    ##  3 5           56
-    ##  4 2           55
-    ##  5 1           54
-    ##  6 "\"\""      51
-    ##  7 4           45
-    ##  8 "\"D\""     35
-    ##  9 "\"R\""     35
-    ## 10 "\"U\""     35
-    ## 11 1.5          8
-    ## 12 TRUE         6
-    ## 13 "\"=2\""     5
-    ## 14 "\"=3\""     5
-    ## 15 "\"=4\""     5
-    ## 16 1.2          4
-    ## 17 10           4
-    ## 18 12           4
-    ## 19 13           4
-    ## 20 2.3          4
-    ## 21 6            4
-    ## 22 "\"=5\""     3
-    ## 23 0.5          2
-    ## 24 0.9          2
-    ## 25 0.7          1
-    ## 26 0.8          1
-    ## 27 100          1
-
-``` r
-reffinder <- function(tokencol){
-  refNu <- tokencol %>% as.data.frame() %>% 
-    group_by(type) %>% tally() %>% 
-    filter(type == "ref") %>% pluck(2)
-  return(refNu)
-}
-
-references <- tokens %>% 
-  mutate(cellrefs = map_int(.x = tok, .f = reffinder)) %>%  # Create cellrefs to hold the number of cells a formula references.
-  arrange(desc(cellrefs))
-references %>% head(10)
-```
-
-    ## # A tibble: 10 x 7
-    ##    sheet                address   row   col formula         tok   cellrefs
-    ##    <chr>                <chr>   <int> <int> <chr>           <lis>    <int>
-    ##  1 Data Sheet - SUMMARY N33        33    14 IF(N26>P26,IF(~ <tib~       60
-    ##  2 Data Sheet - SUMMARY N31        31    14 IF(N26>P26,IF(~ <tib~       22
-    ##  3 Data Sheet - SUMMARY N32        32    14 IF(AND(N17<=2,~ <tib~       17
-    ##  4 Data Sheet - SUMMARY X62        62    24 "IF(AG62 = \"R~ <tib~       17
-    ##  5 Data Sheet - SUMMARY X63        63    24 "IF(AG63 = \"R~ <tib~       17
-    ##  6 Data Sheet - SUMMARY X64        64    24 "IF(AG64 = \"R~ <tib~       17
-    ##  7 Data Sheet - SUMMARY X65        65    24 "IF(AG65 = \"R~ <tib~       17
-    ##  8 Data Sheet - SUMMARY X66        66    24 "IF(AG66 = \"R~ <tib~       17
-    ##  9 Data Sheet - SUMMARY X67        67    24 "IF(AG67 = \"R~ <tib~       17
-    ## 10 Data Sheet - SUMMARY X68        68    24 "IF(AG68 = \"R~ <tib~       17
-
-``` r
-# xlsx::write.xlsx(characters,
-#                  file = "spreadsheets/extractedKey.xlsx",
-#                  sheetName = "Likely keys")
-# xlsx::write.xlsx(numerics,
-#                  file = "spreadsheets/extractedKey.xlsx",
-#                  sheetName = "Likely values", append = TRUE)
-# references %>% select(-tok) %>% xlsx::write.xlsx(
-#                  file = "spreadsheets/extractedKey.xlsx",
-#                  sheetName = "formulaKey", append = TRUE)
-```
-
-Yikes! On a few of these...
-
-Next steps...
--------------
-
-Seems as though there are 2 approaches we can take:
-
-Extract the RAW values from the **Data Sheet - SITE** sheet and perform the various calculations/lookups/joins etc using R or other (Python?, ArcMap?) to effectively recreate the **Data Sheet - SUMMARY** sheet.
+From this we can start extracting the parts we want from the data sheet. To ease that process we'll rely on a pair of functions and a *key* spreadsheet for guiding the extraction of the key bits. To understand the process behind these next few operations we need to understand how things are coming together here. Essentially for each row of data in the , we now have one column that contains a full spreadsheet's worth of data. For each item of interest we need to give it's location within that spreadsheet (which if luck is on our side is found consistently through out all these files...) and pull it out from the 'raw' data form it's in and pop it into an orderly, labelled, decoded sheet. And to ensure that nothing is mixed up in the process we'll add that new decoded data frame (or spreadsheet for sake of argument) as a new column to our already existing data frame
 
 #### Pros
 
 -   More freedom and flexibility of up and down stream data management/analysis approaches, not limited to embedded excel formulas
--   If any sensitivity analysis or altrerations to the prioritization calculations are to be explored those calculations can easily be altered; whereas now they exist in each individual excel file.
+-   If any sensitivity analysis or alterations to the prioritization calculations are to be explored those calculations can easily be altered; whereas now they exist in each individual excel file.
 -   At least in R, we can quickly find missing information from the 'raw' data sheet. Currently some formulas just yield more or less useless errors and are imported into R as '\#Div/O!'
 
 #### Cons
 
--   Will require a *fair amount* of work recoding Excel formulas into R code (or other) \*\* as mentioned above though most of the formulas are simple, single cell references, many even referencing cells that reference cells, that..etc. In fact of the 443 cells that contain some sort of formula only 139 of the cells contain references to more than one cell. And only a small proportion reference many cells (i.e. a bit messier / time consuming to dig into). In addition, many are simple *If(CELL = 0, " ", CELL)*- essentially changing just the way excel displays the information (blank vs 0)
-
-![](spreadSheet_workthrough_files/figure-markdown_github/unnamed-chunk-7-1.png)
+-   Will require a *fair amount* of work re-coding Excel formulas into R code (or other) \*\* as mentioned above though most of the formulas are simple, single cell references, many even referencing cells that reference cells, that..etc. In fact of the 443 cells that contain some sort of formula only 139 of the cells contain references to more than one cell. And only a small proportion reference many cells (i.e. a bit messier / time consuming to dig into). In addition, many are simple *If(CELL = 0, " ", CELL)*- essentially changing just the way excel displays the information (blank vs 0)
 
 *OR* Just focus on extracting the values of interest, most of which are in the **Data Sheet - SUMMARY** tab.
 
@@ -246,9 +113,9 @@ Pretty much covered by my Pros list above for the other tactic.
 There's a few issues (potential) that I've come across.
 
 -   cells are merged which makes it hard to determine which cell actually contains the value of interest.
--   There are values that are selected using a formated control (like a dropdown) which can be very easily altered.
+-   There are values that are selected using a formatted control (like a drop-down) which can be very easily altered.
 -   accessing these values is best done through the *Data Sheet - SUMMARY* tab.
--   There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. Unsure if this is an issue.
+-   There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. I believe this is caused by IF(cell = 0, " ", cell) formulas.
 
 TO DOs:
 -------
@@ -257,10 +124,10 @@ TO DOs:
 
 -   **VERY IMPORTANT** work only in the 'extractedKey\_WORKING' file. The other file will/can be overwritten.
 
--   Once this new master lookup/key is build here's the game plan.
--   Create lookup in R using key-value pairs built from the extractedKey file
--   within this lookup retain the 'expected keys' in a colum to act as an error catcher on data extractions later.
--   Need to extract lookup tables in Lookup tab to form joins to link data value with data description (7 = Riprap under the Wingwall Materials dropdown.)
+-   Once this new master look-up/key is build here's the game plan.
+-   Create look-up in R using key-value pairs built from the extractedKey file
+-   within this look-up retain the 'expected keys' in a column to act as an error catcher on data extractions later.
+-   Need to extract look-up tables in Lookup tab to form joins to link data value with data description (7 = Riprap under the Wingwall Materials dropdown.)
 
 ``` r
 # Helper function to look up values in a cell of interest.
@@ -279,3 +146,7 @@ get.cell.value(cells, "AA65")
 ```
 
     ## [1] "IF(AA111=0,\"\", AA111)"
+
+### Strategy for bringing in data
+
+There are 2 approaches: 1) Bring a single file in, extract all the cells/data of interest and populate a data frame. Then iterate over the list of files. 2) Go the purrr approach and import all files as a list column (the lists being tidyxl data frames), then extract values as columns into the data frame using mutate
