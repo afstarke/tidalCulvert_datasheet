@@ -1,7 +1,10 @@
 Tidal Spreadsheet fun
 ================
 
-Take 2: After some digging into the task of extracting data from these spreadsheets, and the prospects of additional analyses (prioritization sensitivity, perhaps) as well as easing the management of field and desktop assessment needs, a new(ish) approach is laid out below. In general a reboot of the teams initial proposal of using a sort of look up key to identify the locations of important data from the spreadsheets.
+Take 2:
+-------
+
+After some digging into the task of extracting data from these spreadsheets, and the prospects of additional analyses (prioritization sensitivity, perhaps) as well as easing the management of field and desktop assessment needs, a new(ish) approach is laid out below. In general a reboot of the teams initial proposal of using a sort of look up key to identify the locations of important data from the spreadsheets.
 
 To begin with, this process relies heavily on the tidyxl package, as well as the tidyverse packages more broadly.
 
@@ -84,9 +87,76 @@ culvert_tidy
 
 ``` r
 test1 <- culvert_tidy("spreadsheets/Ex")
+
+glimpse(test1)
 ```
 
-From this we can start extracting the parts we want from the data sheet. To ease that process we'll rely on a pair of functions and a *key* spreadsheet for guiding the extraction of the key bits. To understand the process behind these next few operations we need to understand how things are coming together here. Essentially for each row of data in the , we now have one column that contains a full spreadsheet's worth of data. For each item of interest we need to give it's location within that spreadsheet (which if luck is on our side is found consistently through out all these files...) and pull it out from the 'raw' data form it's in and pop it into an orderly, labelled, decoded sheet. And to ensure that nothing is mixed up in the process we'll add that new decoded data frame (or spreadsheet for sake of argument) as a new column to our already existing data frame
+    ## Observations: 3
+    ## Variables: 4
+    ## $ filenames   <chr> "Copy of Tidal Field Data blank.xlsm", "Tidal Fiel...
+    ## $ lastChanges <dttm> 2018-08-14 11:38:50, 2018-08-14 11:38:50, 2018-09...
+    ## $ filePath    <chr> "spreadsheets/Ex/Copy of Tidal Field Data blank.xl...
+    ## $ tidycells   <list> [<# A tibble: 1,045 x 6,    sheet                ...
+
+``` r
+glimpse(test1$tidycells[[1]])
+```
+
+    ## Observations: 1,045
+    ## Variables: 6
+    ## $ sheet     <chr> "Data Sheet - SUMMARY", "Data Sheet - SUMMARY", "Dat...
+    ## $ address   <chr> "N14", "N15", "P15", "N16", "P16", "N17", "N19", "N3...
+    ## $ data_type <chr> "error", "error", "error", "error", "error", "error"...
+    ## $ dataType  <chr> "error", "error", "error", "error", "error", "error"...
+    ## $ value     <chr> "#DIV/0!", "#DIV/0!", "#DIV/0!", "#DIV/0!", "#DIV/0!...
+    ## $ same      <dbl> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1...
+
+From this we can start extracting the parts we want from the data sheet. To ease that process we'll rely on a pair of functions and a ***key*** spreadsheet for guiding the extraction of the bits we want. To follow the process behind these next few operations we need to understand how things are coming together here. Essentially each row in the tidy culvert data frame contains a column with all the data from the original tidal culvert field assessment datasheets. Given the complexity of these datasheets and the lack of consistent orientations between data values and data keys (or data and variable name if you will) each item of interest needs to be mappped out individually using a key that provides the location within that spreadsheet that that value of interest is found (which if luck is on our side is found consistently through out all these files...Should be...) and a name that we want to give that value. Once the key is built (note the code will run at anytime and return only those values that are mapped out in the key) it's fed into a function that will pull out the 'raw' data form the spreadsheet (which now is that tidycells column) and pop it into an orderly, labelled, decoded sheet. And to ensure that nothing is mixed up in the process we'll add that new decoded data frame (or spreadsheet for sake of argument) as a new column to our already existing data frame. The result is a data frame that contains a row for each file that is found within the specified folder, the last time that file was altered, the path to the file, all the raw values from that spreadsheet, and lastly the decoded values from each culvert data sheet.
+From that we can then select the decoded values, and the filenames column (to act as the means of IDing which values came from which files if there's values that need to be QA'ed etc.) and flatten it out so that each row contains all the values of interest (which are identified in the key) into a tidy spreadsheet for downstream processing.
+
+``` r
+decodedSheet2 <- test1 %>% mutate(decoded = map(.x = tidycells, .f = ~decodeSheet(.x))) # this is where the sausage is made. 
+
+
+decodedSheet2 %>% 
+  select(filenames, decoded) %>% 
+  unnest() %>% select(filenames, dataName, values) %>% 
+  spread(key = dataName, value = values) -> a
+
+glimpse(a)
+```
+
+    ## Observations: 3
+    ## Variables: 26
+    ## $ filenames             <chr> "Copy of Tidal Field Data blank.xlsm", "...
+    ## $ CrosDim_dwnA          <chr> NA, NA, NA
+    ## $ CrosDim_dwnBCB        <chr> NA, NA, NA
+    ## $ CrosDim_dwnBLT        <chr> NA, NA, NA
+    ## $ CrosDim_dwnC          <chr> NA, NA, NA
+    ## $ CrosDim_dwnD          <chr> NA, NA, NA
+    ## $ CrosDim_upA           <chr> NA, NA, NA
+    ## $ CrosDim_upBCB         <chr> NA, NA, NA
+    ## $ CrosDim_upBLT         <chr> NA, NA, NA
+    ## $ CrosDim_upC           <chr> NA, NA, NA
+    ## $ CrosDim_upD           <chr> NA, NA, NA
+    ## $ crossingID            <chr> NA, NA, NA
+    ## $ CrossingType          <chr> "1", "1", "1"
+    ## $ dateAssessed          <chr> NA, NA, NA
+    ## $ dwnstreamChannelwidth <chr> NA, NA, NA
+    ## $ dwnstreammaxPoolwidth <chr> NA, NA, NA
+    ## $ EndTime               <chr> NA, NA, NA
+    ## $ headwallMat_up        <chr> "1", "1", "1"
+    ## $ LiDarHt_CL            <chr> NA, NA, NA
+    ## $ observers             <chr> NA, NA, NA
+    ## $ roadName              <chr> NA, NA, NA
+    ## $ StartTime             <chr> NA, NA, NA
+    ## $ streamName            <chr> NA, NA, NA
+    ## $ StructureMaterial     <chr> "1", "1", "1"
+    ## $ upstreamChannelwidth  <chr> NA, NA, NA
+    ## $ upstreammaxPoolwidth  <chr> NA, NA, NA
+
+Approaching this problem in this way requires a few extra steps to recreate the formula and the assessment values that are calculated in the spreadsheet, but by tidying up the data in this way we can quickly alter-test-review the outputs of the assessment across ALL culverts assessed without having to individually reprogram each file.
+Below are some of my original ideas on the ups and downs of doing this which I'll leave in here for now.
 
 #### Pros
 
@@ -98,36 +168,16 @@ From this we can start extracting the parts we want from the data sheet. To ease
 
 -   Will require a *fair amount* of work re-coding Excel formulas into R code (or other) \*\* as mentioned above though most of the formulas are simple, single cell references, many even referencing cells that reference cells, that..etc. In fact of the 443 cells that contain some sort of formula only 139 of the cells contain references to more than one cell. And only a small proportion reference many cells (i.e. a bit messier / time consuming to dig into). In addition, many are simple *If(CELL = 0, " ", CELL)*- essentially changing just the way excel displays the information (blank vs 0)
 
-*OR* Just focus on extracting the values of interest, most of which are in the **Data Sheet - SUMMARY** tab.
-
-#### Pros
-
--   It might be less work, but not clear how much less... Potentially not a huge amount less.
-
-#### Cons
-
-Pretty much covered by my Pros list above for the other tactic.
-
 ### Potential pifalls
 
 There's a few issues (potential) that I've come across.
 
 -   cells are merged which makes it hard to determine which cell actually contains the value of interest.
 -   There are values that are selected using a formatted control (like a drop-down) which can be very easily altered.
--   accessing these values is best done through the *Data Sheet - SUMMARY* tab.
+-   accessing these values is best done through the *Data Sheet - SUMMARY* tab. Or perhaps just locked upon entering the data from the field sheets?
 -   There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. I believe this is caused by IF(cell = 0, " ", cell) formulas.
 
-TO DOs:
--------
-
--   Using a completed (and backed up) datasheet comb through the *spreadsheets/extractedKey\_WORKING.xlsx* file to match data keys with data values.
-
--   **VERY IMPORTANT** work only in the 'extractedKey\_WORKING' file. The other file will/can be overwritten.
-
--   Once this new master look-up/key is build here's the game plan.
--   Create look-up in R using key-value pairs built from the extractedKey file
--   within this look-up retain the 'expected keys' in a column to act as an error catcher on data extractions later.
--   Need to extract look-up tables in Lookup tab to form joins to link data value with data description (7 = Riprap under the Wingwall Materials dropdown.)
+### This could be handy if there's any cryptic values or formulas.
 
 ``` r
 # Helper function to look up values in a cell of interest.
@@ -146,7 +196,3 @@ get.cell.value(cells, "AA65")
 ```
 
     ## [1] "IF(AA111=0,\"\", AA111)"
-
-### Strategy for bringing in data
-
-There are 2 approaches: 1) Bring a single file in, extract all the cells/data of interest and populate a data frame. Then iterate over the list of files. 2) Go the purrr approach and import all files as a list column (the lists being tidyxl data frames), then extract values as columns into the data frame using mutate
