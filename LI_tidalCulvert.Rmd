@@ -4,7 +4,7 @@ output: html_notebook
 ---
 
 
-```{r}
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 
 library(readr)
 library(readxl)
@@ -20,7 +20,7 @@ source("functions/culvert_tidy.R")
 source("functions/culvert_extract.R")    
 ```
 
-```{r}
+```{r echo=FALSE, message=FALSE, paged.print=FALSE}
 
 tidysheets <- culvert_tidy("../../Desktop/Culvert Excel Sheets")
 
@@ -33,6 +33,7 @@ LIculvertData <- LIculverts %>%
   spread(key = dataName, value = values)
 
 LIculvert_GISpts <- st_read("M:/Projects/LI/Culvert_Assessment/data/Tidal Crossings/TidalCrossings_20180712.shp")
+
 mapview(LIculvert_GISpts)
 
 ```
