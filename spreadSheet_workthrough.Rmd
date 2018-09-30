@@ -29,7 +29,7 @@ Below is a snippet of a single sheet read into R using tidxl::xlsx_cells()
 ```{r}
 
 # TODO Start with basic read in of spreadsheet and extracting the proper cells.
-sheet <- "spreadsheets/Copy of Culvert37.xlsm" 
+sheet <- "spreadsheets/Ex/Copy of Culvert37.xlsm" 
 # Tidy up the sheets. 
 cells <- xlsx_cells(sheet) %>% 
   filter(is_blank == FALSE, sheet != "Data Sheet - BLANK") 
@@ -96,11 +96,17 @@ Below are some of my original ideas on the ups and downs of doing this which I'l
 ### Potential pifalls
 There's a few issues (potential) that I've come across.  
 
-* cells are merged which makes it hard to determine which cell actually contains the value of interest.  
+* cells are merged which makes it hard to determine which cell actually contains the value of interest. Seems as though it's the upper left-most cell in the set of merged cells that gives the proper address.   
 * There are values that are selected using a formatted control (like a drop-down) which can be very easily altered.  
   + accessing these values is best done through the *Data Sheet - SUMMARY* tab.  Or perhaps just locked upon entering the data from the field sheets?
 * There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. I believe this is caused by IF(cell = 0, " ", cell) formulas.
+* May have been mentioned above, dates are formatted differently it seems across and within spreadsheets. Maybe a setting in the author's version of excel? 
 
+### TO DO's:  
+* create lookups to recode the values pulled from the dropdown cells in the sheets
+* Figure out how to properly translate the dates and times from the format excel is using to R
+
+ 
 
 ### This could be handy if there's any cryptic values or formulas.
 
