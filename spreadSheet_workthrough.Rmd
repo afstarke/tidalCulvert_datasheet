@@ -29,7 +29,7 @@ Below is a snippet of a single sheet read into R using tidxl::xlsx_cells()
 ```{r}
 
 # TODO Start with basic read in of spreadsheet and extracting the proper cells.
-sheet <- "spreadsheets/Ex/Copy of Culvert37.xlsm" 
+sheet <- "spreadsheets/Ex/Copy of Tidal Field Data blank.xlsm" 
 # Tidy up the sheets. 
 cells <- xlsx_cells(sheet) %>% 
   filter(is_blank == FALSE, sheet != "Data Sheet - BLANK") 
@@ -66,7 +66,7 @@ From that we can then select the decoded values, and the filenames column (to ac
 ```{r}
 
 
-decodedSheet2 <- test1 %>% mutate(decoded = map(.x = tidycells, .f = ~decodeSheet(.x))) # this is where the sausage is made. 
+decodedSheet2 <- test1 %>% mutate(decoded = map(.x = tidycells, .f = ~decodeSheet(.x, keysheet))) # this is where the sausage is made. 
 
 
 decodedSheet2 %>% 

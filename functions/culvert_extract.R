@@ -42,13 +42,14 @@ culvert_extract <- function(tidycells, sheetOI, celladdress){
 #' and summarizing across several files.
 #' 
 #' @param tidyxlcells column containing tidyxl cells
+#' @param key datatable that has key-value data pairs
 #' 
 #' @return cell value at the specified location
 #' 
 #'
 
-decodeSheet <- function(tidyxlcells){
-  df <- keysheet %>% 
+decodeSheet <- function(tidyxlcells, key){
+  df <- key %>% 
     rowwise() %>%
     mutate(values = culvert_extract(tidycells = tidyxlcells, sheetOI = .data$Sheet, celladdress = .data$Cell))
   df

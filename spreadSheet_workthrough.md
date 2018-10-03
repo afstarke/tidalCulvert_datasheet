@@ -26,7 +26,7 @@ Below is a snippet of a single sheet read into R using tidxl::xlsx\_cells()
 
 ``` r
 # TODO Start with basic read in of spreadsheet and extracting the proper cells.
-sheet <- "spreadsheets/Copy of Culvert37.xlsm" 
+sheet <- "spreadsheets/Ex/Copy of Tidal Field Data blank.xlsm" 
 # Tidy up the sheets. 
 cells <- xlsx_cells(sheet) %>% 
   filter(is_blank == FALSE, sheet != "Data Sheet - BLANK") 
@@ -34,20 +34,20 @@ cells <- xlsx_cells(sheet) %>%
 cells
 ```
 
-    ## # A tibble: 1,162 x 21
+    ## # A tibble: 1,045 x 21
     ##    sheet      address   row   col is_blank data_type error logical numeric
     ##    <chr>      <chr>   <int> <int> <lgl>    <chr>     <chr> <lgl>     <dbl>
-    ##  1 Data Shee~ A1          1     1 FALSE    character <NA>  NA          NA 
-    ##  2 Data Shee~ A5          5     1 FALSE    character <NA>  NA          NA 
-    ##  3 Data Shee~ G7          7     7 FALSE    character <NA>  NA          NA 
-    ##  4 Data Shee~ L7          7    12 FALSE    numeric   <NA>  NA          37.
-    ##  5 Data Shee~ A9          9     1 FALSE    character <NA>  NA          NA 
-    ##  6 Data Shee~ G9          9     7 FALSE    character <NA>  NA          NA 
-    ##  7 Data Shee~ V9          9    22 FALSE    character <NA>  NA          NA 
-    ##  8 Data Shee~ Z9          9    26 FALSE    date      <NA>  NA          NA 
-    ##  9 Data Shee~ V10        10    22 FALSE    character <NA>  NA          NA 
-    ## 10 Data Shee~ Z10        10    26 FALSE    date      <NA>  NA          NA 
-    ## # ... with 1,152 more rows, and 12 more variables: date <dttm>,
+    ##  1 Data Shee~ A1          1     1 FALSE    character <NA>  NA           NA
+    ##  2 Data Shee~ A5          5     1 FALSE    character <NA>  NA           NA
+    ##  3 Data Shee~ G7          7     7 FALSE    character <NA>  NA           NA
+    ##  4 Data Shee~ A9          9     1 FALSE    character <NA>  NA           NA
+    ##  5 Data Shee~ V9          9    22 FALSE    character <NA>  NA           NA
+    ##  6 Data Shee~ V10        10    22 FALSE    character <NA>  NA           NA
+    ##  7 Data Shee~ A11        11     1 FALSE    character <NA>  NA           NA
+    ##  8 Data Shee~ V11        11    22 FALSE    character <NA>  NA           NA
+    ##  9 Data Shee~ A12        12     1 FALSE    character <NA>  NA           NA
+    ## 10 Data Shee~ V12        12    22 FALSE    character <NA>  NA           NA
+    ## # ... with 1,035 more rows, and 12 more variables: date <dttm>,
     ## #   character <chr>, character_formatted <list>, formula <chr>,
     ## #   is_array <lgl>, formula_ref <chr>, formula_group <int>, comment <chr>,
     ## #   height <dbl>, width <dbl>, style_format <chr>, local_format_id <int>
@@ -127,33 +127,49 @@ glimpse(a)
 ```
 
     ## Observations: 3
-    ## Variables: 26
-    ## $ filenames             <chr> "Copy of Tidal Field Data blank.xlsm", "...
-    ## $ CrosDim_dwnA          <chr> NA, NA, NA
-    ## $ CrosDim_dwnBCB        <chr> NA, NA, NA
-    ## $ CrosDim_dwnBLT        <chr> NA, NA, NA
-    ## $ CrosDim_dwnC          <chr> NA, NA, NA
-    ## $ CrosDim_dwnD          <chr> NA, NA, NA
-    ## $ CrosDim_upA           <chr> NA, NA, NA
-    ## $ CrosDim_upBCB         <chr> NA, NA, NA
-    ## $ CrosDim_upBLT         <chr> NA, NA, NA
-    ## $ CrosDim_upC           <chr> NA, NA, NA
-    ## $ CrosDim_upD           <chr> NA, NA, NA
-    ## $ crossingID            <chr> NA, NA, NA
-    ## $ CrossingType          <chr> "1", "1", "1"
-    ## $ dateAssessed          <chr> NA, NA, NA
-    ## $ dwnstreamChannelwidth <chr> NA, NA, NA
-    ## $ dwnstreammaxPoolwidth <chr> NA, NA, NA
-    ## $ EndTime               <chr> NA, NA, NA
-    ## $ headwallMat_up        <chr> "1", "1", "1"
-    ## $ LiDarHt_CL            <chr> NA, NA, NA
-    ## $ observers             <chr> NA, NA, NA
-    ## $ roadName              <chr> NA, NA, NA
-    ## $ StartTime             <chr> NA, NA, NA
-    ## $ streamName            <chr> NA, NA, NA
-    ## $ StructureMaterial     <chr> "1", "1", "1"
-    ## $ upstreamChannelwidth  <chr> NA, NA, NA
-    ## $ upstreammaxPoolwidth  <chr> NA, NA, NA
+    ## Variables: 42
+    ## $ filenames                  <chr> "Copy of Tidal Field Data blank.xls...
+    ## $ CrosDim_dwnA               <chr> NA, NA, NA
+    ## $ CrosDim_dwnBCB             <chr> NA, NA, NA
+    ## $ CrosDim_dwnBLT             <chr> NA, NA, NA
+    ## $ CrosDim_dwnC               <chr> NA, NA, NA
+    ## $ CrosDim_dwnD               <chr> NA, NA, NA
+    ## $ CrosDim_upA                <chr> NA, NA, NA
+    ## $ CrosDim_upBCB              <chr> NA, NA, NA
+    ## $ CrosDim_upBLT              <chr> NA, NA, NA
+    ## $ CrosDim_upC                <chr> NA, NA, NA
+    ## $ CrosDim_upD                <chr> NA, NA, NA
+    ## $ CrossingConditionEval      <chr> "0", "0", "0"
+    ## $ crossingID                 <chr> NA, NA, NA
+    ## $ CrossingType               <chr> "1", "1", "1"
+    ## $ dateAssessed               <chr> NA, NA, NA
+    ## $ dwnstreamChannelwidth      <chr> NA, NA, NA
+    ## $ dwnstreammaxPoolwidth      <chr> NA, NA, NA
+    ## $ EndTime                    <chr> NA, NA, NA
+    ## $ GeneralAssessmentNotes     <chr> NA, NA, NA
+    ## $ HeadwallCondition_upStream <chr> "1", "1", "1"
+    ## $ HeadwallMaterial_upStream  <chr> "1", "1", "1"
+    ## $ HighTidePerch_dwnStream    <chr> NA, NA, NA
+    ## $ HighTidePerch_upStream     <chr> "N/A", "N/A", "N/A"
+    ## $ LiDarHt_CL                 <chr> NA, NA, NA
+    ## $ LowTidePerch_dwnStream     <chr> NA, NA, NA
+    ## $ LowTidePerch_upStream      <chr> NA, NA, NA
+    ## $ Municipality               <chr> NA, NA, NA
+    ## $ observers                  <chr> NA, NA, NA
+    ## $ roadName                   <chr> NA, NA, NA
+    ## $ ScourSeverity_upStream     <chr> "1", "1", "1"
+    ## $ ScourStructure_upStream    <chr> "0", "0", "0"
+    ## $ StartTime                  <chr> NA, NA, NA
+    ## $ streamName                 <chr> NA, NA, NA
+    ## $ StructureMaterial          <chr> "1", "1", "1"
+    ## $ TidalRngRatio              <chr> "#DIV/0!", "#DIV/0!", "#DIV/0!"
+    ## $ TidePredictElevationHigh   <chr> NA, NA, NA
+    ## $ TidePredictElevationLow    <chr> NA, NA, NA
+    ## $ TidePredictTimeHigh        <chr> NA, NA, NA
+    ## $ TidePredictTimeLow         <chr> NA, NA, NA
+    ## $ upstreamChannelwidth       <chr> NA, NA, NA
+    ## $ upstreammaxPoolwidth       <chr> NA, NA, NA
+    ## $ WindwallCondition_upStream <chr> "1", "1", "1"
 
 Approaching this problem in this way requires a few extra steps to recreate the formula and the assessment values that are calculated in the spreadsheet, but by tidying up the data in this way we can quickly alter-test-review the outputs of the assessment across ALL culverts assessed without having to individually reprogram each file.
 Below are some of my original ideas on the ups and downs of doing this which I'll leave in here for now.
@@ -172,10 +188,16 @@ Below are some of my original ideas on the ups and downs of doing this which I'l
 
 There's a few issues (potential) that I've come across.
 
--   cells are merged which makes it hard to determine which cell actually contains the value of interest.
+-   cells are merged which makes it hard to determine which cell actually contains the value of interest. Seems as though it's the upper left-most cell in the set of merged cells that gives the proper address.
 -   There are values that are selected using a formatted control (like a drop-down) which can be very easily altered.
 -   accessing these values is best done through the *Data Sheet - SUMMARY* tab. Or perhaps just locked upon entering the data from the field sheets?
 -   There appear to be cells with just spaces possibly? They are showing up as blank, but NOT empty. I believe this is caused by IF(cell = 0, " ", cell) formulas.
+-   May have been mentioned above, dates are formatted differently it seems across and within spreadsheets. Maybe a setting in the author's version of excel?
+
+### TO DO's:
+
+-   create lookups to recode the values pulled from the dropdown cells in the sheets
+-   Figure out how to properly translate the dates and times from the format excel is using to R
 
 ### This could be handy if there's any cryptic values or formulas.
 
