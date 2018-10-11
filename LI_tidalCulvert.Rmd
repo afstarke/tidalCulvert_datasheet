@@ -1,10 +1,27 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Tidal Culvert Data QA-QC"
+output: 
+  rmdformats::html_clean:
+    highlight: kate
 ---
+** TOTAL WORK IN PROGRESS **
 
+This attempts to both outline the current status of the tidal culvert data and provide a task list for walking through the data collected to date and the data that are yet to be collected. Sort of a hybrid documentation of methods and to-do list.
 
-```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+```{r knitr_init, echo=TRUE, message=FALSE, warning=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
 
 library(readr)
 library(readxl)
@@ -13,28 +30,135 @@ library(unpivotr)
 library(tidyverse)
 library(sf)
 library(mapview)
+library(rstudio)
 
 keysheet <- read_excel("spreadsheets/key.xlsx")
+
+LIculvert_GISpts <- st_read("M:/Projects/LI/Culvert_Assessment/data/Tidal Crossings/TidalCrossings_20180712.shp")
+
+LIculvert_GISpts <- LIculvert_GISpts %>% mutate(crossingID = as.character(Tidal_ID))
+
+cleanLIculvert_GISpts <- LIculvert_GISpts %>% filter(Latitude != 0)
 
 source("functions/culvert_tidy.R")
 source("functions/culvert_extract.R")    
 ```
 
-```{r echo=FALSE, message=FALSE, paged.print=FALSE}
-
-tidysheets <- culvert_tidy("../../Desktop/Culvert Excel Sheets")
-
-LIculverts <- tidysheets %>% mutate(decoded = map(.x = tidycells, .f = ~decodeSheet(.x))) # this is where the sausage is made. 
 
 
-LIculvertData <- LIculverts %>% 
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+
+LIculvertsAssessments <- culvert_tidy("../../Box Sync/Tidal Assessments/Culvert Excel Sheets") %>% 
+  mutate(decoded = map(.x = tidycells, .f = ~decodeSheet(.x, keysheet))) # this is where the sausage is made. 
+
+
+LIculvertData <- LIculvertsAssessments %>% 
   select(filenames, decoded) %>% 
   unnest() %>% select(filenames, dataName, values) %>% 
-  spread(key = dataName, value = values)
+  spread(key = dataName, value = values) %>% 
+  select(filenames, crossingID, dateAssessed, observers, everything()) # organize the order of the columns.
 
-LIculvert_GISpts <- st_read("M:/Projects/LI/Culvert_Assessment/data/Tidal Crossings/TidalCrossings_20180712.shp")
 
-mapview(LIculvert_GISpts)
+# LIculvertData %>% summarize_all(funs(sum(is.na(.))))
+
+
+if(typeof(LIculvertData$crossingID) == typeof(LIculvert_GISpts$crossingID)){ # Are the two columns the same datatype?
+  matchedLIculverts <- LIculvertData %>% filter(crossingID %in% LIculvert_GISpts$crossingID) %>% select(filenames, crossingID)
+  missingLIculevrts <- LIculvertData %>% filter(!crossingID %in% LIculvert_GISpts$crossingID) %>% select(filenames, crossingID)
+}
+
 
 ```
+## Output 
+Here's the output-- 
+I added an option to the table so that a local version can be saved- It's a bit clumbsy here since it's so wide (lots of variables) but you can scroll left/right to see all the columns- or click 'Download' to save a copy to open in Excel.
+ 
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+DT::datatable(LIculvertData, rownames = FALSE, 
+              extensions = 'Buttons', 
+              options = list(
+    dom = 'Bfrtip',
+    buttons =
+      list('copy', 'print', list(
+        extend = 'collection',
+        buttons = c('csv', 'excel', 'pdf'),
+        text = 'Download'
+      ))
+  )
+  )
+
+
+
+```
+
+
+## Missing CrossingID's 
+The following list contains filenames of datasheets that are missing the CrossingID field. Presumably this is due to the lack of field assessments and/or Desktop assessments, perhaps due to these sites not landing on any priotity lists (for assessments). Cross reference this list with the prioirty crossings lists to see which to focus on first. Just a note that currently the only linkage between the field data sheets and the spatial data (the locations for culverts as derived from remotely sensed and groundtruthed data) are the CrossingID field. Care must be taken to ensure the names are entered correctly.  
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+DT::datatable(missingLIculevrts, rownames = FALSE, 
+              extensions = 'Buttons', 
+              options = list(
+    dom = 'Bfrtip',
+    buttons =
+      list('copy', 'print', list(
+        extend = 'collection',
+        buttons = c('csv', 'excel', 'pdf'),
+        text = 'Download'
+      ))
+  )
+  )
+
+
+
+```
+
+
+## Mapped Culverts
+The map below are locations (though some inaccuracies are evident...) of culverts with related 'field datasheet' info. Click a point to see details. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+mapview(cleanLIculvert_GISpts, zcol = 'Assessed', cex = 4)
+
+
+```
+
+## Prioity sites.  
+These are just color coded based on the Priority listed in the shapefile
+```{r}
+
+LIculvertData_location <- cleanLIculvert_GISpts %>% left_join(LIculvertData, by = "crossingID")
+mapview(LIculvertData_location, zcol = "Priority")
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+# citations <- function(includeURL = TRUE, includeRStudio = TRUE) {
+#     if(includeRStudio == TRUE) {
+#         ref.rstudio <- RStudio.Version()$citation
+#         if(includeURL == FALSE) {
+#             ref.rstudio$url = NULL;
+#         }
+#         print(ref.rstudio, style = 'text')
+#         cat('\n')
+#     }
+#
+#     cit.list <- c('base', names(sessionInfo()$otherPkgs))
+#     for(i in 1:length(cit.list)) {
+#         ref <- citation(cit.list[i])
+#         if(includeURL == FALSE) {
+#             ref$url = NULL;
+#         }
+#         print(ref, style = 'text')
+#         cat('\n')
+#     }
+# }
+#
+# citations()
+```
+
+
 
