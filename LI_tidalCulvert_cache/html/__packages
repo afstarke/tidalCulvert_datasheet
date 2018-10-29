@@ -15,5 +15,5 @@ stringr
 forcats
 sf
 mapview
-bindrcpp
 rstudio
+bindrcpp
