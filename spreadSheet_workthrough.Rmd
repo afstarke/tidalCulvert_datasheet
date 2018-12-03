@@ -127,5 +127,17 @@ get.cell.value <- function(tidysheet, cellOfInterest){
 get.cell.value(cells, "AA65")
 
 
+get.cell.formula <- function(tidysheet, cellOfInterest){
+  
+  val <- tidysheet %>% 
+    filter(address == cellOfInterest) %>% 
+    select(formula) %>% as.character() %>% 
+    xlex()
+  return(val)
+  
+}
+#   
+
+
 ```
 

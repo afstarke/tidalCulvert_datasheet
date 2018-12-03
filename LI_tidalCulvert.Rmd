@@ -32,9 +32,11 @@ library(sf)
 library(mapview)
 library(rstudio)
 
-keysheet <- read_excel("spreadsheets/key.xlsx")
-
-LIculvert_GISpts <- st_read("M:/Projects/LI/Culvert_Assessment/data/Tidal Crossings/TidalCrossings_20180712.shp")
+tidalCulvert_datasheetsFolder <- "../../Box Sync/Tidal Assessments/Culvert Excel Sheets"
+tidalCulvert_outputs <- "../../Box Sync/Tidal Assessments"
+keysheet <- read_excel("../../Box Sync/Tidal Assessments/key.xlsx")
+culvertPts_path <- "M:/Projects/LI/Culvert_Assessment/data/Tidal Crossings/TidalCrossings_20180712.shp" # Direct path to the shapefile used as base. Change as needed. # UPDATE:
+LIculvert_GISpts <- st_read(culvertPts_path)
 
 LIculvert_GISpts <- LIculvert_GISpts %>% mutate(crossingID = as.character(Tidal_ID))
 
@@ -49,10 +51,11 @@ source("functions/culvert_extract.R")
 ```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 
-LIculvertsAssessments <- culvert_tidy("../../Box Sync/Tidal Assessments/Culvert Excel Sheets") %>% 
+LIculvertsAssessments <- culvert_tidy(tidalCulvert_datasheetsFolder) %>% 
   mutate(decoded = map(.x = tidycells, .f = ~decodeSheet(.x, keysheet))) # this is where the sausage is made. 
 
 
+# unnest the tidyxl data to create a large tidy dataframe
 LIculvertData <- LIculvertsAssessments %>% 
   select(filenames, decoded) %>% 
   unnest() %>% select(filenames, dataName, values) %>% 
@@ -60,16 +63,15 @@ LIculvertData <- LIculvertsAssessments %>%
   select(filenames, crossingID, dateAssessed, observers, everything()) # organize the order of the columns.
 
 
-# LIculvertData %>% summarize_all(funs(sum(is.na(.))))
-
 
 if(typeof(LIculvertData$crossingID) == typeof(LIculvert_GISpts$crossingID)){ # Are the two columns the same datatype?
   matchedLIculverts <- LIculvertData %>% filter(crossingID %in% LIculvert_GISpts$crossingID) %>% select(filenames, crossingID)
-  missingLIculevrts <- LIculvertData %>% filter(!crossingID %in% LIculvert_GISpts$crossingID) %>% select(filenames, crossingID)
+  missingLIculverts <- LIculvertData %>% filter(!crossingID %in% LIculvert_GISpts$crossingID) %>% select(filenames, crossingID)
 }
 
 
 ```
+
 ## Output 
 Here's the output-- 
 I added an option to the table so that a local version can be saved- It's a bit clumbsy here since it's so wide (lots of variables) but you can scroll left/right to see all the columns- or click 'Download' to save a copy to open in Excel.
@@ -88,16 +90,17 @@ DT::datatable(LIculvertData, rownames = FALSE,
   )
   )
 
-
+xlsx::write.xlsx(LIculvertData, file = paste0(tidalCulvert_outputs, "/compiledTidalData.xlsx"))
 
 ```
 
 
-## Missing CrossingID's 
-The following list contains filenames of datasheets that are missing the CrossingID field. Presumably this is due to the lack of field assessments and/or Desktop assessments, perhaps due to these sites not landing on any priotity lists (for assessments). Cross reference this list with the prioirty crossings lists to see which to focus on first. Just a note that currently the only linkage between the field data sheets and the spatial data (the locations for culverts as derived from remotely sensed and groundtruthed data) are the CrossingID field. Care must be taken to ensure the names are entered correctly.  
+## Missing Spatial Data by CrossingID
+The following list contains filenames of datasheets that *DO NOT* have a corresponding location in shapefile (path: `r culvertPts_path `).  
+Just a note that currently the only linkage between the field data sheets and the spatial data (the locations for culverts as derived from remotely sensed and groundtruthed data) are the CrossingID field. Care must be taken to ensure the names are entered correctly.  
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
-DT::datatable(missingLIculevrts, rownames = FALSE, 
+DT::datatable(missingLIculverts, rownames = FALSE, 
               extensions = 'Buttons', 
               options = list(
     dom = 'Bfrtip',
@@ -116,23 +119,31 @@ DT::datatable(missingLIculevrts, rownames = FALSE,
 
 
 ## Mapped Culverts
-The map below are locations (though some inaccuracies are evident...) of culverts with related 'field datasheet' info. Click a point to see details. 
+Out of the pile of datasheets in the folder _(`r tidalCulvert_datasheetsFolder`)_ this map shows locations that have a corresponding datasheet. 
+The map below are locations (though some inaccuracies are evident...) of culverts with a related 'field datasheet' info. Click a point to see details. 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
-mapview(cleanLIculvert_GISpts, zcol = 'Assessed', cex = 4)
+LIculvertData_location <- cleanLIculvert_GISpts %>% right_join(LIculvertData, by = "crossingID") # this object is picking up 2 extra joins- perhaps dupicate CrossingIDs?
+map_assessedLItidalCulverts <- mapview(LIculvertData_location, zcol = "Assessed", cex = 4)
+map_assessedLItidalCulverts
 
+# TODO: Add that marsh complex priority shapefile that was used for the ebird work.
+```
+
+### Locations that have spatial data but no corredsponding data sheets. 
+
+Color coded by 'Priority'
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+map_missingsDataPts <- mapview(cleanLIculvert_GISpts %>% filter(!crossingID %in% LIculvertData$crossingID), zcol = 'Priority', cex = 4)
+
+map_missingsDataPts
 
 ```
 
-## Prioity sites.  
-These are just color coded based on the Priority listed in the shapefile
-```{r}
-
-LIculvertData_location <- cleanLIculvert_GISpts %>% left_join(LIculvertData, by = "crossingID")
-mapview(LIculvertData_location, zcol = "Priority")
-
-```
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
