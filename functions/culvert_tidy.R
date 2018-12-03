@@ -12,7 +12,7 @@
 #' and summarizing across several files.
 #' 
 #' @param filepath A path to excel file containing Tidal Culvert datasheet.
-#' @return tidyxl dataframe of tidy cell contents
+#' @return tidyxl dataframe of tidy cell contents of a given 
 #' 
 #' 
 culvert_fetch <- function(filepath){
@@ -26,9 +26,21 @@ culvert_fetch <- function(filepath){
 }
 
 
+#' ---- crossSection_fetch
+#' Fetch Crossing cross section and longitudinal profile from a tidal crossing Assessment Workbook 
+#' @param filepath A path to excel file containing Tidal Culvert datasheet.
+#' @return tidy dataframe containing information relating to the cross sectional profile measured in field and recorded in M99:M102 and A122:M140
+#'  
+#'
+#' @examples
+crossProfile_extract <- function(filepath){
+  
+}
+
+
 # ---- culvert_tidy
-#' Create a tidy data frame of tidal culvert datasheets with 
-#' a column containing tidyxl cells for each cooresponding file.
+#' Create a tidy (nested)data frame of tidal culvert datasheets with 
+#' a column containing tidyxl dataframes for each cooresponding file.
 #' 
 #' @param folder A path to the folder containing Tidal Culvert datasheets.
 #' @return dataframe of file information along with a  column of tidy cell contents
