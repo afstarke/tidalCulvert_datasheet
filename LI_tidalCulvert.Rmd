@@ -9,8 +9,7 @@ output:
 This attempts to both outline the current status of the tidal culvert data and provide a task list for walking through the data collected to date and the data that are yet to be collected. Sort of a hybrid documentation of methods and to-do list.
 
 ```{r knitr_init, echo=TRUE, message=FALSE, warning=FALSE, cache=FALSE}
-library(knitr)
-library(rmdformats)
+
 
 ## Global options
 options(max.print="75")
@@ -22,6 +21,8 @@ opts_chunk$set(echo=FALSE,
                message=FALSE,
                warning=FALSE)
 opts_knit$set(width=75)
+library(knitr)
+library(rmdformats)
 
 library(readr)
 library(readxl)
@@ -32,45 +33,35 @@ library(sf)
 library(mapview)
 library(rstudio)
 
-tidalCulvert_datasheetsFolder <- "../../Box Sync/Tidal Assessments/Culvert Excel Sheets"
-tidalCulvert_outputs <- "../../Box Sync/Tidal Assessments"
-keysheet <- read_excel("../../Box Sync/Tidal Assessments/key.xlsx")
-culvertPts_path <- "M:/Projects/LI/Culvert_Assessment/data/Tidal Crossings/TidalCrossings_20180712.shp" # Direct path to the shapefile used as base. Change as needed. # UPDATE:
-LIculvert_GISpts <- st_read(culvertPts_path)
 
-LIculvert_GISpts <- LIculvert_GISpts %>% mutate(crossingID = as.character(Tidal_ID))
+# TODO: Move this code block to script and source in across multiple Rmds
 
-cleanLIculvert_GISpts <- LIculvert_GISpts %>% filter(Latitude != 0)
+library(readr)
+library(readxl)
+library(tidyxl)
+library(unpivotr)
+library(tidyverse)
+library(sf)
+library(mapview)
+library(rstudio)
+library(tncThemes)
+library(plotly)
+library(hrbrthemes)
+library(leaflet)
+library(knitr)
 
-source("functions/culvert_tidy.R")
-source("functions/culvert_extract.R")    
+knitr::read_chunk("code/rmdSetup.R") # read code chunks from external files to extend beyond multiple Rmds.
 ```
 
-
-
-```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
-
-
-LIculvertsAssessments <- culvert_tidy(tidalCulvert_datasheetsFolder) %>% 
-  mutate(decoded = map(.x = tidycells, .f = ~decodeSheet(.x, keysheet))) # this is where the sausage is made. 
-
-
-# unnest the tidyxl data to create a large tidy dataframe
-LIculvertData <- LIculvertsAssessments %>% 
-  select(filenames, decoded) %>% 
-  unnest() %>% select(filenames, dataName, values) %>% 
-  spread(key = dataName, value = values) %>% 
-  select(filenames, crossingID, dateAssessed, observers, everything()) # organize the order of the columns.
-
-
-
-if(typeof(LIculvertData$crossingID) == typeof(LIculvert_GISpts$crossingID)){ # Are the two columns the same datatype?
-  matchedLIculverts <- LIculvertData %>% filter(crossingID %in% LIculvert_GISpts$crossingID) %>% select(filenames, crossingID)
-  missingLIculverts <- LIculvertData %>% filter(!crossingID %in% LIculvert_GISpts$crossingID) %>% select(filenames, crossingID)
-}
-
-
+```{r directorySetup, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 ```
+
+```{r spatialDataLoad, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+```
+
+```{r culvertData, message=FALSE, paged.print=FALSE}
+```
+
 
 ## Output 
 Here's the output-- 
@@ -133,14 +124,74 @@ map_assessedLItidalCulverts
 
 ### Locations that have spatial data but no corredsponding data sheets. 
 
-Color coded by 'Priority'
+Color coded by 'Priority'.  
+New data sheets will need to be made up for these locations (if they are to be assessed)
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
-map_missingsDataPts <- mapview(cleanLIculvert_GISpts %>% filter(!crossingID %in% LIculvertData$crossingID), zcol = 'Priority', cex = 4)
+map_missingsDataPts <- mapview(cleanLIculvert_GISpts %>% filter(!crossingID %in% LIculvertData$crossingID), 
+                               zcol = 'Priority', 
+                               cex = 4)
 
 map_missingsDataPts
+
+```
+
+## Generating SUMMARIES for field and desktop assessments.
+This section will walk through the process of merging the various bits and bobs from the Tidal Culvert Workbook assessments (spreadsheets), the GIS-derived location data (shapefile above), desktop assessments (data housed in the workbooks) and partner priorities (our priority marsh complexes as well) into a list/table of culvert assessment needs to help steer the field and desktop needs. This list can be merged or compared (or replaced eventually?...) with the 'MasterCrossingSpreadsheetChecklistEdit.xls' found here:`r tidalCulvert_outputs`.   
+The resulting table will be updated regulalry and stored here: `r tidalCulvert_outputs`
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+
+# unnest the tidyxl data to create summary of the field and desktop assessments. 
+# TODO: Merge the Spatial data from Karen's shapefile and see what's missing what.
+# TODO: use filePath as a link in either a DT::datatable or a xlsx file with embedded links (not sure this is doable in R). Needs to be relative path to work properly.
+# TODO: List of tidied cells needed for summarizing on.
+# Catchment/watershed attributes - cells D237:
+
+
+LIculvertStatus <- LIculvertsAssessments %>% 
+  select(filenames, lastChanges, filePath, decoded) %>% 
+  unnest() %>% 
+  select(filenames, lastChanges, filePath, dataName, values) %>%
+  spread(key = dataName, value = values) %>% 
+  select(filenames, crossingID, dateAssessed, observers, everything()) %>% # organize the order of the columns.
+  rowwise() %>% 
+  mutate(channelPoolWidths = sum(!is.na(c(ChannelWidth_upStream, 
+                                          ChannelWidth_dwnStream, 
+                                          maxPoolWidth_upStream, 
+                                          maxPoolWidth_dwnStream)))/4,
+         CatchmentAttributes = sum(!is.na(c(WatershedArea_upStream, 
+                                            saltMarshArea, 
+                                            WatershedLandCover_wetland, 
+                                            WatershedLandCover_forested, 
+                                            WatershedLandCover_impervious, 
+                                            WatershedLandCover_developed)))/6,
+         MarshMigrationPotential = sum(!is.na(c(marshMigrationPotential_acres, 
+                                                marshMigrationPotential_evalUnit, 
+                                                NWI_class_upStream, 
+                                                NWI_class_dwnStream)))/4,
+         fieldAssessed = ifelse(!is.na(dateAssessed), 'YES', 'NO'),
+         DesktopComplete = ifelse(sum(channelPoolWidths, CatchmentAttributes, MarshMigrationPotential) == 3, "YES", "NO")) %>%
+  select(filenames, lastChanges, crossingID, fieldAssessed, dateAssessed, observers, channelPoolWidths, CatchmentAttributes, MarshMigrationPotential, DesktopComplete)
+ 
+
+  
+DT::datatable(LIculvertStatus, rownames = FALSE, escape = FALSE,
+              extensions = 'Buttons', 
+              options = list(
+    dom = 'Bfrtip',
+    buttons =
+      list('copy', 'print', list(
+        extend = 'collection',
+        buttons = c('csv', 'excel', 'pdf'),
+        text = 'Download'
+      ))
+  )
+  )
+
 
 ```
 
@@ -169,6 +220,31 @@ map_missingsDataPts
 # }
 #
 # citations()
+```
+
+
+### Recreating the embedded formulas:
+
+To Do:
+Unfold the Tidal Range Ratio formula N14 to determine reason for #/0Errors
+
+
+```{r}
+
+
+get.cell.formula <- function(tidysheet, cellOfInterest){
+  
+  val <- tidysheet %>% 
+    filter(address == cellOfInterest) %>% 
+    select(formula) %>% as.character() %>% 
+    xlex()
+  return(val)
+  
+}
+# Use a mostly complete assessment form. 
+
+LIculvertsAssessments %>% filter()
+
 ```
 
 
