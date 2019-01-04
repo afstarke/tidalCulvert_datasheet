@@ -54,4 +54,3 @@ decodeSheet <- function(tidyxlcells, key){
     mutate(values = culvert_extract(tidycells = tidyxlcells, sheetOI = .data$Sheet, celladdress = .data$Cell))
   df
   }
-

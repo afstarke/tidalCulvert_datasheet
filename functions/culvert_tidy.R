@@ -16,15 +16,19 @@
 #' 
 #' 
 culvert_fetch <- function(filepath){
-  cells <- xlsx_cells(filepath) %>% 
-  filter(sheet != "Data Sheet - BLANK") %>% 
+  cells <- tidyxl::xlsx_cells(filepath) %>%
+    filter(sheet != "Data Sheet - BLANK") %>% 
     select(sheet, address, data_type:character) %>% 
+    mutate(date = as.character(date)) %>% # attempt at fixing issue with attributes being dropped by tidyr::gather
     gather(error:character, key = "dataType", value = "value") %>% 
     filter(!is.na(value)) %>% 
     mutate(same = ifelse(data_type == dataType, 1, 0)) 
   return(cells)
 }
 
+
+# ------------------------------------------------------------------------
+# TODO: The plan for this function is to more or less replicate the larger culvert_extract function set but only targeting the cross section data to simplfy the process. 
 
 #' ---- crossSection_fetch
 #' Fetch Crossing cross section and longitudinal profile from a tidal crossing Assessment Workbook 
@@ -36,7 +40,6 @@ culvert_fetch <- function(filepath){
 crossProfile_extract <- function(filepath){
   
 }
-
 
 # ---- culvert_tidy
 #' Create a tidy (nested)data frame of tidal culvert datasheets with 
