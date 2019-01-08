@@ -8,6 +8,17 @@ output:
 
 ```{r setup, include=FALSE}
 
+### GOALs ----
+# Assist the prioritization process for field work as well as identifying which data pieces are missing
+# Provide a map view of ALL identified culverts with:
+#   * Prioritization of assessments
+#   * Partner/owner info
+#   * Accessibility if known...
+#   * Tidal info (if possible through API)
+#   * Overview of completeness of the Tidal Assessment Workbook for all identified culverts
+#   * Update and export spreadsheet replicating "MASTERtidaltracker"
+
+
 # TODO: Move this code block to script and source in across multiple Rmds
 
 library(flexdashboard)
@@ -40,7 +51,7 @@ knitr::read_chunk("code/rmdSetup.R") # read code chunks from external files to e
 ```{r culvertData, message=FALSE, warning=FALSE, paged.print=FALSE}
 ```
 
-Identifying Crossings 
+Assessment Prioritization 
 =========================================
 
 Column {data-width = 800}
@@ -53,39 +64,37 @@ Note that assessments themselves are prioritized based on criteria such as proxi
 # TODO: Tidal stations - check windy API
 # TODO: Add popups and/or labels on hover. 
 
-basemap <- leaflet() %>% 
-  addProviderTiles(providers$CartoDB.Positron, group = "Carto DB") %>%
-  addProviderTiles(providers$HikeBike.HillShading, options = providerTileOptions(opacity = 0.3), group = "Carto DB") %>% 
-  addProviderTiles(providers$Esri.WorldImagery, group = "ESRI Aerials") %>% 
-  addMouseCoordinates(style = "basic") %>% 
-  addLayersControl(baseGroups = c("Carto DB", "ESRI Aerials"), overlayGroups = c("highlight"), position = "bottomright")
+culvertShared <- SharedData$new(LIculvertDataStatus_location)
 
-basemap %>% 
-  addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 3, fillOpacity = 0.75, fillColor = as.character(tnc_color("Indigo")), stroke = FALSE) %>% 
-  addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 4, fillOpacity = 1, fillColor = as.character(tnc_color("Red Rock")), stroke = FALSE, group = "highlight") %>% 
-  hideGroup("highlight")
- 
+bscols(
+  plot_mapbox(culvertShared, size = ~PriorityScore, color = ~PriorityScore, hoverinfo = "text") %>% 
+    highlight(dynamic = TRUE, presistent = TRUE) %>% 
+    layout(
+    title = "Culvert Locations",
+    mapbox = list(style = "satellite-streets"),
+    updatemenus = list(list(y = 0.8, buttons = rev(style_buttons)))
+  ),
+  DT::datatable(culvertShared)
+)
+
+
+# basemap <- leaflet() %>% 
+#   addProviderTiles(providers$CartoDB.Positron, group = "Carto DB") %>%
+#   addProviderTiles(providers$HikeBike.HillShading, options = providerTileOptions(opacity = 0.3), group = "Carto DB") %>% 
+#   addProviderTiles(providers$Esri.WorldImagery, group = "ESRI Aerials") %>% 
+#   addMouseCoordinates(style = "basic") %>% 
+#   addLayersControl(baseGroups = c("Carto DB", "ESRI Aerials"), overlayGroups = c("highlight"), position = "bottomright")
+# 
+# basemap %>% 
+#   addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 3, fillOpacity = 0.75, fillColor = as.character(tnc_color("Indigo")), stroke = FALSE) %>% 
+#   addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 4, fillOpacity = 1, fillColor = as.character(tnc_color("Red Rock")), stroke = FALSE, group = "highlight") %>% 
+#   hideGroup("highlight")
+#  
 
 
 ```
 
 Column {.tabset .tabset-fade}
-----------------------------------------------
-### Potential Crossing Location QA
-
-The map to the left shows culverts that have been identified and started down the path of assessment. These are _*ALL*_ points that have been flagged as potential tidal culverts.  
-_*NOTE*_ that there's additional points that exist in the GIS file that had to be removed due to incorrect lat/lons these are listed below (might be blank if all have been fixed! (thanks Karen!).   
-
-***  
-The following crossing ID's are errant points not displayed:  
-Crossing ID #:
-`r kable(errorPts)`
-
-***
-The following crossing ID's are flagged as duplicate:
-`r kable(duplicatePts)`
-
-***
 
 
 ### Culverts Needing Corresponding Workbook
@@ -147,7 +156,9 @@ Data Needs
 map_assessedLItidalCulverts <- mapview(LIculvertData_location, zcol = "PriorityScore", cex = "PriorityScore", na.color = 'red') 
  
 marshMap <- mapview(priorityMarshes, zcol = "WETLAND_TY")
+
 map_assessedLItidalCulverts + marshMap
+
 ```
 
 ***
@@ -164,7 +175,7 @@ Column
 #TODO get this Assessed attribute from the culvertStatus file. 
 
 
-dataStatus_shared <- SharedData$new(LIculvertDataStatus_location, )
+dataStatus_shared <- SharedData$new(LIculvertDataStatus_location)
 
 completionMap <- basemap %>% 
   addCircleMarkers(data = dataStatus_shared, ~Longitude, ~Latitude, radius = 3, fillOpacity = 0.75, fillColor = as.character(tnc_color("Indigo")), stroke = FALSE) %>% 

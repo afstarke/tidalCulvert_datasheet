@@ -1,7 +1,8 @@
 ---
-title: "Tidal Culvert Project/Data Status"
+title: "Tidal Culvert Data Status"
 output: 
   flexdashboard::flex_dashboard:
+    storyboard: true
     theme: spacelab
     source: embed
 ---
@@ -40,13 +41,11 @@ knitr::read_chunk("code/rmdSetup.R") # read code chunks from external files to e
 ```{r culvertData, message=FALSE, warning=FALSE, paged.print=FALSE}
 ```
 
-Identifying Crossings 
+Identifying Crossings {.storyboard}
 =========================================
 
-Column {data-width = 800}
-----------------------------------------------
 ### Crossings Identified for assessment 
-Note that assessments themselves are prioritized based on criteria such as proximity to important marsh complexes or specifically called out by partners as trouble areas.  
+
 
 ```{r message=FALSE, warning=FALSE, paged.print=FALSE}
 # Crossings that have been IDed via ArcMap and from partners.
@@ -69,39 +68,32 @@ basemap %>%
 
 ```
 
-Column {.tabset .tabset-fade}
-----------------------------------------------
-### Potential Crossing Location QA
-
+***  
 The map to the left shows culverts that have been identified and started down the path of assessment. These are _*ALL*_ points that have been flagged as potential tidal culverts.  
 _*NOTE*_ that there's additional points that exist in the GIS file that had to be removed due to incorrect lat/lons these are listed below (might be blank if all have been fixed! (thanks Karen!).   
 
-***  
-The following crossing ID's are errant points not displayed:  
-Crossing ID #:
-`r kable(errorPts)`
+Currently there are _`r length((LIculvert_GISpts$crossingID))`_ mapped crossing locations of which _`r (length((LIculvert_GISpts$crossingID)) - length(unique(LIculvert_GISpts$crossingID)))`_ are duplicates.
 
-***
+
 The following crossing ID's are flagged as duplicate:
 `r kable(duplicatePts)`
 
 ***
 
+The following crossing ID's are errant points not displayed:
+Reasons being the Lat/Lon were NA or otherwise 
+Crossing ID #:
+`r kable(errorPts)`
+
 
 ### Culverts Needing Corresponding Workbook
 Missing datasheet for desktop and field assessment data
-
-
-These are locations that have no Tidal Crossing Assessment Workbooks associated with them _OR_ the crossing ID field in either the shapefile or the workbooks are non-matching. 
-
-Are these areas that we are interested in assessing? Probably will want to add the 'Priority Ranking' from the Master Spreadsheet doc in there.  
-The table below will can either be copied-pasted or downloaded as an excel file that can be used to reference which crossings need to have a data sheet made up (or perhaps not...). 
 
 ```{r message=FALSE, warning=FALSE, paged.print=FALSE}
 
 
 
-map_missingsDataPts <- mapview(LIculvert_GISpts %>% filter(!crossingID %in% LIculvertData$crossingID), 
+map_missingsDataPts <- mapview(LIculvertDataStatus_location %>% filter(missingWorkbook == TRUE), 
                                zcol = 'PriorityScore', 
                                label = as.character(LIculvert_GISpts$crossingID), lwd = .5,
                                cex = 4, legend = TRUE, layer.name = "Culvert by Priority") 
@@ -112,11 +104,17 @@ map_missingsDataPts
 #TODO: Bring in the priority info from the "Master Spreadsheet"
 
 ```
+***
+
+These are locations that have no Tidal Crossing Assessment Workbooks associated with them _OR_ the crossing ID field in either the shapefile or the workbooks are non-matching. 
+
+Are any of these areas of interest for assessing? The map currently uses the 'Priority Score' as size/color .  
+The table below will can either be copied-pasted or downloaded as an excel file that can be used to reference which crossings need to have a data sheet made up (or perhaps not...). 
 
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
-
+# LIculvertDataStatus_location %>% filter(missingWorkbook == TRUE)
 LIculvert_GISpts %>% 
   st_set_geometry(NULL) %>% 
   as.data.frame() %>% 
@@ -137,10 +135,24 @@ LIculvert_GISpts %>%
 
 ```
 
-Data Needs
-============================================================
 
-### Prioritizing Assessments:
+### Potential Crossing Location QA
+Put accessibility data here...
+
+
+Data Needs {.storyboard}
+============================================================
+### Missing Locations 
+These crossing IDs are missing corresponding GIS points (or are not named the same...)
+
+***
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+kable(missingLIculverts)
+
+```
+
+Prioritizing Assessments: {.storyboard}
+============================================================
 
 ```{r}
 
@@ -148,32 +160,40 @@ map_assessedLItidalCulverts <- mapview(LIculvertData_location, zcol = "PriorityS
  
 marshMap <- mapview(priorityMarshes, zcol = "WETLAND_TY")
 map_assessedLItidalCulverts + marshMap
+
 ```
 
 ***
 From these potential points priorities are mapped out based on proximity to important marsh complexes and partner input. 
 
+Priority Score is simply the sum of the number of prioity lists the crossing has fallen on (max of 3)
+
+
 Data Management/QA/Status
 ==================================================
 
-Column
---------------------------------------------------
 ### Assessment Status:  
 
-```{r fig.height=6, fig.width=6, message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
 #TODO get this Assessed attribute from the culvertStatus file. 
+# IDEA: replicate this in the Field/Data mangagement RMd
 
+culvertShared <- SharedData$new(LIculvertDataStatus_location)
+# 
+# completionMap <- basemap %>% 
+#   addCircleMarkers(data = dataStatus_shared, ~Longitude, ~Latitude, radius = 3, fillOpacity = 0.75, fillColor = as.character(tnc_color("Indigo")), stroke = FALSE) %>% 
+#   addCircleMarkers(data = dataStatus_shared, ~Longitude, ~Latitude, radius = 4, fillOpacity = 1, fillColor = as.character(tnc_color("Red Rock")), stroke = FALSE, group = "highlight") %>% 
+#   hideGroup("highlight")
+#  
 
-dataStatus_shared <- SharedData$new(LIculvertDataStatus_location, )
+completionMap <- plot_mapbox(culvertShared, size = ~PriorityScore, color = ~PriorityScore, hoverinfo = "text") %>% 
+    highlight(dynamic = TRUE, presistent = TRUE) %>% 
+    layout(
+    title = "Culvert Locations")
 
-completionMap <- basemap %>% 
-  addCircleMarkers(data = dataStatus_shared, ~Longitude, ~Latitude, radius = 3, fillOpacity = 0.75, fillColor = as.character(tnc_color("Indigo")), stroke = FALSE) %>% 
-  addCircleMarkers(data = dataStatus_shared, ~Longitude, ~Latitude, radius = 4, fillOpacity = 1, fillColor = as.character(tnc_color("Red Rock")), stroke = FALSE, group = "highlight") %>% 
-  hideGroup("highlight")
- 
+    
 
-
-completionPlot <- ggplot(dataStatus_shared, aes(x = fieldCompletion, y = DesktopCompletion, fill = fieldAssessed)) + 
+completionPlot <- ggplot(culvertShared, aes(x = fieldCompletion, y = DesktopCompletion, fill = fieldAssessed, text = paste("Crossing ID:", crossingID))) + 
   geom_jitter(stroke = 0, size = 2) + 
   theme_ipsum() + 
   coord_flip() + 
@@ -187,44 +207,9 @@ completionPlot_gg  <-  layout(completionPlot_gg, dragmode = "pan")
 
 bscols(
   completionMap, 
-  ggplotly(completionPlot_gg, tooltip = "crossingID", width = 300, height = 300, dynamicTicks = FALSE), widths = c(7,5)
+  ggplotly(completionPlot_gg, tooltip = c("text"), width = 300, height = 300, dynamicTicks = FALSE), widths = c(7,5)
 )
 
 # mapview(dataStatus_shared, zcol = "fieldAssessed")
 ```
 
-Column {.tabset}
---------------------------------------
-### Assessment Completion
-From the tidal assessment workbooks
-
-
-### Assessment Status: Desktop Assesments
-
-```{r message=FALSE, warning=FALSE, paged.print=FALSE}
-
-
-mapview(LIculvertDataStatus_location, zcol = "DesktopComplete", layer.name = "Desktop Complete")
-
-```
-
-***
-Desktop assessments.
-
-```{r}
-
-LIculvertDataStatus_location %>% as.data.frame %>% group_by(Priority) %>% tally() %>% kable()
-
-
-```
-
-### Missing data and project to do's
-
-```{r echo=FALSE, fig.height=11, fig.width=11, message=FALSE, warning=FALSE, paged.print=FALSE}
-library(naniar)
-# gg_miss_upset(LIculvertData, nsets = n_var_miss(LIculvertData))
-gg_miss_fct(LIculvertData, fct = crossingID) + theme_minimal() + theme(text = element_text(size = 8), axis.text.x = element_text(angle = 90, hjust = 1, size = 10))
-```
-
-*** 
-Here's where some plots will live for seeing where missing bits are for iterative work flows. 
