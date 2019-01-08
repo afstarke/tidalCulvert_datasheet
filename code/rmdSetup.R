@@ -6,7 +6,7 @@ tidalCulvert_datasheetsFolder <- "../../../Box Sync/Culvert Assessment/Tidal Ass
 tidalCulvert_outputs <- "../../../Box Sync/Culvert Assessment/Tidal Assessments"
 tidalCulvert_Checklist <- "../../../Box Sync/Culvert Assessment/Tidal Assessments/MASTERCrossingSpreadsheetChecklistEdit.xlsx"
 keysheet <- read_excel("../../../Box Sync/Culvert Assessment/Tidal Assessments/key.xlsx")
-culvertPts_path <- "M:/Projects/LI/Culvert_Assessment/data/Tidal Crossings/TidalCrossings_20181217.shp" # Direct path to the shapefile used as base. Change as needed. # UPDATE:
+culvertPts_path <- "M:/Projects/LI/Culvert_Assessment/data/Tidal Crossings/TidalCrossings_latest.shp" # Direct path to the shapefile used as base. Change as needed. # UPDATE:
 ddmt <- "M:/Projects/LI/Marsh_DMMT/data/DMMT.gdb"
 # huc8 <- "M:/Base_Data/Hydro/Watersheds/sde_tnc_viewer.sde" # TODO: Add proper link to HUC watersheds
 
@@ -18,25 +18,19 @@ LIculvert_GISpts <- st_read(culvertPts_path) %>% st_transform(4326) %>%
   st_zm(drop = TRUE) %>% 
   mutate(crossingID = as.character(Tidal_ID)) %>% # For joining on this attribute later.
   mutate(PriorityScore = as.numeric(PtrPriorit) + as.numeric(TNCPriorit) + as.numeric(MarPriorit)) %>% # create a new 'priority score'
-  select(Ownership, Waterbody, Source, Name, Latitude, Longitude, crossingID, PtrPriorit, TNCPriorit, MarPriorit, PriorityScore)
+  select(Ownership, Name, Latitude, Longitude, crossingID, PtrPriorit, TNCPriorit, MarPriorit, PriorityScore)
 
 # hucWatersheds <- st_read(huc8)
 priorityMarshes <- st_read(ddmt) %>% st_transform(4326)
 
-# Clean up feature attributes and remove odd points. 
+# Identify points that have issues. . 
 errorPts <- LIculvert_GISpts %>% filter(Latitude < 30) %>% select(crossingID) %>% st_set_geometry(NULL)
 duplicatePts <- LIculvert_GISpts %>% group_by(crossingID) %>% filter(n()> 1) %>% select(crossingID) %>%  st_set_geometry(NULL)
   
-# LIculvert_GISpts <- LIculvert_GISpts %>% 
-#   mutate(crossingID = as.character(Tidal_ID)) %>% # For joining on this attribute later.
-#   filter(Longitude != 0)  %>%   # some points had lat/lon of 0 which tossed errors.
-#   mutate(PriorityScore = as.numeric(PtrPriorit) + as.numeric(TNCPriorit) + as.numeric(MarPriorit)) %>% # create a new 'priority score'
-#   select(Ownership, Waterbody, Source, Name, Latitude, Longitude, crossingID, PtrPriorit, TNCPriorit, MarPriorit, PriorityScore)
 
-
-# 
 
 ## @knitr culvertData
+# Extract the field and desktop data from the workbooks and bring them in.
 # Key functions
 source("functions/culvert_tidy.R")
 source("functions/culvert_extract.R")    
@@ -60,6 +54,8 @@ LIculvertData <- LIculvertsAssessments %>%
 if(typeof(LIculvertData$crossingID) == typeof(LIculvert_GISpts$crossingID)){ # Are the two columns the same datatype?
   matchedLIculverts <- LIculvertData %>% filter(crossingID %in% LIculvert_GISpts$crossingID) %>% select(filenames, crossingID) # Culvert datasheets that ARE IN GIS point dataset
   missingLIculverts <- LIculvertData %>% filter(!crossingID %in% LIculvert_GISpts$crossingID) %>% select(filenames, crossingID) # Culvert datasheets that ARE NOT IN GIS points.
+} else{
+  stop("CrossingID not same data type (character vs numeric)")
 }
 
 LIculvertData_location <- LIculvert_GISpts %>% left_join(LIculvertData, by = "crossingID") # this object is picking up 2 extra joins- perhaps dupicate CrossingIDs? YUP> 2007 is duplicated in GIS file.
@@ -96,5 +92,5 @@ LIculvertStatus <- LIculvertsAssessments %>%
   select(filenames, lastChanges, crossingID, fieldAssessed, fieldCompletion, dateAssessed, observers, channelPoolWidths, CatchmentAttributes, MarshMigrationPotential, DesktopCompletion, DesktopComplete)
 
 LIculvertDataStatus_location <- LIculvert_GISpts %>% 
-  right_join(LIculvertStatus, by = "crossingID") 
+  left_join(LIculvertStatus, by = "crossingID") %>% mutate(missingWorkbook = is.na(filenames))
 
