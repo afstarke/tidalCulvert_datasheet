@@ -1,4 +1,5 @@
 # Rmd setup
+
 ## @knitr directorySetup
 # 
 # Setup the folders for pulling and storing
@@ -8,6 +9,7 @@ tidalCulvert_Checklist <- "../../../Box Sync/Culvert Assessment/Tidal Assessment
 keysheet <- read_excel("../../../Box Sync/Culvert Assessment/Tidal Assessments/key.xlsx")
 culvertPts_path <- "M:/Projects/LI/Culvert_Assessment/data/Tidal Crossings/TidalCrossings_latest.shp" # Direct path to the shapefile used as base. Change as needed. # UPDATE:
 ddmt <- "M:/Projects/LI/Marsh_DMMT/data/DMMT.gdb"
+culvertPOTpts <- "M:/Projects/LI/Culvert_Assessment/data/Potential or Missing culverts - latest.lyr"
 # huc8 <- "M:/Base_Data/Hydro/Watersheds/sde_tnc_viewer.sde" # TODO: Add proper link to HUC watersheds
 
 # GIS data
@@ -63,7 +65,7 @@ LIculvertData_location <- LIculvert_GISpts %>% left_join(LIculvertData, by = "cr
 fieldVars <- keysheet %>% filter(DataSource == 'Field Collected') %>%  pluck('dataName') %>% unlist()
  
 
-LIculvertStatus <- LIculvertsAssessments %>% 
+LIculvertDataStatus <- LIculvertsAssessments %>% 
   select(filenames, lastChanges, filePath, decoded) %>% 
   unnest() %>% 
   select(filenames, lastChanges, filePath, dataName, values) %>%
@@ -86,11 +88,17 @@ LIculvertStatus <- LIculvertsAssessments %>%
                                                 NWI_class_upStream, 
                                                 NWI_class_dwnStream)))/4,
          
-         fieldAssessed = ifelse(fieldCompletion == 1, 'YES', 'NO'), 
+         fieldAssessed = ifelse(fieldCompletion != 1 | is.na(fieldCompletion), FALSE, TRUE), # this isn't the best approach. Transition to extracting from datahseet.
          DesktopCompletion = sum(channelPoolWidths, CatchmentAttributes, MarshMigrationPotential)/3,
          DesktopComplete = ifelse(sum(channelPoolWidths, CatchmentAttributes, MarshMigrationPotential) == 3, "YES", "NO")) %>%
   select(filenames, lastChanges, crossingID, fieldAssessed, fieldCompletion, dateAssessed, observers, channelPoolWidths, CatchmentAttributes, MarshMigrationPotential, DesktopCompletion, DesktopComplete)
 
 LIculvertDataStatus_location <- LIculvert_GISpts %>% 
-  left_join(LIculvertStatus, by = "crossingID") %>% mutate(missingWorkbook = is.na(filenames))
+  left_join(LIculvertDataStatus, by = "crossingID") %>% mutate(missingWorkbook = is.na(filenames))
+
+
+## Data outputs
+
+write.xlsx(LIculvertData, file = paste0(tidalCulvert_outputs, "/compiledCulvert_data.xlsx"), sheetName = "Compiled Culvert data")
+write.xlsx(LIculvertDataStatus_location %>% st_drop_geometry(), file = paste0(tidalCulvert_outputs, "/CulvertData_status.xlsx"), sheetName = "Culvert Status")
 

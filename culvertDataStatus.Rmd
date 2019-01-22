@@ -8,27 +8,8 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-
-# TODO: Move this code block to script and source in across multiple Rmds
-
-library(flexdashboard)
-library(readr)
-library(readxl)
-library(tidyxl)
-library(unpivotr)
-library(tidyverse)
-library(sf)
-library(mapview)
-library(tncThemes)
-library(plotly)
-library(hrbrthemes)
-library(leaflet)
-library(knitr)
-library(crosstalk)
-library(htmlwidgets)
-library(htmltools)
-library(magrittr)
-
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+source("00_libraries.R")
 knitr::read_chunk("code/rmdSetup.R") # read code chunks from external files to extend beyond multiple Rmds.
 ```
 
@@ -44,36 +25,44 @@ knitr::read_chunk("code/rmdSetup.R") # read code chunks from external files to e
 Identifying Crossings {.storyboard}
 =========================================
 
-### Crossings Identified for assessment 
+### Crossings Identified for assessment. These are _*ALL*_ points that have been flagged as potential tidal culverts. 
 
 
-```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r allPtsMap, message=FALSE, warning=FALSE, paged.print=FALSE}
 # Crossings that have been IDed via ArcMap and from partners.
 # TODO: Tidal stations - check windy API
 # TODO: Add popups and/or labels on hover. 
 
-basemap <- leaflet() %>% 
-  addProviderTiles(providers$CartoDB.Positron, group = "Carto DB") %>%
-  addProviderTiles(providers$HikeBike.HillShading, options = providerTileOptions(opacity = 0.3), group = "Carto DB") %>% 
-  addProviderTiles(providers$Esri.WorldImagery, group = "ESRI Aerials") %>% 
-  addMouseCoordinates(style = "basic") %>% 
-  addLayersControl(baseGroups = c("Carto DB", "ESRI Aerials"), overlayGroups = c("highlight"), position = "bottomright")
+# NOTE -------
+# This leaflet version was originally placed here for use with crosstalk. 
+# basemap <- leaflet() %>% 
+#   addProviderTiles(providers$CartoDB.Positron, group = "Carto DB") %>%
+#   addProviderTiles(providers$HikeBike.HillShading, options = providerTileOptions(opacity = 0.3), group = "Carto DB") %>% 
+#   addProviderTiles(providers$Esri.WorldImagery, group = "ESRI Aerials") %>% 
+#   addMouseCoordinates(style = "basic") %>% 
+#   addLayersControl(baseGroups = c("Carto DB", "ESRI Aerials"), overlayGroups = c("highlight"), position = "bottomright")
+# 
+# basemap %>% 
+#   addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 3, fillOpacity = 0.75, fillColor = as.character(tnc_color("Indigo")), stroke = FALSE) %>% 
+#   addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 4, fillOpacity = 1, fillColor = as.character(tnc_color("Red Rock")), stroke = FALSE, group = "highlight") %>% 
+#   hideGroup("highlight")
+#  
 
-basemap %>% 
-  addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 3, fillOpacity = 0.75, fillColor = as.character(tnc_color("Indigo")), stroke = FALSE) %>% 
-  addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 4, fillOpacity = 1, fillColor = as.character(tnc_color("Red Rock")), stroke = FALSE, group = "highlight") %>% 
-  hideGroup("highlight")
- 
+LIculvertMap <- mapview(LIculvertDataStatus_location, 
+                               zcol = 'PriorityScore', 
+                               label = as.character(LIculvertDataStatus_location$crossingID), lwd = .5,
+                               cex = 4, legend = TRUE, layer.name = "Culvert by Priority")
+LIculvertMap + marshMap
 
 
 ```
 
 ***  
-The map to the left shows culverts that have been identified and started down the path of assessment. These are _*ALL*_ points that have been flagged as potential tidal culverts.  
+The map to the left shows culverts that have been identified and started down the path of assessment. 
+ 
 _*NOTE*_ that there's additional points that exist in the GIS file that had to be removed due to incorrect lat/lons these are listed below (might be blank if all have been fixed! (thanks Karen!).   
 
 Currently there are _`r length((LIculvert_GISpts$crossingID))`_ mapped crossing locations of which _`r (length((LIculvert_GISpts$crossingID)) - length(unique(LIculvert_GISpts$crossingID)))`_ are duplicates.
-
 
 The following crossing ID's are flagged as duplicate:
 `r kable(duplicatePts)`
@@ -86,10 +75,9 @@ Crossing ID #:
 `r kable(errorPts)`
 
 
-### Culverts Needing Corresponding Workbook
-Missing datasheet for desktop and field assessment data
+### Culverts Needing Corresponding Workbook. 
 
-```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r missingWBsMap, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 
 
@@ -104,21 +92,21 @@ map_missingsDataPts
 #TODO: Bring in the priority info from the "Master Spreadsheet"
 
 ```
-***
 
-These are locations that have no Tidal Crossing Assessment Workbooks associated with them _OR_ the crossing ID field in either the shapefile or the workbooks are non-matching. 
+***
+These are locations that have NO Tidal Crossing Assessment Workbooks associated with them _OR_ the crossing ID field in either the shapefile or the workbooks are non-matching. 
 
 Are any of these areas of interest for assessing? The map currently uses the 'Priority Score' as size/color .  
 The table below will can either be copied-pasted or downloaded as an excel file that can be used to reference which crossings need to have a data sheet made up (or perhaps not...). 
 
 
 
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
-# LIculvertDataStatus_location %>% filter(missingWorkbook == TRUE)
-LIculvert_GISpts %>% 
+LIculvertDataStatus_location %>% 
   st_set_geometry(NULL) %>% 
   as.data.frame() %>% 
-  filter(!crossingID %in% LIculvertData$crossingID) %>% 
+  filter(missingWorkbook == TRUE) %>% 
   dplyr::select(crossingID, TNCPriorit, MarPriorit, PtrPriorit, PriorityScore) %>% 
   DT::datatable(rownames = FALSE, 
               extensions = list('Buttons'), 
@@ -140,10 +128,11 @@ LIculvert_GISpts %>%
 Put accessibility data here...
 
 
-Data Needs {.storyboard}
-============================================================
-### Missing Locations 
-These crossing IDs are missing corresponding GIS points (or are not named the same...)
+### Data Needs
+
+Missing Locations 
+These crossing IDs are missing corresponding GIS points (or are not named the same...).
+Seems that some of these (20181 and 20182) were recently assessed and may have never originated in the GIS. Perhaps found in the field?
 
 ***
 ```{r message=FALSE, warning=FALSE, paged.print=FALSE}
@@ -151,22 +140,42 @@ kable(missingLIculverts)
 
 ```
 
-Prioritizing Assessments: {.storyboard}
+Prioritizing Field Assessments:
 ============================================================
-
+Column {data-width=800}
+------------------------------------------------------------
 ```{r}
 
-map_assessedLItidalCulverts <- mapview(LIculvertData_location, zcol = "PriorityScore", cex = "PriorityScore", na.color = 'red') 
+map_assessedLItidalCulverts <- mapview(LIculvertDataStatus_location %>% filter(fieldAssessed ==  "NO" | is.na(fieldAssessed)), zcol = "PriorityScore", cex = "PriorityScore", na.color = 'red', layer.name = "Priority") 
  
-marshMap <- mapview(priorityMarshes, zcol = "WETLAND_TY")
+marshMap <- mapview(priorityMarshes, zcol = "WETLAND_TY", layer.name = "Wetland Type")
 map_assessedLItidalCulverts + marshMap
 
 ```
 
-***
+Columns {data-width=400}
+--------------------------------------------------
 From these potential points priorities are mapped out based on proximity to important marsh complexes and partner input. 
-
 Priority Score is simply the sum of the number of prioity lists the crossing has fallen on (max of 3)
+
+```{r}
+LIculvertDataStatus_location %>% 
+  filter(fieldAssessed ==  "NO" | is.na(fieldAssessed)) %>% st_drop_geometry() %>% 
+  select(Ownership, crossingID:PriorityScore, missingWorkbook) %>% 
+  DT::datatable(rownames = FALSE, 
+              extensions = list('Buttons'), 
+              style="bootstrap", width="100%",
+              options = list(scrollY=300, 
+                             scroller=TRUE,
+                             dom = 'Bfrtip',
+                             buttons = list('copy', list(extend = 'collection',
+                                                         buttons = c('excel'),
+                                                         text = 'Download'
+                                                         ))
+                             )
+              )
+                                        
+```
 
 
 Data Management/QA/Status
@@ -187,7 +196,7 @@ culvertShared <- SharedData$new(LIculvertDataStatus_location)
 #  
 
 completionMap <- plot_mapbox(culvertShared, size = ~PriorityScore, color = ~PriorityScore, hoverinfo = "text") %>% 
-    highlight(dynamic = TRUE, presistent = TRUE) %>% 
+    highlight(dynamic = TRUE, selectize = TRUE, persistent = TRUE, on = 'plotly_hover') %>% 
     layout(
     title = "Culvert Locations")
 
@@ -201,13 +210,13 @@ completionPlot <- ggplot(culvertShared, aes(x = fieldCompletion, y = DesktopComp
   scale_fill_viridis_d() + 
   theme(legend.position = "bottom")
 
-completionPlot_gg <-  ggplotly(completionPlot)
+completionPlot_gg <-  ggplotly(completionPlot, tooltip = c("text"), width = 400, height = 400)
 completionPlot_gg  <-  layout(completionPlot_gg, dragmode = "pan")
-
+completionPlot_gg <- highlight(p = completionPlot_gg, on = "plotly_selected", dynamic = TRUE, opacityDim = 0.4)
 
 bscols(
-  completionMap, 
-  ggplotly(completionPlot_gg, tooltip = c("text"), width = 300, height = 300, dynamicTicks = FALSE), widths = c(7,5)
+  completionMap, completionPlot_gg,  widths = c(9,3)
+  # ggplotly(completionPlot_gg, tooltip = c("text"), width = 300, height = 300, dynamicTicks = FALSE), widths = c(9,3)
 )
 
 # mapview(dataStatus_shared, zcol = "fieldAssessed")
