@@ -16,7 +16,7 @@ library(tidyxl)
 library(unpivotr)
 library(tidyverse)
 
-keysheet <- read_excel("spreadsheets/key.xlsx")
+keysheet <- read_excel("../../../Box Sync/Culvert Assessment/Tidal Assessments/key.xlsx") #Use the working more complete version
 
 source("functions/culvert_tidy.R")
 source("functions/culvert_extract.R")    
@@ -137,7 +137,7 @@ get.cell.formula <- function(tidysheet, cellOfInterest){
   
 }
 #   
-
+get.cell.formula(cells, "AA64")
 
 ```
 
