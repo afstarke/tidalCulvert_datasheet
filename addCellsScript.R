@@ -13,6 +13,7 @@ trialRun <- existingfiles[[1]]
 existingfiles <- list.files(existingDatafolder, full.names = TRUE) # list of files of datasheets.
 
 # for each of the file names listed above...
+# TODO: Get teams input on what other variables to add. Lat/Lon, Ecological indicators, etc.
 
 for(wbfile in existingfiles){
   tmp <- loadWorkbook(wbfile)
@@ -38,7 +39,7 @@ sheets <- getSheets(xl) # Read sheets of which we're only interested in the SITE
 cells <- getCells(getRows(sheets[[2]]))# Get the 
 # createRow(sheet = sheets[[2]], rowIndex = 6)
 
-setCellValue(cells[["6.33"]], "Assessment Complete")
+setCellValue(cells[["6.33"]], "Assessment Complete") 
 setCellStyle(cell = cells[["6.33"]], cellStyle = cs)
 setCellValue(cells[["6.34"]], "N")
 setCellStyle(cell = cells[["6.34"]], cellStyle = cs)
