@@ -14,13 +14,14 @@ tokens <- cells %>%
   select(sheet, address, row, col, formula) %>%
   mutate(tok = map(formula, xlex))  # using map make a colum containing a dataframe with the information from xlex()
 
+# Count number of cells (not unique) being referenced in a token
 reffinder <- function(tokencol){
 refNu <- tokencol %>% as.data.frame() %>%
 group_by(type) %>% tally() %>%
 filter(type == "ref") %>% pluck(2)
 return(refNu)
 }
-
+reffinder()
 
 # select(-formula)
 references <- tokens %>%
@@ -29,34 +30,20 @@ references <- tokens %>%
 
 references %>% head(10)
 
-# xlsx::write.xlsx(characters,
-#                  file = "spreadsheets/extractedKey.xlsx",
-#                  sheetName = "Likely keys")
-# xlsx::write.xlsx(numerics,
-#                  file = "spreadsheets/extractedKey.xlsx",
-#                  sheetName = "Likely values", append = TRUE)
-# references %>% select(-tok) %>% xlsx::write.xlsx(
-#                  file = "spreadsheets/extractedKey.xlsx",
-#                  sheetName = "formulaKey", append = TRUE)
-references %>% ggplot(aes(x = cellrefs)) +
-  geom_histogram(binwidth = 2) +
-  labs(x = "Number of cells \n referenced in a forumla")
-
-
-culvert_extract <- function(folder) {
-  culvertFiles <- file.path(folder)
-  return(culvertFiles)
-}
-
 
 # Playing around with some complex viz.
 library(networkD3)
-
-references %>% unnest() %>% filter(address == "N33") %>%
-  mutate(sourceCell = paste(sheet, address, sep = "_")) %>%
-  spread(type, value = token) %>%
-  select(formula, sourceCell, ref, sheet) %>%
-  mutate(destCell = paste(sheet, ref, sep = "_")) %>%
-  select(formula, sourceCell, destCell) %>%
-  simpleNetwork()
+# 
+# references %>% 
+#   # unnest() %>% 
+#   # filter(address == "N33") %>% 
+#   filter(cellrefs > 1) %>% 
+#   mutate(sourceCell = paste(sheet, address, sep = "_")) ->a
+#   mutate(refCell = map_chr() %>% head()
+#   # spread(type, value = token) %>%
+#   select(formula, sourceCell, ref, sheet) %>%
+#   mutate(destCell = paste(sheet, ref, sep = "_")) %>%
+#   select(formula, sourceCell, destCell) %>%
+#   simpleNetwork()
+# 
 
