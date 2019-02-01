@@ -64,32 +64,32 @@ Note that assessments themselves are prioritized based on criteria such as proxi
 # TODO: Tidal stations - check windy API
 # TODO: Add popups and/or labels on hover. 
 
-culvertShared <- SharedData$new(LIculvertDataStatus_location)
-
-bscols(
-  plot_mapbox(culvertShared, size = ~PriorityScore, color = ~PriorityScore, hoverinfo = "text") %>% 
-    highlight(dynamic = TRUE, presistent = TRUE) %>% 
-    layout(
-    title = "Culvert Locations",
-    mapbox = list(style = "satellite-streets"),
-    updatemenus = list(list(y = 0.8, buttons = rev(style_buttons)))
-  ),
-  DT::datatable(culvertShared)
-)
-
-
-# basemap <- leaflet() %>% 
-#   addProviderTiles(providers$CartoDB.Positron, group = "Carto DB") %>%
-#   addProviderTiles(providers$HikeBike.HillShading, options = providerTileOptions(opacity = 0.3), group = "Carto DB") %>% 
-#   addProviderTiles(providers$Esri.WorldImagery, group = "ESRI Aerials") %>% 
-#   addMouseCoordinates(style = "basic") %>% 
-#   addLayersControl(baseGroups = c("Carto DB", "ESRI Aerials"), overlayGroups = c("highlight"), position = "bottomright")
+# culvertShared <- SharedData$new(LIculvertDataStatus_location)
 # 
-# basemap %>% 
-#   addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 3, fillOpacity = 0.75, fillColor = as.character(tnc_color("Indigo")), stroke = FALSE) %>% 
-#   addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 4, fillOpacity = 1, fillColor = as.character(tnc_color("Red Rock")), stroke = FALSE, group = "highlight") %>% 
-#   hideGroup("highlight")
-#  
+# bscols(
+#   plot_mapbox(culvertShared, size = ~PriorityScore, color = ~PriorityScore, hoverinfo = "text") %>% 
+#     highlight(dynamic = TRUE, presistent = TRUE) %>% 
+#     layout(
+#     title = "Culvert Locations",
+#     mapbox = list(style = "satellite-streets"),
+#     updatemenus = list(list(y = 0.8, buttons = rev(style_buttons)))
+#   ),
+#   DT::datatable(culvertShared)
+# )
+
+
+basemap <- leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron, group = "Carto DB") %>%
+  addProviderTiles(providers$HikeBike.HillShading, options = providerTileOptions(opacity = 0.3), group = "Carto DB") %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "ESRI Aerials") %>%
+  addMouseCoordinates(style = "basic") %>%
+  addLayersControl(baseGroups = c("Carto DB", "ESRI Aerials"), overlayGroups = c("highlight"), position = "bottomright")
+
+basemap %>%
+  addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 3, fillOpacity = 0.75, fillColor = as.character(tnc_color("Indigo")), stroke = FALSE) %>%
+  addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 4, fillOpacity = 1, fillColor = as.character(tnc_color("Red Rock")), stroke = FALSE, group = "highlight") %>%
+  hideGroup("highlight")
+
 
 
 ```
