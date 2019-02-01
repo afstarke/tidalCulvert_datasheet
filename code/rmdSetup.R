@@ -20,7 +20,7 @@ LIculvert_GISpts <- st_read(culvertPts_path) %>% st_transform(4326) %>%
   st_zm(drop = TRUE) %>% 
   mutate(crossingID = as.character(Tidal_ID)) %>% # For joining on this attribute later.
   mutate(PriorityScore = as.numeric(PtrPriorit) + as.numeric(TNCPriorit) + as.numeric(MarPriorit)) %>% # create a new 'priority score'
-  select(Ownership, Name, Latitude, Longitude, crossingID, PtrPriorit, TNCPriorit, MarPriorit, PriorityScore)
+  select(Ownership, Name, Latitude, Longitude, crossingID, MarshCompl, PtrPriorit, TNCPriorit, MarPriorit, PriorityScore)
 
 # hucWatersheds <- st_read(huc8)
 priorityMarshes <- st_read(ddmt) %>% st_transform(4326)
@@ -71,7 +71,7 @@ LIculvertDataStatus <- LIculvertsAssessments %>%
   select(filenames, lastChanges, filePath, dataName, values) %>%
   spread(key = dataName, value = values) %>% 
   select(filenames, crossingID, dateAssessed, observers, everything()) %>% # organize the order of the columns.
-  mutate(fieldCompletion = rowSums(!is.na(select(., one_of(fieldVars))))/length(fieldVars)) %>% # Calculate proportion of NAs on variables marked as 'Field Collected' from key sheet.
+  mutate(fieldCompletion = rowSums(!is.na(select(., one_of(fieldVars))))/length(fieldVars) - 0.488888888888889) %>% # Calculate proportion of NAs on variables marked as 'Field Collected' from key sheet.
   rowwise() %>% 
   mutate(channelPoolWidths = sum(!is.na(c(ChannelWidth_upStream, 
                                           ChannelWidth_dwnStream, 
@@ -101,4 +101,3 @@ LIculvertDataStatus_location <- LIculvert_GISpts %>%
 
 write.xlsx(LIculvertData, file = paste0(tidalCulvert_outputs, "/compiledCulvert_data.xlsx"), sheetName = "Compiled Culvert data")
 write.xlsx(LIculvertDataStatus_location %>% st_drop_geometry(), file = paste0(tidalCulvert_outputs, "/CulvertData_status.xlsx"), sheetName = "Culvert Status")
-
