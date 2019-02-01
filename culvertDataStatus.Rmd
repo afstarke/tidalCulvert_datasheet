@@ -149,6 +149,7 @@ Column {data-width=800}
 map_assessedLItidalCulverts <- mapview(LIculvertDataStatus_location %>% filter(fieldAssessed ==  "NO" | is.na(fieldAssessed)), zcol = "PriorityScore", cex = "PriorityScore", na.color = 'red', layer.name = "Priority") 
  
 marshMap <- mapview(priorityMarshes, zcol = "WETLAND_TY", layer.name = "Wetland Type")
+
 map_assessedLItidalCulverts + marshMap
 
 ```
@@ -184,7 +185,7 @@ Data Management/QA/Status
 ### Assessment Status:  
 
 ```{r message=FALSE, warning=FALSE, paged.print=FALSE}
-#TODO get this Assessed attribute from the culvertStatus file. 
+# TODO get this Assessed attribute from the culvertStatus file. 
 # IDEA: replicate this in the Field/Data mangagement RMd
 
 culvertShared <- SharedData$new(LIculvertDataStatus_location)

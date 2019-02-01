@@ -14,6 +14,12 @@ tokens <- cells %>%
   select(sheet, address, row, col, formula) %>%
   mutate(tok = map(formula, xlex))  # using map make a colum containing a dataframe with the information from xlex()
 
+allTokes <- cells %>%
+  # filter(!is.na(formula)) %>% # filter out rows that don't contain a formula
+  select(sheet, address, row, col, formula) %>%
+  mutate(tok = map(formula, xlex))  
+
+
 # Count number of cells (not unique) being referenced in a token
 reffinder <- function(tokencol){
 refNu <- tokencol %>% as.data.frame() %>%
