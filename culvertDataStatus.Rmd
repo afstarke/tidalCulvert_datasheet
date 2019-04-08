@@ -52,7 +52,7 @@ LIculvertMap <- mapview(LIculvertDataStatus_location,
                                zcol = 'PriorityScore', 
                                label = as.character(LIculvertDataStatus_location$crossingID), lwd = .5,
                                cex = 4, legend = TRUE, layer.name = "Culvert by Priority")
-LIculvertMap + marshMap
+LIculvertMap #+ marshMap
 
 
 ```
