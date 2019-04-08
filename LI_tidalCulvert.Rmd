@@ -87,8 +87,7 @@ The map below are locations (though some inaccuracies are evident...) of culvert
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
-LIculvertData_location <- cleanLIculvert_GISpts %>% right_join(LIculvertData, by = "crossingID") # this object is picking up 2 extra joins- perhaps dupicate CrossingIDs?
-map_assessedLItidalCulverts <- mapview(LIculvertData_location, zcol = "Assessed", cex = 4)
+map_assessedLItidalCulverts <- mapview(LIculvertData_location, cex = 4)
 map_assessedLItidalCulverts
 
 # TODO: Add that marsh complex priority shapefile that was used for the ebird work.
@@ -102,8 +101,8 @@ New data sheets will need to be made up for these locations (if they are to be a
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
-map_missingsDataPts <- mapview(cleanLIculvert_GISpts %>% filter(!crossingID %in% LIculvertData$crossingID), 
-                               zcol = 'Priority', 
+map_missingsDataPts <- mapview(LIculvertDataStatus_location %>% filter(missingWorkbook == TRUE), 
+                               zcol = 'PriorityScore', layer = "Missing Workbooks by priority",
                                cex = 4)
 
 map_missingsDataPts
@@ -124,34 +123,7 @@ The resulting table will be updated regulalry and stored here: `r tidalCulvert_o
 # Catchment/watershed attributes - cells D237:
 
 
-LIculvertStatus <- LIculvertsAssessments %>% 
-  select(filenames, lastChanges, filePath, decoded) %>% 
-  unnest() %>% 
-  select(filenames, lastChanges, filePath, dataName, values) %>%
-  spread(key = dataName, value = values) %>% 
-  select(filenames, crossingID, dateAssessed, observers, everything()) %>% # organize the order of the columns.
-  rowwise() %>% 
-  mutate(channelPoolWidths = sum(!is.na(c(ChannelWidth_upStream, 
-                                          ChannelWidth_dwnStream, 
-                                          maxPoolWidth_upStream, 
-                                          maxPoolWidth_dwnStream)))/4,
-         CatchmentAttributes = sum(!is.na(c(WatershedArea_upStream, 
-                                            saltMarshArea, 
-                                            WatershedLandCover_wetland, 
-                                            WatershedLandCover_forested, 
-                                            WatershedLandCover_impervious, 
-                                            WatershedLandCover_developed)))/6,
-         MarshMigrationPotential = sum(!is.na(c(marshMigrationPotential_acres, 
-                                                marshMigrationPotential_evalUnit, 
-                                                NWI_class_upStream, 
-                                                NWI_class_dwnStream)))/4,
-         fieldAssessed = ifelse(!is.na(dateAssessed), 'YES', 'NO'),
-         DesktopComplete = ifelse(sum(channelPoolWidths, CatchmentAttributes, MarshMigrationPotential) == 3, "YES", "NO")) %>%
-  select(filenames, lastChanges, crossingID, fieldAssessed, dateAssessed, observers, channelPoolWidths, CatchmentAttributes, MarshMigrationPotential, DesktopComplete)
- 
-
-  
-DT::datatable(LIculvertStatus, rownames = FALSE, escape = FALSE,
+DT::datatable(LIculvertDataStatus, rownames = FALSE, escape = FALSE,
               extensions = 'Buttons', 
               options = list(
     dom = 'Bfrtip',
@@ -196,10 +168,7 @@ DT::datatable(LIculvertStatus, rownames = FALSE, escape = FALSE,
 
 
 ### Recreating the embedded formulas:
-
-To Do:
-Unfold the Tidal Range Ratio formula N14 to determine reason for #/0Errors
-
+SEE formulaExtractor.R
 
 ```{r}
 
