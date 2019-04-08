@@ -1,16 +1,18 @@
 # Formula Decoding
+cells <- LIculvertsAssessments$tidycells[[10]]
 
 # Can use following fucntions to help extract forumals.
-get.cell.value <- function(tidysheet, cellOfInterest){
+get.cell.value <- function(tidycells, sheetOI, cellOfInterest){
   
-  val <- tidysheet %>% 
+  val <- tidycells %>% 
+    filter(sheet == sheetOI) %>% 
     filter(address == cellOfInterest) %>% 
     pull(formula)
   return(val)
   
 }
 #   
-get.cell.value(cells, "AA65")
+get.cell.value(LIculvertsAssessments$tidycells[[12]], sheetOI = 'Data Sheet - SITE',  "AA65")
 
 
 get.cell.formula <- function(tidysheet, cellOfInterest){
