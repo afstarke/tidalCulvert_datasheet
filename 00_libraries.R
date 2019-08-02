@@ -2,7 +2,7 @@
 
 
 ## @knitr libraryLoad
-library(flexdashboard)
+
 library(readr)
 library(readxl)
 library(tidyxl)
@@ -18,5 +18,6 @@ library(crosstalk)
 library(htmlwidgets)
 library(htmltools)
 library(magrittr)
-library(xlsx)
-
+library(readxl)
+library(writexl)
+library(rpivotTable)
