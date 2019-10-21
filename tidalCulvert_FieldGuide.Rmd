@@ -56,7 +56,7 @@ Assessment Prioritization
 
 Column {data-width = 800}
 ----------------------------------------------
-### Crossings Identified for assessment 
+### Crossings Identified for assessment in 2019
 Note that assessments themselves are prioritized based on criteria such as proximity to important marsh complexes or specifically called out by partners as trouble areas.  
 
 ```{r message=FALSE, warning=FALSE, paged.print=FALSE}
@@ -85,10 +85,7 @@ basemap <- leaflet() %>%
   addMouseCoordinates(style = "basic") %>%
   addLayersControl(baseGroups = c("Carto DB", "ESRI Aerials"), overlayGroups = c("highlight"), position = "bottomright")
 
-basemap %>%
-  addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 3, fillOpacity = 0.75, fillColor = as.character(tnc_color("Indigo")), stroke = FALSE) %>%
-  addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 4, fillOpacity = 1, fillColor = as.character(tnc_color("Red Rock")), stroke = FALSE, group = "highlight") %>%
-  hideGroup("highlight")
+basemap %>% mapview::addFeatures(LIculvert_GISpts, radius = 3, )
 
 
 
