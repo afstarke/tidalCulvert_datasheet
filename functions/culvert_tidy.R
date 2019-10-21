@@ -32,7 +32,7 @@ culvert_fetch <- function(filepath){
 #'
 #' @param rawHeight height as recorded in field.
 #' @param shotCode control point code, R, U, D, X
-#' @param Lidarht 
+#' @param Lidarht lidar height as obtained using LiDAR data
 #' @param roadCentHt 
 #' @param TPforsight_upSt 
 #' @param TPbacksight_upSt 
@@ -45,20 +45,13 @@ culvert_fetch <- function(filepath){
 #' @examples
 #' 
 surveyHtCorrection <- function(rawHeight, shotCode, Lidarht, roadCentHt, TPforsight_upSt, TPbacksight_upSt, TPforsight_dwSt, TPbacksight_dwSt){
-  case_when(shotCode == "R" ~ (Lidarht + roadCentHt - rawHeight),
-            shotCode == "U" ~ (Lidarht + roadCentHt - TPforsight_upSt + TPbacksight_upSt - rawHeight),
-            shotCode == "D" ~ (Lidarht + roadCentHt - TPforsight_dwSt + TPbacksight_dwSt - rawHeight),
-            shotCode == "X" ~ -9999, # missing data value for the 'X' code that I don't know how to deal with yet.
-            is.na(shotCode) ~ -9999) # if missing shot code, it's likely missing other data.....
+  case_when(shotCode == "R" ~ as.numeric(sum(Lidarht, roadCentHt)) + -as.numeric(rawHeight),
+            shotCode == "U" ~ as.numeric(sum(Lidarht, roadCentHt)) + -as.numeric(TPforsight_upSt) + as.numeric(TPbacksight_upSt) + -as.numeric(rawHeight),
+            shotCode == "D" ~ as.numeric(sum(Lidarht, roadCentHt)) + -as.numeric(TPforsight_dwSt) + as.numeric(TPbacksight_dwSt) + -as.numeric(rawHeight),
+            shotCode == "X" ~ as.numeric(NA), # missing data value for the 'X' code that I don't know how to deal with yet.
+            is.na(shotCode) ~ as.numeric(NA)) # if missing shot code, it's likely missing other data.....
 }
 
-blankCheck <- function(df){
-  if(dim(df)[1] == 0){
-    NA
-  }else{
-    df %>% pull() %>% as.numeric()
-  }
-}
 
 # ------------------------------------------------------------------------
 #' ---- channelLongidinalProfile_extract
@@ -73,50 +66,111 @@ blankCheck <- function(df){
 #' 
 # filepath <- list.files(tidalCulvert_datasheetsFolder, full.names = T)[[3]] 
 
-channelLongidinalProfile_extract <- function(filepath){
-  # Set up variables for adjusting to NAVD88
-  Lidarht <- read_xlsx(path = filepath, sheet = 3, range = "J54", col_names = FALSE) %>% pull() %>% as.numeric()
-  roadCentHt <- read_xlsx(path = filepath, sheet = 2, range = "J107", col_names = FALSE) %>% pull() %>% as.numeric()
-  TPforsight_upSt <- read_xlsx(path = filepath, sheet = 2, range = "Y110", col_names = FALSE) %>% pull() %>% as.numeric() 
-  TPbacksight_upSt <- read_xlsx(path = filepath, sheet = 2, range = "Y111", col_names = FALSE) %>% pull() %>% as.numeric()
-  TPforsight_dwSt <- read_xlsx(path = filepath, sheet = 2, range = "AD110", col_names = FALSE) %>% pull() %>% as.numeric()
-  TPbacksight_dwSt <- read_xlsx(path = filepath, sheet = 2, range = "AD111", col_names = FALSE) %>% pull() %>% as.numeric()
+
+channelLongidinalProfile_extract <- function(filepath, tidycells){
+  # Set up variables for adjusting to NAVD88 with surveyHtCorrection()
+  crossingID <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'L7') %>% as.numeric()
+  Lidarht <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SUMMARY', celladdress = 'J54') %>% as.numeric()
+  roadCentHt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'J107') %>% as.numeric()
   
+  TPforsight_upSt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'Y110') %>% as.numeric()
+  TPbacksight_upSt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'Y111') %>% as.numeric()
+  TPforsight_dwSt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'AD110') %>% as.numeric()
+  TPbacksight_dwSt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'AD111') %>% as.numeric()
+
   profile <- read_xlsx(path = filepath, sheet = 2, range = "A122:M140")
-  profile <- profile %>% filter(!is.na(Distance)) %>% 
-    select(-starts_with("..")) %>% 
+  profile <- profile %>% filter(!is.na(Distance)) %>%
+    select(-starts_with("..")) %>%
     rename(Subsrate = `Sub-\r\nstrate`,
            shotCode = `Shot From (R/U/D)`,
-           rawHeight = Height) %>% 
-    mutate(adjustedHt = surveyHtCorrection(rawHeight = rawHeight, shotCode = shotCode, Lidarht = Lidarht, roadCentHt = roadCentHt, 
-                                           TPforsight_upSt = TPforsight_upSt, TPbacksight_upSt = TPbacksight_upSt, 
-                                           TPforsight_dwSt = TPforsight_dwSt, TPbacksight_dwSt = TPbacksight_dwSt))
-      
-  
+           rawHeight = Height) %>%
+    mutate(crossingID = crossingID,
+           adjustedHt = surveyHtCorrection(rawHeight = rawHeight, 
+                                           shotCode = shotCode, 
+                                           Lidarht = Lidarht, 
+                                           roadCentHt = roadCentHt,
+                                           TPforsight_upSt = TPforsight_upSt, 
+                                           TPbacksight_upSt = TPbacksight_upSt,
+                                           TPforsight_dwSt = TPforsight_dwSt, 
+                                           TPbacksight_dwSt = TPbacksight_dwSt))
+
+
   profile
 }
-
 # ------------------------------------------------------------------------
 # 
 
-crossSection <- function(filepath){
-  Lidarht <- read_xlsx(path = filepath, sheet = 3, range = "J54", col_names = FALSE) %>% pull() %>% as.numeric()
-  roadCentHt <- read_xlsx(path = filepath, sheet = 2, range = "J107", col_names = FALSE) %>% pull() %>% as.numeric()
-  TPforsight_upSt <- read_xlsx(path = filepath, sheet = 2, range = "Y110", col_names = FALSE) %>% pull() %>% as.numeric() 
-  TPbacksight_upSt <- read_xlsx(path = filepath, sheet = 2, range = "Y111", col_names = FALSE) %>% pull() %>% as.numeric()
-  TPforsight_dwSt <- read_xlsx(path = filepath, sheet = 2, range = "AD110", col_names = FALSE) %>% pull() %>% as.numeric()
-  TPbacksight_dwSt <- read_xlsx(path = filepath, sheet = 2, range = "AD111", col_names = FALSE) %>% pull() %>% as.numeric()
+crossSection <- function(filepath, tidycells){
+  crossingID <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'L7') %>% as.numeric()
+  Lidarht <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SUMMARY', celladdress = 'J54') %>% as.numeric()
+  roadCentHt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'V54') %>% as.numeric()
   
+  roadWidth <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SUMMARY', celladdress = 'J107') %>% as.numeric()
+  
+  TPforsight_upSt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'Y110') %>% as.numeric()
+  TPbacksight_upSt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'Y111') %>% as.numeric()
+  TPforsight_dwSt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'AD110') %>% as.numeric()
+  TPbacksight_dwSt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'AD111') %>% as.numeric()
+  
+  crossvars_num <- c("US Height", "DS Height", "crossingID", "adjustedHtUS", "adjustedHtDS")
+  crossvars_chr <- c("Feature", "cntrlPtcode_US", "cntrlPtcode_DS")
   cross <- read_xlsx(path = filepath, sheet = 2, range = "R98:AH106", trim_ws = TRUE)
-  cross <- cross %>% rename(cntrlPtcode_US = '..12', cntrlPtcode_DS = '..17') %>% 
+  tide <- read_xlsx(path = filepath, sheet = 2, range = "P94:AH95") %>%
+    rename(cntrlPtcode_US = '..14', cntrlPtcode_DS = '..19') %>%
+    select(-starts_with(".."))  %>% 
+    mutate_if(is.logical, .funs = ~as.numeric(.)) %>% #ensure nums are nums
+    mutate(Feature = "Low Tide Water Elevation") %>% 
+    mutate_at(crossvars_chr, .funs = ~as.character(.)) # ensure chars are chars
+  # pull values from the longitudinal surveys to calculate Distances against.
+  # NOTE: Use max and min to pull values from Long Profile table in case data was not entered into the US/DS invert dist cells.
+  Longprofile <- channelLongidinalProfile_extract(filepath, tidycells)
+    USinvert <- Longprofile %>% filter(`Feature Code` == "I") %>% 
+      filter(Distance == min(Distance)) %>% mutate(Feature = "Invert", Position = "US") %>% select(Feature, Position, Distance, adjustedHt)
+    DSinvert <- Longprofile %>% filter(`Feature Code` == "I") %>% 
+      filter(Distance == max(Distance)) %>% mutate(Feature = "Invert", Position = "DS") %>% select(Feature, Position, Distance, adjustedHt)
+    inverts <- rbind(USinvert, DSinvert) %>% rename(NAVD_ht = adjustedHt)
+    # TODO: Create tibble with featureposition, NAVDht and distances to be joined later.
+   cross %>% rename(cntrlPtcode_US = '..12', cntrlPtcode_DS = '..17') %>% 
     select(-starts_with("..")) %>% 
-    mutate(adjustedHtUS = surveyHtCorrection(rawHeight = `US Height`, shotCode = cntrlPtcode_US, Lidarht = Lidarht, roadCentHt = roadCentHt, 
-                                           TPforsight_upSt = TPforsight_upSt, TPbacksight_upSt = TPbacksight_upSt, 
-                                           TPforsight_dwSt = TPforsight_dwSt, TPbacksight_dwSt = TPbacksight_dwSt),
-           adjustedHtDS = surveyHtCorrection(rawHeight = `DS Height`, shotCode = cntrlPtcode_DS, Lidarht = Lidarht, roadCentHt = roadCentHt, 
-                                             TPforsight_upSt = TPforsight_upSt, TPbacksight_upSt = TPbacksight_upSt, 
-                                             TPforsight_dwSt = TPforsight_dwSt, TPbacksight_dwSt = TPbacksight_dwSt))
-  cross
+    rbind(tide) %>% #TODO: Fix this bug in joining the tide elevation data to the cross-section data. Fixed by using rbind. bind_rows was throwing error due to class type not consistent across sets of data.
+    mutate(crossingID = crossingID, 
+           Feature = gsub(x = Feature, pattern = "[0-9]", replacement = ""), # remove marsh plain shot #s for later averaging
+           adjustedHtUS = surveyHtCorrection(rawHeight = `US Height`, 
+                                           shotCode = cntrlPtcode_US, 
+                                           Lidarht = Lidarht, 
+                                           roadCentHt = roadCentHt,
+                                           TPforsight_upSt = TPforsight_upSt, 
+                                           TPbacksight_upSt = TPbacksight_upSt,
+                                           TPforsight_dwSt = TPforsight_dwSt, 
+                                           TPbacksight_dwSt = TPbacksight_dwSt),
+           adjustedHtDS = surveyHtCorrection(rawHeight = `DS Height`, 
+                                           shotCode = cntrlPtcode_DS, 
+                                           Lidarht = Lidarht, 
+                                           roadCentHt = roadCentHt,
+                                           TPforsight_upSt = TPforsight_upSt, 
+                                           TPbacksight_upSt = TPbacksight_upSt,
+                                           TPforsight_dwSt = TPforsight_dwSt, 
+                                           TPbacksight_dwSt = TPbacksight_dwSt)) %>% 
+    mutate_at(crossvars_num, .funs = ~as.numeric(.)) %>% 
+    mutate_at(crossvars_chr, .funs = ~as.character(.)) %>% 
+  
+  # values for calculations of distance
+  # USInv <- USinvert %>% pull(Distance)
+  # DSInv <- DSinvert %>% pull(Distance)
+  # 
+  # Insterted this munge code to simplify outputs to a tidy table of Feature-NAVD_ht-Distance for direct use in ggplot.
+  # For RAW values remove and output just the cross object.
+ # cross %>% 
+   select(Feature, adjustedHtUS, adjustedHtDS) %>%
+    gather(key = k, value = NAVD_ht, -Feature) %>%
+    separate(col = k, sep = "ed", into = c(NA, "ht")) %>%
+    unite(col = "FeaturePosition", Feature, ht, remove = FALSE) %>% group_by(FeaturePosition) %>%
+    summarize(NAVD_ht = mean(NAVD_ht, na.rm = TRUE)) %>%
+    separate(col = FeaturePosition, sep = "_Ht", into = c("Feature", "Position")) #%>%  # section off Up and Down stream.
+    # mutate(Distance = NA) %>%
+    # rbind(inverts) #%>%
+    # add_row(Feature = "Road Center", Position = "US", NAVD_ht = roadCentHt, Distance = (((DSInv - USInv)/2) + USInv)) 
+
 
   }
 # TODO: Add the height sections from the functions above into the data extraction culvert Tidy function below.
