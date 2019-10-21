@@ -23,7 +23,6 @@ existingfileBlank <- list.files(existingBlanks, full.names = FALSE)
 
 
 # for each of the file names listed above...
-# TODO: Get teams input on what other variables to add. Lat/Lon, Ecological indicators, etc.
 # FIX: Move the cells that are giving me grief to a new cell that is not NULL from from the workbook.
 for(wbfile in existingfileBlank){
 
@@ -94,67 +93,3 @@ for(wbfile in existingfileBlank){
     rm(tmp, tmpcells, tmprows, tmpsheet)
   }
 
-# 
-# # USING XLCONNECT
-# library(XLConnect)
-# # for each of the file names listed above...
-# # TODO: Get teams input on what other variables to add. Lat/Lon, Ecological indicators, etc.
-# # FIX: Move the cells that are giving me grief to a new cell that is not NULL from from the workbook.
-# for(wbfile in existingfiles[3]){
-#   
-#   readPath <- paste(existingDatafolder, wbfile, sep = "/") # paste full path to file name
-#   writePath <- paste(newCulvertDataFolder, wbfile, sep = "/") # Create full path name for writing file out.
-#   # browser()
-#   tmp <- loadWorkbook(readPath) # read in file
-#   # cs <- CellStyle(tmp) + # read in cells from file.
-#   #   Font(tmp, heightInPoints=10, isBold=TRUE, isItalic=TRUE, # Set formatting for cells that are added.
-#   #        name="Courier New") +
-#   #   Alignment(h="ALIGN_RIGHT", wrapText = FALSE)
-#   tmpsheet <- readWorksheet(tmp, sheet = 2, startRow = 1, startCol = 1, endRow = 34, endCol = 278) # Read sheets of which we're only interested in the SITE sheet (sheet 2)
-#  
-#   
-#   # Get blank cell (tmpcells$`225.26`) as object and assign it to NULL cells that are giving me errors. 
-#   # blankSpace <- tmpcells$`225.26`
-#   # browser() # used for error tracking - Something is throwing out errors . Likely the address for the setCellValue call.
-#   # Assessment Complete ----
-#   setCellValue(cell = tmpcells[["6.33"]], value = "Full Assessment Complete:") 
-#   setCellStyle(cell = tmpcells[["6.33"]], cellStyle = cs) # Set the Cell style for the value just insterted.
-#   setCellValue(cell = tmpcells[["6.34"]], value = "N")
-#   setCellStyle(cell = tmpcells[["6.34"]], cellStyle = cs)
-#   # Field Assess Complete ----
-#   # WORKED!
-#   setCellValue(cell = tmpcells[["205.33"]], value = "Field Assessment Complete:") 
-#   setCellStyle(cell = tmpcells[["205.33"]], cellStyle = cs) # Set the Cell style for the value just insterted.
-#   setCellValue(cell = tmpcells[["205.34"]], value = "N")
-#   setCellStyle(cell = tmpcells[["205.34"]], cellStyle = cs)
-#   # Photo ---- Did not add data values for these.
-#   # WORKED!
-#   setCellValue(cell = tmpcells[["41.8"]], value = "Stored Photos (path):") 
-#   setCellStyle(cell = tmpcells[["41.8"]], cellStyle = cs) # Set the Cell style for the value just insterted.  
-#   # Tide Gate ----
-#   # WORKED! BUT ask Nicole if we should instead append it to the dropdown in the Crossing Type or Crossing Material
-#   setCellValue(cell = tmpcells[["57.11"]], value = "Tide Gate:") 
-#   setCellStyle(cell = tmpcells[["57.11"]], cellStyle = cs) # Set the Cell style for the value just insterted.
-#   setCellValue(cell = tmpcells[["57.15"]], value = "None")  # Can't seem to create a drop down which would be better. Insert NONE as default for now...
-#   setCellStyle(cell = tmpcells[["57.15"]], cellStyle = cs) # Set the Cell style for the value just insterted.
-#   # ERROR: Commented out sections are throwing errors. Might need to createCell first. Read up on this
-#   # Lat ---- Did not add data values for these.
-#   # setCellValue(cell = tmpcells[["14.6"]], value = "Latitude:")
-#   # setCellStyle(cell = tmpcells[["14.6"]], cellStyle = cs) # Set the Cell style for the value just insterted.
-#   #     # tmpcells$`226.33` <- tmpcells[["6.33"]]
-#   # tmpcells$`226.34` <- tmpcells[["6.34"]]
-#   setCellValue(cell = tmpcells[["224.33"]], value = "Desktop Assessment Complete:")
-#   setCellStyle(cell = tmpcells[["224.33"]], cellStyle = cs) # Set the Cell style for the value just insterted.
-#   setCellValue(cell = tmpcells[["224.34"]], value = "N")
-#   setCellStyle(cell = tmpcells[["224.34"]], cellStyle = cs)
-#   setRowHeight(rows = tmprows[[225]], multiplier = 2)
-#   # # Lon ---- Did not add data values for these.
-#   # setCellValue(cell = tmpcells[["15.6"]], value = "Longitude:")
-#   # setCellStyle(cell = tmpcells[["15.6"]], cellStyle = cs) # Set the Cell style for the value just insterted.
-#   # # Desktop Assess Complete ---- Add cell locations and names below...
-#   
-#   
-#   saveWorkbook(tmp, writePath)
-#   rm(tmp, tmpcells, tmprows, tmpsheet)
-# }
-# 
