@@ -49,9 +49,9 @@ Identifying Crossings {.storyboard}
 #  
 
 LIculvertMap <- mapview(LIculvertDataStatus_location, 
-                               zcol = 'PriorityScore', 
+                               # zcol = 'Located', 
                                label = as.character(LIculvertDataStatus_location$crossingID), lwd = .5,
-                               cex = 4, legend = TRUE, layer.name = "Culvert by Priority")
+                               cex = 4, legend = TRUE, layer.name = "Identified Tidal Crossing")
 LIculvertMap #+ marshMap
 
 
@@ -69,31 +69,6 @@ The following crossing ID's are flagged as duplicate:
 
 ***
 
-The following crossing ID's are errant points not displayed:
-Reasons being the Lat/Lon were NA or otherwise 
-Crossing ID #:
-`r kable(errorPts)`
-
-
-### Culverts Needing Corresponding Workbook. 
-
-```{r missingWBsMap, message=FALSE, warning=FALSE, paged.print=FALSE}
-
-
-
-map_missingsDataPts <- mapview(LIculvertDataStatus_location %>% filter(missingWorkbook == TRUE), 
-                               zcol = 'PriorityScore', 
-                               label = as.character(LIculvert_GISpts$crossingID), lwd = .5,
-                               cex = 4, legend = TRUE, layer.name = "Culvert by Priority") 
-map_missingsDataPts 
-
-
-
-#TODO: Bring in the priority info from the "Master Spreadsheet"
-
-```
-
-***
 These are locations that have NO Tidal Crossing Assessment Workbooks associated with them _OR_ the crossing ID field in either the shapefile or the workbooks are non-matching. 
 
 Are any of these areas of interest for assessing? The map currently uses the 'Priority Score' as size/color .  
@@ -102,26 +77,26 @@ The table below will can either be copied-pasted or downloaded as an excel file 
 
 
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
-LIculvertDataStatus_location %>% 
-  st_set_geometry(NULL) %>% 
-  as.data.frame() %>% 
-  filter(missingWorkbook == TRUE) %>% 
-  dplyr::select(crossingID, TNCPriorit, MarPriorit, PtrPriorit, PriorityScore) %>% 
-  DT::datatable(rownames = FALSE, 
-              extensions = list('Buttons'), 
-              style="bootstrap", width="100%",
-              options = list(scrollY=300, 
-                             scroller=TRUE,
-                             dom = 'Bfrtip',
-                             buttons = list('copy', list(extend = 'collection',
-                                                         buttons = c('excel'),
-                                                         text = 'Download'
-                                                         ))
-                             )
-              )
+<!-- ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE} -->
+<!-- LIculvertDataStatus_location %>%  -->
+<!--   st_set_geometry(NULL) %>%  -->
+<!--   as.data.frame() %>%  -->
+<!--   filter(is.na(filenames)) %>%  -->
+<!--   dplyr::select(crossingID, ToBeAssessed_2019) %>%  -->
+<!--   DT::datatable(rownames = FALSE,  -->
+<!--               extensions = list('Buttons'),  -->
+<!--               style="bootstrap", width="100%", -->
+<!--               options = list(scrollY=300,  -->
+<!--                              scroller=TRUE, -->
+<!--                              dom = 'Bfrtip', -->
+<!--                              buttons = list('copy', list(extend = 'collection', -->
+<!--                                                          buttons = c('excel'), -->
+<!--                                                          text = 'Download' -->
+<!--                                                          )) -->
+<!--                              ) -->
+<!--               ) -->
 
-```
+<!-- ``` -->
 
 
 ### Potential Crossing Location QA
@@ -146,80 +121,32 @@ Column {data-width=800}
 ------------------------------------------------------------
 ```{r}
 
-map_assessedLItidalCulverts <- mapview(LIculvertDataStatus_location %>% filter(fieldAssessed ==  "NO" | is.na(fieldAssessed)), zcol = "PriorityScore", cex = "PriorityScore", na.color = 'red', layer.name = "Priority") 
- 
-marshMap <- mapview(priorityMarshes, zcol = "WETLAND_TY", layer.name = "Wetland Type")
+LIculvertDataStatus_location %>% filter(FieldAssessmentComplete != "N") %>% 
+  mutate(`Priority Crossing` = ifelse(ToBeAssessed_2019, "Yes", 'No')) %>% 
+  mapview(zcol = "Priority Crossing", na.color = 'red', layer.name = "Priority")
 
-map_assessedLItidalCulverts + marshMap
+# map_assessedLItidalCulverts <- mapview(LIculvertDataStatus_location %>% filter(FieldAssessmentComplete != "N"), ) 
+ 
+# marshMap <- mapview(priorityMarshes, zcol = "WETLAND_TY", layer.name = "Wetland Type")
+
+# map_assessedLItidalCulverts #+ marshMap
 
 ```
 
 Columns {data-width=400}
 --------------------------------------------------
-From these potential points priorities are mapped out based on proximity to important marsh complexes and partner input. 
-Priority Score is simply the sum of the number of prioity lists the crossing has fallen on (max of 3)
 
-```{r}
-LIculvertDataStatus_location %>% 
-  filter(fieldAssessed ==  "NO" | is.na(fieldAssessed)) %>% st_drop_geometry() %>% 
-  select(Ownership, crossingID:PriorityScore, missingWorkbook) %>% 
-  DT::datatable(rownames = FALSE, 
-              extensions = list('Buttons'), 
-              style="bootstrap", width="100%",
-              options = list(scrollY=300, 
-                             scroller=TRUE,
-                             dom = 'Bfrtip',
-                             buttons = list('copy', list(extend = 'collection',
-                                                         buttons = c('excel'),
-                                                         text = 'Download'
-                                                         ))
-                             )
-              )
-                                        
-```
 
 
 Data Management/QA/Status
 ==================================================
 
-### Assessment Status:  
+```{r}
+# Pivot Table
 
-```{r message=FALSE, warning=FALSE, paged.print=FALSE}
-# TODO get this Assessed attribute from the culvertStatus file. 
-# IDEA: replicate this in the Field/Data mangagement RMd
+rpivotTable(LIculvertDataStatus_location, rows = c("ToBeAssessed_2019", "FieldAssessmentComplete"), 
+            cols = "DesktopAssessmentComplete", width = "100%",
+            rendererName = "Heatmap")
 
-culvertShared <- SharedData$new(LIculvertDataStatus_location)
-# 
-# completionMap <- basemap %>% 
-#   addCircleMarkers(data = dataStatus_shared, ~Longitude, ~Latitude, radius = 3, fillOpacity = 0.75, fillColor = as.character(tnc_color("Indigo")), stroke = FALSE) %>% 
-#   addCircleMarkers(data = dataStatus_shared, ~Longitude, ~Latitude, radius = 4, fillOpacity = 1, fillColor = as.character(tnc_color("Red Rock")), stroke = FALSE, group = "highlight") %>% 
-#   hideGroup("highlight")
-#  
-
-completionMap <- plot_mapbox(culvertShared, size = ~PriorityScore, color = ~PriorityScore, hoverinfo = "text") %>% 
-    highlight(dynamic = TRUE, selectize = TRUE, persistent = TRUE, on = 'plotly_hover') %>% 
-    layout(
-    title = "Culvert Locations")
-
-    
-
-completionPlot <- ggplot(culvertShared, aes(x = fieldCompletion, y = DesktopCompletion, fill = fieldAssessed, text = paste("Crossing ID:", crossingID))) + 
-  geom_jitter(stroke = 0, size = 2) + 
-  theme_ipsum() + 
-  coord_flip() + 
-  labs(main = "Field Assessed", x = NULL) + 
-  scale_fill_viridis_d() + 
-  theme(legend.position = "bottom")
-
-completionPlot_gg <-  ggplotly(completionPlot, tooltip = c("text"), width = 400, height = 400)
-completionPlot_gg  <-  layout(completionPlot_gg, dragmode = "pan")
-completionPlot_gg <- highlight(p = completionPlot_gg, on = "plotly_selected", dynamic = TRUE, opacityDim = 0.4)
-
-bscols(
-  completionMap, completionPlot_gg,  widths = c(9,3)
-  # ggplotly(completionPlot_gg, tooltip = c("text"), width = 300, height = 300, dynamicTicks = FALSE), widths = c(9,3)
-)
-
-# mapview(dataStatus_shared, zcol = "fieldAssessed")
 ```
 
