@@ -22,11 +22,11 @@ knitr::read_chunk("code/rmdSetup.R") # read code chunks from external files to e
 ```{r culvertData, message=FALSE, warning=FALSE, paged.print=FALSE}
 ```
 
-Identifying Crossings {.storyboard}
-=========================================
+### Identifying Crossings
 
-### Crossings Identified for assessment. These are _*ALL*_ points that have been flagged as potential tidal culverts. 
-
+ALL Crossings Identified for assessment.
+These are _*ALL*_ points that have been flagged as potential tidal culverts. 
+*
 
 ```{r allPtsMap, message=FALSE, warning=FALSE, paged.print=FALSE}
 # Crossings that have been IDed via ArcMap and from partners.
@@ -49,58 +49,22 @@ Identifying Crossings {.storyboard}
 #  
 
 LIculvertMap <- mapview(LIculvertDataStatus_location, 
-                               # zcol = 'Located', 
+                               zcol = 'FieldAssessmentComplete', 
                                label = as.character(LIculvertDataStatus_location$crossingID), lwd = .5,
-                               cex = 4, legend = TRUE, layer.name = "Identified Tidal Crossing")
+                               cex = 4, legend = TRUE, layer.name = "Tidal Crossings:<br> ID'ed and Assessed")
 LIculvertMap #+ marshMap
 
 
 ```
 
 ***  
-The map to the left shows culverts that have been identified and started down the path of assessment. 
- 
-_*NOTE*_ that there's additional points that exist in the GIS file that had to be removed due to incorrect lat/lons these are listed below (might be blank if all have been fixed! (thanks Karen!).   
+The map to the left shows all the cuvlerts that have been identified and that are currently in the Long Island Culvert Mapping group on AGOL. These data also house the desktop data as extracted from the Workbooks in late September. The data are being updated direct to the AGOL dataset.
 
-Currently there are _`r length((LIculvert_GISpts$crossingID))`_ mapped crossing locations of which _`r (length((LIculvert_GISpts$crossingID)) - length(unique(LIculvert_GISpts$crossingID)))`_ are duplicates.
-
-The following crossing ID's are flagged as duplicate:
-`r kable(duplicatePts)`
+Crossings are colored by 'Status' 
 
 ***
 
-These are locations that have NO Tidal Crossing Assessment Workbooks associated with them _OR_ the crossing ID field in either the shapefile or the workbooks are non-matching. 
 
-Are any of these areas of interest for assessing? The map currently uses the 'Priority Score' as size/color .  
-The table below will can either be copied-pasted or downloaded as an excel file that can be used to reference which crossings need to have a data sheet made up (or perhaps not...). 
-
-
-
-
-<!-- ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE} -->
-<!-- LIculvertDataStatus_location %>%  -->
-<!--   st_set_geometry(NULL) %>%  -->
-<!--   as.data.frame() %>%  -->
-<!--   filter(is.na(filenames)) %>%  -->
-<!--   dplyr::select(crossingID, ToBeAssessed_2019) %>%  -->
-<!--   DT::datatable(rownames = FALSE,  -->
-<!--               extensions = list('Buttons'),  -->
-<!--               style="bootstrap", width="100%", -->
-<!--               options = list(scrollY=300,  -->
-<!--                              scroller=TRUE, -->
-<!--                              dom = 'Bfrtip', -->
-<!--                              buttons = list('copy', list(extend = 'collection', -->
-<!--                                                          buttons = c('excel'), -->
-<!--                                                          text = 'Download' -->
-<!--                                                          )) -->
-<!--                              ) -->
-<!--               ) -->
-
-<!-- ``` -->
-
-
-### Potential Crossing Location QA
-Put accessibility data here...
 
 
 ### Data Needs
@@ -115,14 +79,13 @@ kable(missingLIculverts)
 
 ```
 
-Prioritizing Field Assessments:
-============================================================
-Column {data-width=800}
-------------------------------------------------------------
+### Prioritizing Field Assessments:  
+
+
 ```{r}
 
 LIculvertDataStatus_location %>% filter(FieldAssessmentComplete != "N") %>% 
-  mutate(`Priority Crossing` = ifelse(ToBeAssessed_2019, "Yes", 'No')) %>% 
+  mutate(`Priority Crossing` = ifelse(listedOnFieldSched, "Yes", 'No')) %>% 
   mapview(zcol = "Priority Crossing", na.color = 'red', layer.name = "Priority")
 
 # map_assessedLItidalCulverts <- mapview(LIculvertDataStatus_location %>% filter(FieldAssessmentComplete != "N"), ) 
@@ -133,20 +96,31 @@ LIculvertDataStatus_location %>% filter(FieldAssessmentComplete != "N") %>%
 
 ```
 
-Columns {data-width=400}
---------------------------------------------------
 
 
+### Data Management/QA/Status  
 
-Data Management/QA/Status
-==================================================
 
 ```{r}
 # Pivot Table
+LIculvertsAssessments %>% select(crossingID, heights) %>%  
+  unnest() %>% mutate(hasHt = !is.na(Height)) -> hwi_qunat
 
-rpivotTable(LIculvertDataStatus_location, rows = c("ToBeAssessed_2019", "FieldAssessmentComplete"), 
-            cols = "DesktopAssessmentComplete", width = "100%",
-            rendererName = "Heatmap")
+rpivotTable(hwi_qunat, rows = c("Feature", "Position"), cols = "hasHt", rendererName = "Heatmap", aggregatorName = "Count as Fraction of Rows")
+
+```
+
+***
+Proportion of crossings that have a measure for each feature and position (up/down stream)  
+
+### Completeness by SITE
+
+```{r}
+# determine the missing HWI's 
+LIculvertsAssessments %>% select(crossingID, heights) %>%  
+  unnest() %>% mutate(hasHt = !is.na(Height)) -> hwi_qunat
+
+rpivotTable(hwi_qunat, rows = c("Feature", "Position"), cols = "hasHt", rendererName = "Heatmap", aggregatorName = "Count as Fraction of Rows")
 
 ```
 
