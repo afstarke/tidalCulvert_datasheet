@@ -2,7 +2,7 @@
 title: "Tidal Culvert Data Status"
 output: 
   flexdashboard::flex_dashboard:
-    storyboard: true
+    storyboard: false
     theme: spacelab
     source: embed
 ---
@@ -22,105 +22,159 @@ knitr::read_chunk("code/rmdSetup.R") # read code chunks from external files to e
 ```{r culvertData, message=FALSE, warning=FALSE, paged.print=FALSE}
 ```
 
-### Identifying Crossings
+Identifying Crossings {data-width=1200}
+===========================================  
 
-ALL Crossings Identified for assessment.
+Column{data-width=800}  
+-------------------------------------------  
+
 These are _*ALL*_ points that have been flagged as potential tidal culverts. 
-*
 
-```{r allPtsMap, message=FALSE, warning=FALSE, paged.print=FALSE}
+The map below contains all the cuvlerts that have been identified and that are currently in the Long Island Culvert Mapping group on AGOL. These data also house the desktop data as extracted from the Workbooks in late September. The data are being updated direct to the AGOL dataset.
+
+Crossings are colored by 'Status'  
+
+```{r allPtsMap, fig.height=5, fig.show='hold', fig.width=12, message=FALSE, warning=FALSE, paged.print=FALSE}
 # Crossings that have been IDed via ArcMap and from partners.
 # TODO: Tidal stations - check windy API
 # TODO: Add popups and/or labels on hover. 
 
-# NOTE -------
-# This leaflet version was originally placed here for use with crosstalk. 
-# basemap <- leaflet() %>% 
-#   addProviderTiles(providers$CartoDB.Positron, group = "Carto DB") %>%
-#   addProviderTiles(providers$HikeBike.HillShading, options = providerTileOptions(opacity = 0.3), group = "Carto DB") %>% 
-#   addProviderTiles(providers$Esri.WorldImagery, group = "ESRI Aerials") %>% 
-#   addMouseCoordinates(style = "basic") %>% 
-#   addLayersControl(baseGroups = c("Carto DB", "ESRI Aerials"), overlayGroups = c("highlight"), position = "bottomright")
-# 
-# basemap %>% 
-#   addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 3, fillOpacity = 0.75, fillColor = as.character(tnc_color("Indigo")), stroke = FALSE) %>% 
-#   addCircleMarkers(data = LIculvert_GISpts, ~Longitude, ~Latitude, radius = 4, fillOpacity = 1, fillColor = as.character(tnc_color("Red Rock")), stroke = FALSE, group = "highlight") %>% 
-#   hideGroup("highlight")
-#  
-
 LIculvertMap <- mapview(LIculvertDataStatus_location, 
                                zcol = 'FieldAssessmentComplete', 
                                label = as.character(LIculvertDataStatus_location$crossingID), lwd = .5,
-                               cex = 4, legend = TRUE, layer.name = "Tidal Crossings:<br> ID'ed and Assessed")
-LIculvertMap #+ marshMap
-
-
-```
-
-***  
-The map to the left shows all the cuvlerts that have been identified and that are currently in the Long Island Culvert Mapping group on AGOL. These data also house the desktop data as extracted from the Workbooks in late September. The data are being updated direct to the AGOL dataset.
-
-Crossings are colored by 'Status' 
-
-***
-
-
-
-
-### Data Needs
-
-Missing Locations 
-These crossing IDs are missing corresponding GIS points (or are not named the same...).
-Seems that some of these (20181 and 20182) were recently assessed and may have never originated in the GIS. Perhaps found in the field?
-
-***
-```{r message=FALSE, warning=FALSE, paged.print=FALSE}
-kable(missingLIculverts)
-
-```
-
-### Prioritizing Field Assessments:  
-
-
-```{r}
-
-LIculvertDataStatus_location %>% filter(FieldAssessmentComplete != "N") %>% 
-  mutate(`Priority Crossing` = ifelse(listedOnFieldSched, "Yes", 'No')) %>% 
-  mapview(zcol = "Priority Crossing", na.color = 'red', layer.name = "Priority")
-
-# map_assessedLItidalCulverts <- mapview(LIculvertDataStatus_location %>% filter(FieldAssessmentComplete != "N"), ) 
- 
-# marshMap <- mapview(priorityMarshes, zcol = "WETLAND_TY", layer.name = "Wetland Type")
-
-# map_assessedLItidalCulverts #+ marshMap
+                               cex = 4, legend = TRUE, layer.name = "Tidal Crossings:<br> Assessment Status")
+LIculvertMap 
 
 ```
 
 
+Column{data-width=400}
+------------------------------------------- 
 
-### Data Management/QA/Status  
+Status of assessments.   
 
+```{r fieldassessmentVisits, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+LIculvertDataStatus_location %>% st_drop_geometry() %>% 
+  group_by(FieldAssessmentComplete,listedOnFieldSched) %>%
+  summarise(n=n()) %>% spread(key = listedOnFieldSched, value = n) %>% 
+  rename("Priority" = "TRUE", "Non-priority" = "FALSE") %>% 
+  kable()
+# 
+LIculvertDataStatus_location %>% st_drop_geometry() %>% 
+  select(FieldAssessmentComplete, listedOnFieldSched) %>%
+  rpivotTable(rows = "FieldAssessmentComplete", cols = "listedOnFieldSched", rendererName = "Heatmap")
+
+  
+  
+```
+
+
+Missing bits... 
+===========================================  
+
+Column{data-width=400}  
+------------------------------------------- 
+
+Desktop Assessment  
+  
+
+```{r out.width='100%', message=FALSE, warning=FALSE, paged.print=FALSE}
+LIculvertData_location %>% select(crossingID, starts_with("da_"), -ends_with("Comts")) %>% 
+  st_drop_geometry() %>% 
+  plot_missing(ggtheme = theme_ipsum())
+```
+
+Column{data-width=800}  
+-------------------------------------------   
+
+Desktop Data -missing-by-crossing- 
+  
+  
+```{r out.width='100%', message=FALSE, warning=FALSE, paged.print=FALSE}
+
+LIculvertDataStatus_location %>% 
+  select(crossingID, starts_with("da_"), 
+         -starts_with("da_NW"),
+         ends_with("Comts")) %>% mutate(propNa = rowMeans(is.na(.), na.rm = T)) %>% 
+  select(crossingID, propNa) %>% 
+  mapview(cex = "propNa", na.color = 'red', zcol = "propNa", layer.name = "Proportion NA's")
+
+
+```
+
+
+
+Culvert height measures {data-width=1200}
+===========================================  
+
+Column{data-width=800}  
+-------------------------------------------
+
+Proportion of crossings that have a measure for each feature and position (up/down stream)  
 
 ```{r}
 # Pivot Table
 LIculvertsAssessments %>% select(crossingID, heights) %>%  
-  unnest() %>% mutate(hasHt = !is.na(Height)) -> hwi_qunat
+  unnest() %>% mutate(hasHt = !is.na(adjustedHt) | !is.na(Height)) -> hwi_qunat
 
-rpivotTable(hwi_qunat, rows = c("Feature", "Position"), cols = "hasHt", rendererName = "Heatmap", aggregatorName = "Count as Fraction of Rows")
+hwi_qunat %>% filter(hasHt == TRUE) %>% select(crossingID, Feature, Position)  %>% rpivotTable(rows = "crossingID", cols = c("Feature", "Position"), rendererName = "Heatmap", aggregatorName = "Count")
+
 
 ```
 
-***
-Proportion of crossings that have a measure for each feature and position (up/down stream)  
+Column{data-width=400}  
+-------------------------------------------
+### Distribution of 'Completeness'
 
-### Completeness by SITE
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+
+# crossingTracker %>%
+#   group_by(`Field Ass. Complete(Y/N)`) %>% tally()
+  
+# determine the missing HWI's by crossing
+hwi_qunat %>% 
+  mutate(crossingID = as.numeric(crossingID)) %>% 
+  group_by(crossingID, hasHt) %>%
+  filter(hasHt == FALSE) %>%
+  tally() %>% mutate(propMissing = n/13) %>% arrange(desc(propMissing)) -> htProps
+
+htProps %>% 
+  ggplot(aes(x = propMissing)) + geom_histogram(bins = 30) + theme_ipsum()
+
+
+```
+
+Culvert height measures - Locations {data-width=1200}
+===========================================  
+
+Column{data-width=800}  
+-------------------------------------------
+
+### Distribution of 'Completeness'  
+Circle color is representative of the % of NA values in the height measures for each crossing.
+
 
 ```{r}
-# determine the missing HWI's 
-LIculvertsAssessments %>% select(crossingID, heights) %>%  
-  unnest() %>% mutate(hasHt = !is.na(Height)) -> hwi_qunat
+  
+# hwi_qunat %>% group_by(crossingID) %>% plot_missing()
+# #   
+# rpivotTable(hwi_qunat, rows = c("Feature", "Position"), cols = "hasHt", rendererName = "Heatmap", aggregatorName = "Count as Fraction of Rows")
+tidalCrossings_desktop %>% left_join(htProps) %>%  mapview(zcol = "propMissing", layer.name = "Proportion of Height Measures")
+```
 
-rpivotTable(hwi_qunat, rows = c("Feature", "Position"), cols = "hasHt", rendererName = "Heatmap", aggregatorName = "Count as Fraction of Rows")
+Culvert height measures - High water clearance {data-width=1200}
+===========================================  
+
+Column{data-width=800}  
+-------------------------------------------
+
+```{r}
+hwi_qunat %>% select(crossingID, Feature, Position, hasHt) %>% spread(Feature, hasHt) %>% group_by(crossingID, Position) %>% mutate(highWat = sum(`Ceiling of Structure`, `HWI Stain`, `HWI Wrack`, `Road Surface`, na.rm = T)/4) %>% select(crossingID, Position, highWat) %>% filter(!is.na(Position)) %>% group_by(Position, highWat) %>% tally()
+
+
+
 
 ```
+Table of distribution of crossings that have 
 
