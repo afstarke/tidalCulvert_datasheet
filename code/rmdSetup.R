@@ -24,7 +24,7 @@ writeOutputs = dataUpdate
 tidalCulvert_Checklist <- "../../../Box Sync/Culvert Assessment/Tidal Assessments/MASTERCrossingSpreadsheetChecklistEdit.xlsx"
 # key sheet- for decoding the values extracted from the workbooks. Add cells of interest and what to call the data upon it's exctraction here.
 keysheet <- read_excel("../../../Box Sync/Culvert Assessment/Tidal Assessments/key.xlsx")
-#TODO: cull out the desktop data being extracted from the workbooks as we move towards managed data in AGOL or other system.
+#DONE: cull out the desktop data being extracted from the workbooks as we move towards managed data in AGOL or other system.
 keysheet <- keysheet %>% filter(AssessmentType != "Desktop")
 # Folder where workiung copies of assessment workbooks live
 # tidalCulvert_datasheetsFolder <- "../../../Box Sync/Culvert Assessment/Tidal Assessments/Tidal Culvert DataSheets_WORKINGvers/"
@@ -133,7 +133,7 @@ if(dataUpdate == 1){
     mutate_at(numericVars, as.numeric) %>% 
     mutate_at(logicalVars, as.logical)
   # DONE: mutate outlet to Atlantic and outlet Subtidal to be one column each not 2 as in the datasheet.
-  # TODO: Add column in key sheet that will be used as data dictionary. Select and paste that info to sheet 2 of the culvert data output below.
+  # DONE: Add column in key sheet that will be used as data dictionary. Select and paste that info to sheet 2 of the culvert data output below.
   LIculvertData %>% write_rds(path = "data/LIculvertData.rds")
 }else{
   LIculvertData <- read_rds(path = "data/LIculvertData.rds")
@@ -243,7 +243,12 @@ if(writeOutputs == TRUE){
 
 
 # Pivot tables ----
-rpivotTable::rpivotTable(LIculvertDataStatus_location)
+## @knitr fieldAssessmentPivot
+# grouped by = FieldAssessmentComplete,listedOnFieldSched
+
+LIculvertDataStatus_location %>% st_drop_geometry() %>% 
+  group_by(FieldAssessmentComplete,listedOnFieldSched) %>%
+  rpivotTable::rpivotTable(rows = "FieldAssessmentComplete", cols = "listedOnFieldSched")
 
 
 if(pivots == 1){
