@@ -15,17 +15,26 @@ get.cell.value <- function(tidycells, sheetOI, cellOfInterest){
 get.cell.value(LIculvertsAssessments$tidycells[[12]], sheetOI = 'Data Sheet - SITE',  "AA65")
 
 
-get.cell.formula <- function(tidysheet, cellOfInterest){
-  
+get.cell.formula.text <- function(tidysheet, cellOfInterest){
+  val <- tidysheet %>% 
+    filter(address == cellOfInterest) %>% 
+    select(formula) %>% as.character() #%>% 
+   # xlex() 
+  return(val)
+}
+#   
+cells <- LIculvertsAssessments$tidycells[[1]]
+get.cell.formula.text(cells, "N12")
+
+get.cell.formula.parsed <- function(tidysheet, cellOfInterest){
   val <- tidysheet %>% 
     filter(address == cellOfInterest) %>% 
     select(formula) %>% as.character() %>% 
     xlex()
   return(val)
-  
 }
 #   
-get.cell.formula(cells, "AA64")
+get.cell.formula.parsed(cells, "N12")
 
 # TO DO LIST:
 # Tidal range ratio - N14

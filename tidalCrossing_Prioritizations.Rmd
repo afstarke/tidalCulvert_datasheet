@@ -1,0 +1,59 @@
+---
+title: "Tidal Crossing Assessment and Priotization"
+subtitle: "Suffolk County- Long Island"
+output: html_notebook
+---
+
+
+### Intention
+This document is meant to outline the workflow of the data used in the prioritization of the tidal crossings assessed under TNC's methods. 
+
+```{r priorizationFunctions, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# package setup and sourcing data etc.
+source("functions/prioritization_functions.R")
+source("00_libraries.R") # libraries used elsewhere and stored here for convienence
+library(GGally)
+theme_set(theme_ipsum())
+
+```
+
+### Starting Data source
+Data extracted from Tidal Crossings Field workbooks using a suite of functions found in _/funcions/_.  To save memory and time a seperate script runs the extraction process and saves an output file (.rds) to the '/data' folder within this working directory. Call the datasets as needed here in the doc. Alternatively, running rdmSetup.R will source all functions and run updates on data if _'dataUpdate = '_ found near top of code chunk.
+
+```{r data, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+LIculvertsAssessments <- readRDS("data/LIculvertsAssessments.rds")
+LIculvertData_location <- read_rds("data/LIculvertData_location.rds")
+
+LIculvertsAssessments %>% filter(crossingID != 71) %>% 
+  select(crossingID, heights) %>% 
+  unnest() %>% 
+  unite(Feature, Position, col = "FP", sep = " ") %>% 
+  select(crossingID, FP, adjustedHt) %>% 
+  mutate(crossingID = as.numeric(crossingID)) %>% 
+  spread(key = FP, value = adjustedHt) -> heights # heights are needed for some of the calculations. Perhaps a better method would be to use SQL-like queries referencing multiple tables as needed. 
+
+LIcuvlertAssessmentData <- LIculvertData_location %>% left_join(heights) 
+```
+
+
+### Tidal Range Ratios  
+
+
+```{r prioritizations, message=FALSE, warning=FALSE, paged.print=FALSE}
+LIculvertPrioritization <- LIcuvlertAssessmentData %>% 
+  mutate(tidalRangeRatio = tidal_range_ratio(us_hwi_stain = `HWI Wrack US`,
+                                             ds_hwi_stain = `HWI Wrack DS`,
+                                             us_low_tide_elevation = `Low Tide Water Elevation US`, 
+                                             ds_low_tide_elevation = `Low Tide Water Elevation DS`)) %>% 
+  select(crossingID, `HWI Wrack US`, `Low Tide Water Elevation US`, `HWI Wrack DS`, `Low Tide Water Elevation DS`, tidalRangeRatio)
+
+LIculvertPrioritization %>% st_drop_geometry() %>%
+  select(-crossingID) %>% ggpairs(title = "Tidal range ratio components correlations")
+plotly::ggplotly()
+
+```
+
+
+There are many sites that do not have enough data to calculate the tidal range ratios. 
+**`r LIculvertPrioritization %>% filter(!is.na(tidalRangeRatio)) %>% nrow`** crossings have tidal range ratios calculated.
+

@@ -40,16 +40,16 @@ references %>% head(10)
 # Playing around with some complex viz.
 library(networkD3)
 # 
-# references %>% 
-#   # unnest() %>% 
-#   # filter(address == "N33") %>% 
-#   filter(cellrefs > 1) %>% 
-#   mutate(sourceCell = paste(sheet, address, sep = "_")) ->a
-#   mutate(refCell = map_chr() %>% head()
-#   # spread(type, value = token) %>%
-#   select(formula, sourceCell, ref, sheet) %>%
-#   mutate(destCell = paste(sheet, ref, sep = "_")) %>%
-#   select(formula, sourceCell, destCell) %>%
-#   simpleNetwork()
-# 
+references %>%
+  # unnest() %>%
+  # filter(address == "N33") %>%
+  filter(cellrefs > 1) %>%
+  mutate(sourceCell = paste(sheet, address, sep = "_")) ->a
+  mutate(refCell = map_chr() 
+  # spread(type, value = token) %>%
+  select(formula, sourceCell, ref, sheet) %>%
+  mutate(destCell = paste(sheet, ref, sep = "_")) %>%
+  select(formula, sourceCell, destCell) %>%
+  simpleNetwork()
+
 

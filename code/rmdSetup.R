@@ -8,6 +8,7 @@ source("functions/culvert_tidy.R")
 source("photoMatchTable.R")
 # Data Update:
 ## Update the Data?!
+ # BUG: Interactive selection windows fail when sourced in from Rmd.
 # dataUpdate <- menu(c("Update Data?", "Use cached data?"), title = "Do you want to update the data?") 
 dataUpdate <- 2
 pivots <- 2
@@ -44,6 +45,7 @@ tidalCulvert_outputs <- "../../../Box Sync/Culvert Assessment/Tidal Assessments"
 
 # Vector listing the crossings that are on the 'Field schedule' on Teams
 crossings_TODO <- crossingTracker %>% select(crossingID) %>% unlist()
+# Subset list for checking on status.
 crossingTrackerlist <- crossingTracker %>% 
   select(crossingID, visited = `Visited(Y or N)`, 
          date_visited_ct = `Date visited`, # _ct for data from crossing tracker sheet.
@@ -66,12 +68,16 @@ crossingTrackerlist <- crossingTracker %>%
 # add a few attributes/fields for prioritization and tracking 'field assessment schedules'
 
 # Culvert locations ----
-# Pull from AGOL directly. 
+# Pull from AGOL directly. #BUG: ?? maybe a bug but I've needed to reestablish this query a few times to fix 404 error.
 # tidalCrossings_desktop <- sf::st_read("https://services.arcgis.com/F7DSX1DSNSiWmOqh/arcgis/rest/services/TidalCrossing_desktopDataEntry_fieldCrew/FeatureServer/0/query?where=fid+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryPoint&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=&returnHiddenFields=true&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pgeojson&token=wSuBiKGEfq4ra4Yq5jjnNdKhHXjZsu_L7odXzo6hAGqm3wywSBG8YlhBn6dkYoLj6prfIslEqU4yACzLAYL88aEK7jrmr7kSETHTLlAhIkuPP-w9vdP-3KesrVFb6kamruDJIqpFDxUZHxfdvVDRyGejkNg4piNxyfHGqr35JrYIeClmL_vYQBjvVr4v-qft547OhEZiXQsU9szPUg3nx_Lg1zkQfclMhoX9YAsMseSZ3qr_ySTcfxkki57S0nLw")
-tidalCrossings_desktop <- sf::st_read("https://services.arcgis.com/F7DSX1DSNSiWmOqh/arcgis/rest/services/TidalCrossing_desktopDataEntry/FeatureServer/0/query?where=fid+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryPoint&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnHiddenFields=false&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pgeojson&token=K9dBF5FaWPzxogvnryqp3PsntWLZe0zZ0CvY8T7gVxs_IRWpW5ZwsohNW8Jo2ZdGKf4S2XJj-I3YISnaXPLnx3YuvuBZj6oimop3LDBQJxFqnliZwhIQ-7zyyBnd7msldjFnJiddPv19I9pJMJ4wpRIAAC7a7iM2Zfgk9jZ7Cs_AgDO1mi99lcTAvsAasonuQCqJjTqJoGj5SNtNGzpeXYGRA7gJLlAUmzA4BxzTifeZ5096FujzukRc2X8q4ZNG")
+tidalCrossings_desktop <- sf::st_read("https://services.arcgis.com/F7DSX1DSNSiWmOqh/arcgis/rest/services/TidalCrossing_desktopDataEntry/FeatureServer/0/query?where=fid+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnHiddenFields=false&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson&token=u-avLNWLepMSo18ambt-kxVipu94_gnNeed1PemOyJt-Ykf4xnx35wneO4XuL6rEbXoJhKe-zWBTl_GywvhWUvxa-puEGWr6bL3C5H7QF9WlpiYqKz6jAyjX9RlRVxu3zqclylHCPn8qhzAk80-EvYaJNqw0dGwHf1wo462dI7Ct1e3EaEpUzM0j_TJTmZhgSsraMP6rrQhblXClDXx5K9Y8LGV-v1pWItUd3VSCMeTo42hkWJbigzD5K386CPIk")
+# tidalCrossings_desktop <- sf::st_read("https://services.arcgis.com/F7DSX1DSNSiWmOqh/arcgis/rest/services/TidalCrossing_desktopDataEntry/FeatureServer/0/query?where=fid+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnHiddenFields=false&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson&token=UljpmPUQ93tAmbcuYnGCr2-X0YPWLRvInt1WX3EZt3h-eYZZgKbu6HsIi-KWBUQcGH-HopJpUlu1eLjcoWSxDNxwZbE5xCd28cgSa0L_9GLSvA_ZteOs0ynR0zLGUGkTt35WQES279v3ixKEXRfH5u3msNJvWTh3tYB-_A6HwRncav-ijrOn57Lo8m36T4Zck1cO8BxTYvOnVnL8LS_TcSELHcoIyQoOeW1DQ17JKrN1xu3yu-yxH0-8BAQ6JX1C")
 culvertPOTpts <- tidalCrossings_desktop #%>% select(crossingID:Latitude) # trim desktop data?
-  
-  
+#TODO Insert st_read of catchment data layer from Karen
+#TODO Spatial join the catchment data to the culvert points- retaining the columns that are needed. 
+# remove to keep the workspace tidy.
+rm(tidalCrossings_desktop)
+
 if(dataUpdate == 1){
   LIculvert_GISpts <- culvertPOTpts %>% st_transform(4326) %>% 
     st_zm(drop = TRUE) %>% 
@@ -82,17 +88,9 @@ if(dataUpdate == 1){
 } else{
   LIculvert_GISpts <- read_rds("data/LIculvert_GISpts.rds")
 }
+# remove to keep the workspace tidy.
+rm(culvertPOTpts)
 
-# QA ----
-# DEPRECATED
-# Identify points that may cause issues
-# errorPts <- LIculvert_GISpts %>% filter(Latitude < 30) %>% select(crossingID) %>% st_set_geometry(NULL)
-# Check for duplicate points
-# duplicatePts <- LIculvert_GISpts %>% 
-#   group_by(crossingID) %>% 
-#   filter(n()> 1) %>% 
-#   select(crossingID) %>%  
-#   st_set_geometry(NULL) %>% as_vector()
 
 ## @knitr culvertData  ----
 # Extract the field data from the workbooks and bring them in.
@@ -134,6 +132,18 @@ if(dataUpdate == 1){
     mutate_at(logicalVars, as.logical)
   # DONE: mutate outlet to Atlantic and outlet Subtidal to be one column each not 2 as in the datasheet.
   # DONE: Add column in key sheet that will be used as data dictionary. Select and paste that info to sheet 2 of the culvert data output below.
+  
+  # Munge and add in the vegetation matrix selections
+  vegMats <- LIculvertData %>% 
+    select(crossingID, starts_with("veg")) %>% 
+    gather(-crossingID, key = 'key', value = "val") %>% 
+    separate(col = key, into = c("key", "Vegchoice")) %>% 
+    mutate(VegetMat_select = ifelse(val, yes = val, no = NA)) %>% 
+    filter(!is.na(VegetMat_select)) %>% select(crossingID, Vegchoice) 
+  LIculvertData <- LIculvertData %>% left_join(vegMats) %>% select(-starts_with("vegMat"))
+  
+  
+  
   LIculvertData %>% write_rds(path = "data/LIculvertData.rds")
 }else{
   LIculvertData <- read_rds(path = "data/LIculvertData.rds")
@@ -153,8 +163,7 @@ if (typeof(LIculvertData$crossingID) == typeof(LIculvert_GISpts$crossingID)) {
   stop("CrossingID not same data type (character vs numeric)")
 }
 
-# TODO: MAYBE... add spatial component earlier in code. No need to wait to gather it here.
-# if sourced LIculvert_GISpts and LIculvertData already are in global environment.
+
 LIculvertData_location <- LIculvert_GISpts %>% 
   left_join(LIculvertData, by = "crossingID")  # this object is picking up 2 extra joins- perhaps dupicate CrossingIDs? YUP> 2007 is duplicated in GIS file.
   
@@ -168,22 +177,7 @@ if(dataUpdate == 1){
     select(filenames, crossingID, dateAssessed, observers, everything()) %>% # organize the order of the columns.
     mutate(CrossingTypeIDed = ifelse(CrossingType >= 2, yes = 1, no = 0), 
            crossingID = as.numeric(crossingID)) %>% 
-    # rowwise() %>% 
-    # mutate(MissingchannelPoolWidths = sum(!is.na(c(ChannelWidth_upStream, 
-    #                                                ChannelWidth_dwnStream, 
-    #                                                MaxPoolWidth_upStream, 
-    #                                                MaxPoolWidth_dwnStream)))/4 == 1,
-    #        MissingCatchmentAttributes = sum(!is.na(c(WatershedArea_upStream, 
-    #                                                  saltMarshArea, 
-    #                                                  WatershedLndCover_wetland, 
-    #                                                  WatershedLndCover_forested, 
-    #                                                  WatershedLndCover_impervious, 
-    #                                                  WatershedLndCover_developed)))/6 == 1,
-    #        MissingMarshMigrationPotential = sum(!is.na(c(MarshMigrPot_acres, 
-    #                                                      MarshMigrPot_evalUnit, 
-    #                                                      NWI_class_upStream, 
-    #                                                      NWI_class_dwnStream)))/4 == 1) %>%
-    replace_na(list(FieldAssessmentComplete = "N", 
+     replace_na(list(FieldAssessmentComplete = "N", 
                     DesktopAssessmentComplete = "N", 
                     FullAssessmentComplete = "N")) %>% 
     select(filenames, lastChanges, crossingID, FieldAssessmentComplete,
@@ -219,8 +213,7 @@ if(dataUpdate == 1){
 
 ## Data outputs ====
 if(writeOutputs == TRUE){
-  # st_write(LIculvertDataStatus_location, dsn = "outputs/tidalCulvertLocations.gpkg",
-  #          layer = "tidalCrossingStatus", update  = TRUE, layer_options = "OVERWRITE=YES")
+  write_rds(LIculvertData_location, path = "data/LIculvertData_location.rds")
   # # # This keeps failing to write to file. giving an error of GDAL Error 1:
   # # st_write(LIculvertData_location, dsn = "outputs/tidalCulvertLocations.gpkg", 
   # #          layer = "tidalCrossingData", update = TRUE, layer_options = c("OVERWRITE=YES"))
@@ -259,6 +252,13 @@ if(pivots == 1){
     rpivotTable()
 }
 
+# GIS ouputs for Karen- M:\Projects\LI\Culvert_Assessment\data\Tidal Crossings
+LIculvertDataStatus_location %>% select(crossingID, FieldAssessmentComplete) %>%
+  mutate(AssessmentStatus = if_else(FieldAssessmentComplete  != "N" | FieldAssessmentComplete == "Y", 
+                                    true = "Assessment Complete", 
+                                    false = "Assessment Incomplete")) %>% 
+  st_write(dsn = "M:/Projects/LI/Culvert_Assessment/data/Tidal Crossings/tidalFieldAssessmentStatus.shp", delete_layer=TRUE)
+
 
 
 # # DataExplorer reports
@@ -268,3 +268,4 @@ if(pivots == 1){
 # create_report(data = tidalCrossings_desktop %>% st_drop_geometry(), config = config, output_file = "Desktop data report.html")
 # create_report(data = LIculvertData, output_file = "Tidal culvert data: Field.html", config = config)
 # create_report(data = st_drop_geometry(LIculvertDataStatus_location), output_file = "Tidal Culvert Data.html", config = config)
+

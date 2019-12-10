@@ -22,17 +22,17 @@ knitr::read_chunk("code/rmdSetup.R") # read code chunks from external files to e
 ```{r culvertData, message=FALSE, warning=FALSE, paged.print=FALSE}
 ```
 
-Identifying Crossings {data-width=1200}
+Identifying Crossings {data-width=1200}   
 ===========================================  
 
-Column{data-width=800}  
+Column{data-width=800}    
 -------------------------------------------  
 
-These are _*ALL*_ points that have been flagged as potential tidal culverts. 
+These are _*ALL*_ points that have been flagged as potential tidal culverts.  
 
-The map below contains all the cuvlerts that have been identified and that are currently in the Long Island Culvert Mapping group on AGOL. These data also house the desktop data as extracted from the Workbooks in late September. The data are being updated direct to the AGOL dataset.
+The map below contains all the cuvlerts that have been identified and that are currently in the Long Island Culvert Mapping group on AGOL. These data also house the desktop data as extracted from the Workbooks in late September. The data are being updated direct to the AGOL dataset.  
 
-Crossings are colored by 'Status'  
+Crossings are colored by 'Status'    
 
 ```{r allPtsMap, fig.height=5, fig.show='hold', fig.width=12, message=FALSE, warning=FALSE, paged.print=FALSE}
 # Crossings that have been IDed via ArcMap and from partners.
@@ -82,21 +82,34 @@ Desktop Assessment
 ```{r out.width='100%', message=FALSE, warning=FALSE, paged.print=FALSE}
 LIculvertData_location %>% select(crossingID, starts_with("da_"), -ends_with("Comts")) %>% 
   st_drop_geometry() %>% 
-  plot_missing(ggtheme = theme_ipsum())
+  plot_missing(ggtheme = theme_ipsum()) %>% plotly::ggplotly()
 ```
 
 Column{data-width=800}  
 -------------------------------------------   
 
-Desktop Data -missing-by-crossing- 
-  
+## Desktop Data -missing-by-crossing- 
+
+Proportion of desktop assessment data missing from dataset.
+
   
 ```{r out.width='100%', message=FALSE, warning=FALSE, paged.print=FALSE}
 
 LIculvertDataStatus_location %>% 
-  select(crossingID, starts_with("da_"), 
-         -starts_with("da_NW"),
-         ends_with("Comts")) %>% mutate(propNa = rowMeans(is.na(.), na.rm = T)) %>% 
+  select(crossingID, 
+         # select the desktop assessment fields
+         starts_with("da_"), 
+         
+         # do not select the NWI classifications as many are missing and not collected.
+         -starts_with("da_NW"), 
+         
+         # do no select the comments fields
+         ends_with("Comts")) %>% 
+  
+  # Calculate the proportion of desktop assessment variables that are missing.
+  mutate(propNa = rowMeans(is.na(.), na.rm = T)) %>% 
+  
+  # Select just the calculated proportion and the crossingID for mapping.
   select(crossingID, propNa) %>% 
   mapview(cex = "propNa", na.color = 'red', zcol = "propNa", layer.name = "Proportion NA's")
 
@@ -115,10 +128,22 @@ Proportion of crossings that have a measure for each feature and position (up/do
 
 ```{r}
 # Pivot Table
-LIculvertsAssessments %>% select(crossingID, heights) %>%  
-  unnest() %>% mutate(hasHt = !is.na(adjustedHt) | !is.na(Height)) -> hwi_qunat
+hwi_qunat <- LIculvertsAssessments %>% select(crossingID, heights) %>%  
+  unnest() %>% mutate(hasHt = !is.na(adjustedHt) | !is.na(Height))
 
-hwi_qunat %>% filter(hasHt == TRUE) %>% select(crossingID, Feature, Position)  %>% rpivotTable(rows = "crossingID", cols = c("Feature", "Position"), rendererName = "Heatmap", aggregatorName = "Count")
+crosComs <-   LIculvertData %>% select(crossingID, crossSection_hts_coms) %>% mutate(crossingID = as.character(crossingID))
+  
+hwi_qunat %>% filter(hasHt == TRUE) %>% select(crossingID, Feature, Position) %>% 
+  left_join(crosComs) %>% rpivotTable(rows = "crossingID", cols = c("Feature", "Position"), rendererName = "Heatmap", aggregatorName = "Count")
+
+hwi_qunat %>% filter(hasHt == TRUE) %>% select(crossingID, Feature, Position) %>% 
+  group_by(crossingID, Feature, Position) %>%
+  tally() %>% 
+  unite(col = "FeaturePos", sep = "  -  ", Feature, Position) %>% 
+  spread(key = FeaturePos, value = n) %>% 
+  left_join(crosComs) %>% 
+  write_xlsx(path = "Y:/CrossSectionalCompleteness.xlsx")
+
 
 
 ```
@@ -170,7 +195,7 @@ Column{data-width=800}
 -------------------------------------------
 
 ```{r}
-hwi_qunat %>% select(crossingID, Feature, Position, hasHt) %>% spread(Feature, hasHt) %>% group_by(crossingID, Position) %>% mutate(highWat = sum(`Ceiling of Structure`, `HWI Stain`, `HWI Wrack`, `Road Surface`, na.rm = T)/4) %>% select(crossingID, Position, highWat) %>% filter(!is.na(Position)) %>% group_by(Position, highWat) %>% tally()
+# hwi_qunat %>% select(crossingID, Feature, Position, hasHt) %>% spread(Feature, hasHt) %>% group_by(crossingID, Position) %>% mutate(highWat = sum(`Ceiling of Structure`, `HWI Stain`, `HWI Wrack`, `Road Surface`, na.rm = T)/4) %>% select(crossingID, Position, highWat) %>% filter(!is.na(Position)) %>% group_by(Position, highWat) %>% tally()
 
 
 

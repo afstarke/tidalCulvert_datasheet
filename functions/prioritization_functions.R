@@ -18,7 +18,7 @@
 #**********************************************
 # E1. Salt Marsh Complex Size ----
 
-#' TODO: Confirm what field this is referencing from Karen's model outputs.
+#' #REVIEW: Confirm what field this is referencing from Karen's model outputs.
 #' likely to be da_saltMarshArea
 #'
 
@@ -26,7 +26,7 @@
 #**********************************************
 # E2. Salt Marsh Size upstream (whole watershed)----
 
-#' TODO: Confirm what field this is referencing from Karen's model outputs.
+#' #REVIEW: Confirm what field this is referencing from Karen's model outputs.
 #' likely to be da_WatershedLndCover_wetland
 #'
 #'
@@ -86,7 +86,8 @@ crit_tidal_range <- function(tide_r_ratio){
 }
 
 
-# Crossing Ratio ====
+# Crossing Ratio ----
+#' 3(b)
 #' Crossing Ratio 
 #'  calculate the raw upstream or downstream crossing ratio for use in evaluating score and criteria.
 #'
@@ -124,6 +125,7 @@ crit_crossing_ratio <- function(crossing.ratio){
 
 #*****************
 # Erosion Classification ----
+#' 3(c)
 #' erosion_class
 #'
 #' @param scour_pool 
@@ -179,12 +181,40 @@ crit_taop <- crit_tidal_range
 DTOR_TAOP <- function(tidal_rng_score, crossing_ratio_score, erosion_class_score, taop){
   scores <- c(tidal_rng_score, crossing_ratio_score, erosion_class_score, taop)
   if(all(scores %in% 1:5)){
-    finalscore <- mean(scores, na.rm = TRUE)
+    finalscore <- mean(scores, na.rm = TRUE) #REVIEW: Confirm that we would want to drop any NAs
     return(finalscore)
   } else{
     return("Scores not valid. Check individual components to ensure scores are between 1 and 5.")
   }
   
 }
+
+
+
+#****************************************
+# Vegetation Matrix
+#'
+#' Vegetation matrix scoring
+#' Used 'Resilient Tidal Crossings' documentation as guide
+#' for scoring
+#' 
+
+vegetationScore <- function(vegMatChoice){
+  score <- case_when(
+    vegMatChoice == "1A" ~ 1,
+    vegMatChoice == "1B" ~ 3,
+    vegMatChoice == "1C" ~ 5,
+    vegMatChoice == "2A" ~ 0,
+    vegMatChoice == "2B" ~ 0,
+    vegMatChoice == "2C" ~ 0,
+    vegMatChoice == "3A" ~ 3,
+    vegMatChoice == "3B" ~ 4,
+    vegMatChoice == "3C" ~ 5
+  )
+  return(score)
+}
+
+
+
 
 

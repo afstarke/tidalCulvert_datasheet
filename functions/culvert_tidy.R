@@ -16,12 +16,13 @@
 #' 
 #' 
 culvert_fetch <- function(filepath){
+  cellNeeds <- c("I164", "I165", "I169", "P164", "P165", "P169", "W164", "W165", "W169")
   cells <- tidyxl::xlsx_cells(filepath) %>%
     filter(sheet != "Data Sheet - BLANK") %>% 
     select(sheet, address, data_type:formula) %>% 
     mutate(date = as.character(date)) %>% # attempt at fixing issue with attributes being dropped by tidyr::gather
     gather(error:character, key = "dataType", value = "value") %>% 
-    filter(!is.na(value)) %>% 
+    filter(!is.na(value) | address %in% cellNeeds & dataType == "logical") %>% # a set of cells are needed that when blank in the data are filtered out here.
     mutate(same = ifelse(data_type == dataType, 1, 0)) 
   return(cells)
 }
@@ -49,7 +50,7 @@ surveyHtCorrection <- function(rawHeight, shotCode, Lidarht, roadCentHt, TPforsi
             shotCode == "U" ~ as.numeric(sum(Lidarht, roadCentHt)) + -as.numeric(TPforsight_upSt) + as.numeric(TPbacksight_upSt) + -as.numeric(rawHeight),
             shotCode == "D" ~ as.numeric(sum(Lidarht, roadCentHt)) + -as.numeric(TPforsight_dwSt) + as.numeric(TPbacksight_dwSt) + -as.numeric(rawHeight),
             shotCode == "X" ~ as.numeric(NA), # missing data value for the 'X' code that I don't know how to deal with yet.
-            is.na(shotCode) ~ as.numeric(NA)) # if missing shot code, it's likely missing other data.....
+            is.na(shotCode) ~ as.numeric(NA)) # if missing shot code, it's likely missing other data.
 }
 
 
@@ -80,7 +81,7 @@ channelLongidinalProfile_extract <- function(filepath, tidycells){
 
   profile <- read_xlsx(path = filepath, sheet = 2, range = "A122:M140")
   profile <- profile %>% filter(!is.na(Distance)) %>%
-    select(-starts_with("..")) %>%
+    select(-starts_with("...")) %>%
     rename(Substrate = `Sub-\r\nstrate`,
            shotCode = `Shot From (R/U/D)`,
            rawHeight = Height) %>%
@@ -100,6 +101,8 @@ channelLongidinalProfile_extract <- function(filepath, tidycells){
 
   profile
 }
+#TODO: Drop this after fixes.
+channelLongidinalProfile_extract <- possibly(.f = channelLongidinalProfile_extract, otherwise = "ISSUE")
 
 # Create nested culvert datafame -------------------------------------------------------
 # ---- culvert_tidy
@@ -151,7 +154,7 @@ culvert_tidy <- function(folder){
 crossSection <- function(filepath, tidycells){
   # Set up variables for adjusting to NAVD88 with surveyHtCorrection()
   # constants for each crossing
-  
+  # Lidarht will be collected in Desktop data on ArcOnline. Must integrate this somehow.
   Lidarht <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SUMMARY', celladdress = 'J54') %>% as.numeric()
   roadCentHt <- Lidarht
   # Road width used in the calculations of distance.
@@ -170,15 +173,12 @@ crossSection <- function(filepath, tidycells){
   # Crossing Cross Section
   cross <- read_xlsx(path = filepath, sheet = 2, range = "R98:AH106", trim_ws = TRUE) %>% # Raw values
     as_tibble() %>% 
-    rename(`US cntrlPtcode` = '..12', `DS cntrlPtcode` = '..17') %>%  
-    select(-starts_with(".."))
-  # roadCt <- read_xlsx(path = filepath, sheet = 2, range = "J106:M107") %>% # Raw values
-  #   rename(Height = '..1', cntrlPtcode = '..4') %>%  
-  #   select(-starts_with("..")) %>% mutate(Feature = "Road center", Position = "US")
+    rename(`US cntrlPtcode` = '...12', `DS cntrlPtcode` = '...17') %>%  
+    select(-starts_with("..."))
   # Low Tide Water Elevations
   tide <- read_xlsx(path = filepath, sheet = 2, range = "P94:AH95") %>%
-    rename(`US cntrlPtcode` = '..14', `DS cntrlPtcode` = '..19') %>% # label columns as control points.
-    select(-starts_with(".."))  %>% 
+    rename(`US cntrlPtcode` = '...14', `DS cntrlPtcode` = '...19') %>% # label columns as control points.
+    select(-starts_with("..."))  %>% 
     mutate_if(is.logical, .funs = ~as.numeric(.)) %>% #ensure nums are nums
     mutate(Feature = "Low Tide Water Elevation") %>% 
     mutate_at(crossvars_chr, .funs = ~as.character(.)) # ensure chars are chars
@@ -192,13 +192,13 @@ crossSection <- function(filepath, tidycells){
     filter(Distance == min(Distance)) %>% 
     mutate(Feature = "Invert", Position = "US") %>% 
     select(Feature, Position, Distance, adjustedHt)
-  DSinvert <- Longprofile %>% filter(str_detect(`Feature Code`, pattern = "I")) %>% # Arrg.... Some crossings use I as GCP...
+  DSinvert <- Longprofile %>% filter(str_detect(`Feature Code`, pattern = "I")) %>% # Arrg. Some crossings use I as GCP.
     filter(Distance == max(Distance)) %>% 
     mutate(Feature = "Invert", Position = "DS") %>% 
     select(Feature, Position, Distance, adjustedHt)
   inverts <- rbind(USinvert, DSinvert) %>% 
     rename(NAVD_ht = adjustedHt)
-  # TODO: Create individual calculations for the distances. PIA...
+  # TODO: Create individual calculations for the distances. PIA.
   # values for calculations of distance
   USInvdist <- USinvert %>% pull(Distance) %>% as.numeric() # Upstream invert distance
   DSInvdist <- DSinvert %>% pull(Distance) %>% as.numeric() # Downstream invert distance
@@ -236,7 +236,7 @@ crossSection <- function(filepath, tidycells){
   
 }
 # use purrr magic to catch any issues. 
-crossSection <- possibly(crossSection, otherwise = "Unable to fetch")
+crossSection <- possibly(crossSection, otherwise = "Unable to extract")
 
 
 #
@@ -278,14 +278,14 @@ calcHeights <- function(tidycellCol, longitudinalProfile, crossHeight){
     select(Feature, Position, Distance, adjustedHt)
   # USinvert <- if_else(nrow(USinvert) =< 1, NA, USinvert)
   
-  DSinvert <- longitudinalProfile %>% filter(str_detect(`Feature Code`, pattern = "I")) %>% # Arrg.... Some crossings use I as GCP...
+  DSinvert <- longitudinalProfile %>% filter(str_detect(`Feature Code`, pattern = "I")) %>% # Arrg. Some crossings use I as GCP.
     filter(Distance == max(Distance)) %>% 
     mutate(Feature = "Invert", Position = "DS") %>% 
     select(Feature, Position, Distance, adjustedHt)
   
   inverts <- rbind(USinvert, DSinvert) %>% 
     rename(NAVD_ht = adjustedHt)
-  # TODO: Create individual calculations for the distances. PIA...
+  # TODO: Create individual calculations for the distances. PIA.
   # values for calculations of distance
   
   USInvdist <- if(exists("USinvert")) USinvert %>% pull(Distance) %>% as.numeric() else 999 # Upstream invert distance
@@ -320,9 +320,9 @@ calcHeights <- function(tidycellCol, longitudinalProfile, crossHeight){
       code ==  "Low Tide Water Elevation_DS" ~ as.numeric(DSInvdist),
       code ==  "Marsh Plain Shot_US" ~ as.numeric((USInvdist/2) -(USInvdist/4)),
       code ==  "Marsh Plain Shot_DS" ~ as.numeric(DSInvdist),
-      code ==  "Road Surface_US" ~ roadWidth, #as.numeric(roadCentDist - (roadWidth/2)),
+      code ==  "Road Surface_US" ~ as.numeric(roadCentDist - (roadWidth/2)),
       code ==  "Road Surface_DS" ~ as.numeric(roadCentDist + (roadWidth/2)),
-      code ==  "Road Center_NA" ~ as.numeric(roadCentDist), # not in an up or downstream position....
+      code ==  "Road Center_NA" ~ as.numeric(roadCentDist), # not in an up or downstream position.
       is.null(code) ~ 999,
       is.na(code) ~ 9999, 
       code == "NA_NA" ~ 99999
@@ -337,3 +337,4 @@ calcHeights <- function(tidycellCol, longitudinalProfile, crossHeight){
   
 }
 
+calcHeights <- possibly(calcHeights, otherwise = "Unable to extract")

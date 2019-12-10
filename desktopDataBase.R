@@ -17,10 +17,6 @@
 #   select(-ALL BUT THE FIELDS THAT WE'RE REPLACING) %>% 
 #   rename(FIELDS FROM BELOW, line 14) %>% then do the pre_fix?
 
-# TODO: ensure that the desktop data that is included in this output is NOT included in some later outputs of the Field assessment data
-# which may cause confusion or issues with replicated field names.
-
-
 # Rename list.
 # saltMarshArea = MARSH_AC,
 # WatershedArea_upStream = BASIN_SQMI,
@@ -117,6 +113,5 @@ desktopData2 %>%
   st_write(dsn = "M:/Projects/LI/Culvert_Assessment/data/Tidal_Desktop_Assessment/TidalCrossings_DesktopData.geojson")
 
 # From this convert geopkg to gdb in Arcmap and publish to either  NYSPATIAL or ArcOnline (AGOL). 
-# TODO: Write new fucntion to pull data from AGOL and integrate to field data.
 
 
