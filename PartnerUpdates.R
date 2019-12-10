@@ -18,7 +18,9 @@ PEPsites <- c("46269",
 "140",
 "44")
 # Select sites using attribute filter
-PEPsitesStatus <- LIculvertDataStatus_location %>% filter(crossingID %in% PEPsites) %>% select(crossingID, FieldAssessmentComplete, DesktopAssessmentComplete, ToBeAssessed_2019, MissingFromAssessment)
+PEPsitesStatus <- LIculvertDataStatus_location %>% 
+  filter(crossingID %in% PEPsites) %>% 
+  select(crossingID, FieldAssessmentComplete, DesktopAssessmentComplete, ToBeAssessed_2019, MissingFromAssessment)
 mapview(PEPsitesStatus, zcol = "FieldAssessmentComplete")
 
 PEPsitesStatus %>% st_drop_geometry() %>% 
