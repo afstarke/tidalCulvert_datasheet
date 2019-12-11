@@ -6,7 +6,7 @@ output: html_notebook
 
 
 ### Intention
-This document is meant to outline the workflow of the data used in the prioritization of the tidal crossings assessed under TNC's methods. 
+This document is meant to outline the workflow of the data used in the prioritization of the tidal crossings assessed under TNC's methods. These methods are applied to all the crossings uniformly. Summary sheet infomation, specific to an individual crossing, will be based on the output from this code. 
 
 ```{r priorizationFunctions, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # package setup and sourcing data etc.
@@ -14,7 +14,7 @@ source("functions/prioritization_functions.R")
 source("00_libraries.R") # libraries used elsewhere and stored here for convienence
 library(GGally)
 theme_set(theme_ipsum())
-
+options(digits = 2, scipen = 999)
 ```
 
 ### Starting Data source
@@ -32,28 +32,54 @@ LIculvertsAssessments %>% filter(crossingID != 71) %>%
   mutate(crossingID = as.numeric(crossingID)) %>% 
   spread(key = FP, value = adjustedHt) -> heights # heights are needed for some of the calculations. Perhaps a better method would be to use SQL-like queries referencing multiple tables as needed. 
 
-LIcuvlertAssessmentData <- LIculvertData_location %>% left_join(heights) 
+LIculvertAssessmentData <- LIculvertData_location %>% left_join(heights) 
 ```
 
+***
+### Tidal Range Ratio  
+Ratio of the upstream tidal range to downstream tidal range. Tidal range is estimated from difference in elevation from high water indicator and low tide eleveations at the time of the assessment. A ratio of 50% would indicate that the downstream tidal range is twice as large as the upstream tidal range.  
 
-### Tidal Range Ratios  
 
-
-```{r prioritizations, message=FALSE, warning=FALSE, paged.print=FALSE}
-LIculvertPrioritization <- LIcuvlertAssessmentData %>% 
+```{r tidalrange, message=FALSE, warning=FALSE, paged.print=TRUE}
+LIculvertPrioritization <- LIculvertAssessmentData %>%
   mutate(tidalRangeRatio = tidal_range_ratio(us_hwi_stain = `HWI Wrack US`,
                                              ds_hwi_stain = `HWI Wrack DS`,
                                              us_low_tide_elevation = `Low Tide Water Elevation US`, 
                                              ds_low_tide_elevation = `Low Tide Water Elevation DS`)) %>% 
   select(crossingID, `HWI Wrack US`, `Low Tide Water Elevation US`, `HWI Wrack DS`, `Low Tide Water Elevation DS`, tidalRangeRatio)
 
-LIculvertPrioritization %>% st_drop_geometry() %>%
-  select(-crossingID) %>% ggpairs(title = "Tidal range ratio components correlations")
-plotly::ggplotly()
+LIculvertPrioritization %>% st_drop_geometry() %>% arrange(tidalRangeRatio)
+
+LIculvertPrioritization %>% st_drop_geometry() %>% select(-crossingID) %>% 
+  ggpairs(title = "Tidal range ratio components correlations")
+# LIculvertPrioritization %>% ggplot(aes(x = tidalRangeRatio, y = NA, color = crossingID)) + geom_point() 
+# plotly::ggplotly()
 
 ```
 
 
 There are many sites that do not have enough data to calculate the tidal range ratios. 
 **`r LIculvertPrioritization %>% filter(!is.na(tidalRangeRatio)) %>% nrow`** crossings have tidal range ratios calculated.
+
+### Crossing Ratio
+Crossing ratio is calculated from the greater of 2 ratios. The ratio of crossing structure to the stream section, for both the up and downstream sides. A wide rive with a small structure opening will score high, indicating a restriction.
+
+```{r crossingratios}
+#IDEA: should we add a prefix for the 'raw' and/or 'calculated' scores?
+LIculvertAssessmentData %>% st_drop_geometry() %>% 
+  mutate(crossingRatio_upStrm = crossing_ratio(channelWidth = da_ChannelWidth_upStream, 
+                                               dimA = CrosDim_upA, 
+                                               dimC = crossDim_upC),
+    crossingRatio_dwStrm = crossing_ratio(channelWidth = da_ChannelWidth_dwnStream, 
+                                          dimA = CrosDim_dwnA, 
+                                          dimC = CrosDim_dwnC),
+    crossingRatio = pmax(crossingRatio_dwStrm, crossingRatio_upStrm)) %>% #NOTE: Must use pmax with dplyr! And must score for final prioritizations.
+  select(crossingID, crossingRatio_upStrm, crossingRatio_dwStrm, crossingRatio)
+
+
+```
+
+### Erosion Classification
+
+
 
