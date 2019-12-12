@@ -3,7 +3,10 @@ title: "Tidal Crossing Assessment and Priotization"
 subtitle: "Suffolk County- Long Island"
 output: html_notebook
 ---
-
+ <script src= 'https://statics.teams.cdn.office.net/sdk/v1.5.2/js/MicrosoftTeams.min.js'></script>
+ <script>
+    microsoftTeams.initialize();
+  </script>
 
 ### Intention
 This document is meant to outline the workflow of the data used in the prioritization of the tidal crossings assessed under TNC's methods. These methods are applied to all the crossings uniformly. Summary sheet infomation, specific to an individual crossing, will be based on the output from this code. 
@@ -24,7 +27,7 @@ Data extracted from Tidal Crossings Field workbooks using a suite of functions f
 LIculvertsAssessments <- readRDS("data/LIculvertsAssessments.rds")
 LIculvertData_location <- read_rds("data/LIculvertData_location.rds")
 
-LIculvertsAssessments %>% filter(crossingID != 71) %>% 
+LIculvertsAssessments %>% filter(crossingID != 71) %>% # FIXME: this crossing is a PIA needs review and fixing.
   select(crossingID, heights) %>% 
   unnest() %>% 
   unite(Feature, Position, col = "FP", sep = " ") %>% 
@@ -45,13 +48,14 @@ LIculvertPrioritization <- LIculvertAssessmentData %>%
   mutate(tidalRangeRatio = tidal_range_ratio(us_hwi_stain = `HWI Wrack US`,
                                              ds_hwi_stain = `HWI Wrack DS`,
                                              us_low_tide_elevation = `Low Tide Water Elevation US`, 
-                                             ds_low_tide_elevation = `Low Tide Water Elevation DS`)) %>% 
-  select(crossingID, `HWI Wrack US`, `Low Tide Water Elevation US`, `HWI Wrack DS`, `Low Tide Water Elevation DS`, tidalRangeRatio)
+                                             ds_low_tide_elevation = `Low Tide Water Elevation DS`),
+         eval_TidalRangeSc = crit_tidal_range(tidalRangeRatio)) %>% 
+  select(crossingID, `HWI Wrack US`, `Low Tide Water Elevation US`, `HWI Wrack DS`, `Low Tide Water Elevation DS`, tidalRangeRatio, eval_TidalRangeSc)
 
 LIculvertPrioritization %>% st_drop_geometry() %>% arrange(tidalRangeRatio)
 
 LIculvertPrioritization %>% st_drop_geometry() %>% select(-crossingID) %>% 
-  ggpairs(title = "Tidal range ratio components correlations")
+  ggpairs(title = "Tidal range ratio components correlations") + theme(strip.text.y = element_text(angle = 0))
 # LIculvertPrioritization %>% ggplot(aes(x = tidalRangeRatio, y = NA, color = crossingID)) + geom_point() 
 # plotly::ggplotly()
 
@@ -64,22 +68,59 @@ There are many sites that do not have enough data to calculate the tidal range r
 ### Crossing Ratio
 Crossing ratio is calculated from the greater of 2 ratios. The ratio of crossing structure to the stream section, for both the up and downstream sides. A wide rive with a small structure opening will score high, indicating a restriction.
 
-```{r crossingratios}
-#IDEA: should we add a prefix for the 'raw' and/or 'calculated' scores?
-LIculvertAssessmentData %>% st_drop_geometry() %>% 
+```{r crossingratios, message=FALSE, warning=FALSE}
+#IDEA: prefix all scoring variables with 'eval_'
+# Workflow: Create a master tibble that will be added to with each code block. 
+tmp <- LIculvertAssessmentData %>% st_drop_geometry() %>% 
+  # Calculate the up and down stream crossing ratios
   mutate(crossingRatio_upStrm = crossing_ratio(channelWidth = da_ChannelWidth_upStream, 
                                                dimA = CrosDim_upA, 
                                                dimC = crossDim_upC),
     crossingRatio_dwStrm = crossing_ratio(channelWidth = da_ChannelWidth_dwnStream, 
                                           dimA = CrosDim_dwnA, 
                                           dimC = CrosDim_dwnC),
-    crossingRatio = pmax(crossingRatio_dwStrm, crossingRatio_upStrm)) %>% #NOTE: Must use pmax with dplyr! And must score for final prioritizations.
-  select(crossingID, crossingRatio_upStrm, crossingRatio_dwStrm, crossingRatio)
+    crossingRatio = pmax(crossingRatio_dwStrm, crossingRatio_upStrm),
+    # calculate the crossing ratio evaluation score.
+    eval_crossingRatioSc = crit_crossing_ratio(crossing.ratio = crossingRatio)) %>% #NOTE: Must use pmax with dplyr! And must score for final prioritizations.
+  select(crossingID, crossingRatio_upStrm, crossingRatio_dwStrm, crossingRatio, eval_crossingRatioSc)
 
+tmp %>% arrange(eval_crossingRatioSc)
+
+tmp %>% select(-crossingID) %>% 
+  ggpairs(title = "Crossing ratio components correlations") + theme(strip.text.y = element_text(angle = 0))
+
+# Like what we see? Join to the master LIculvertPrioritization tibbel.
+LIculvertPrioritization <- LIculvertPrioritization %>% 
+  left_join(tmp, by = "crossingID")
 
 ```
 
 ### Erosion Classification
 
+The ratio of scour pool width to channel width for both up and down stream sections. A large ratio indicates a larger scour pool 
 
+```{r erosionClass, message=FALSE, warning=FALSE}
+
+tmp <- LIculvertAssessmentData %>% st_drop_geometry() %>% 
+  # Calculate the up and down stream classification 'raw' scores
+  mutate(erosionClass_upStrm = erosion_class(scour_pool = da_MaxPoolWidth_upStream, 
+                                             channel_width = da_ChannelWidth_upStream),
+         erosionClass_dwnStrm = erosion_class(scour_pool = da_MaxPoolWidth_dwnStream, 
+                                              channel_width = da_ChannelWidth_dwnStream),
+    crossingRatio = pmax(crossingRatio_dwStrm, crossingRatio_upStrm),
+    # calculate the erosion classification evaluation score.
+    eval_erosionClassSc = crit_erosion_class(us_eclass = erosionClass_upStrm, 
+                                             ds_eclass = erosionClass_dwnStrm))
+  select(crossingID, erosionClass_upStrm, erosionClass_dwnStrm, eval_erosionClassSc)
+
+tmp %>% arrange(eval_crossingRatioSc)
+
+tmp %>% select(-crossingID) %>% 
+  ggpairs(title = "Crossing ratio components correlations") + theme(strip.text.y = element_text(angle = 0))
+
+# Like what we see? Join to the master LIculvertPrioritization tibbel.
+LIculvertPrioritization <- LIculvertPrioritization %>% 
+  left_join(tmp, by = "crossingID")
+
+```
 

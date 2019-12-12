@@ -77,11 +77,11 @@ tidal_range_ratio <- function(us_hwi_stain,
 crit_tidal_range <- function(tide_r_ratio){
   val <- tide_r_ratio
   dplyr::case_when(
-    val >= 0.90 ~ 1, # TODO: This needs to be built out more. Other variables feed into this in NH docs
-    val >= 0.80 & val < 0.90 ~ 2,
-    val >= 0.70 & val < 0.80 ~ 3,
-    val >= 0.50 & val < 0.70 ~ 4,
-    val < 0.50 ~ 5
+    val >= 0.90 ~ 1L, # TODO: This needs to be built out more. Other variables feed into this in NH docs
+    val >= 0.80 & val < 0.90 ~ 2L,
+    val >= 0.70 & val < 0.80 ~ 3L,
+    val >= 0.50 & val < 0.70 ~ 4L,
+    val < 0.50 ~ 5L
   )
 }
 
@@ -114,12 +114,15 @@ crossing_ratio <- function(channelWidth, dimA, dimC){
 #'
 #' @examples
 crit_crossing_ratio <- function(crossing.ratio){
-  score <- cut(x = crossing.ratio, 
-               # Adjust the breaks for as needed 
-               breaks = c(-Inf, 0, 1, 1.2, 2.5, 5, Inf), 
-               # Resulting scored value based on NH document pg. 22
-               labels = c(0, 1, 2, 3, 4, 5))
   
+  score <- dplyr::case_when(
+    crossing.ratio >= 5 ~ 5L, 
+    crossing.ratio >= 2.5 ~ 4L,
+    crossing.ratio >= 1.25 ~ 3L,
+    crossing.ratio >= 1 ~ 2L,
+    crossing.ratio < 1 ~ 1L
+  )
+  return(score)
 }
 
 
@@ -138,7 +141,7 @@ crit_crossing_ratio <- function(crossing.ratio){
 #' 
 erosion_class <- function(scour_pool, channel_width){
   eclass <- scour_pool / channel_width
-  
+  lassClass
   return(eclass)
 }
 
