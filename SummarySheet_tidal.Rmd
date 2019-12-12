@@ -5,7 +5,11 @@ output:
     orientation: rows
     vertical_layout: fill
 ---
-
+ <script src= 'https://statics.teams.cdn.office.net/sdk/v1.5.2/js/MicrosoftTeams.min.js'></script>
+ <script>
+    microsoftTeams.initialize();
+  </script>
+  
 ```{r setup, include=FALSE}
 library(flexdashboard)
 ```

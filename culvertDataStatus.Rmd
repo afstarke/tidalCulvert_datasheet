@@ -6,7 +6,11 @@ output:
     theme: spacelab
     source: embed
 ---
-
+ <script src= 'https://statics.teams.cdn.office.net/sdk/v1.5.2/js/MicrosoftTeams.min.js'></script>
+ <script>
+    microsoftTeams.initialize();
+  </script>
+  
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 source("00_libraries.R")
