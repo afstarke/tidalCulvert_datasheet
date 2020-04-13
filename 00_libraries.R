@@ -2,7 +2,8 @@
 
 
 ## @knitr libraryLoad
-
+library(gt)
+library(chron)
 library(readr)
 library(readxl)
 library(tidyxl)
@@ -24,4 +25,13 @@ library(rpivotTable)
 library(directlabels)
 library(DataExplorer)
 library(DT)
-# library(arcbindings)
+# library(arcgisbinding, quietly = TRUE)
+library(datapasta)
+library(kableExtra)
+library(ggimage)
+library(magick)
+library(patchwork)
+library(tmap)
+library(tmaptools)
+library(rmarkdown)
+library(pagedown)
