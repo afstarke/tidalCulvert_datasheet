@@ -2,7 +2,7 @@
 
 
 ## @knitr libraryLoad
-library(gt)
+# library(gt)
 library(chron)
 library(readr)
 library(readxl)
