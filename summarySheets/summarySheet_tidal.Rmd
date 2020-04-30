@@ -36,8 +36,8 @@ tidalPrioritization <- read_rds(here::here("data", "/LIculvertPrioritizations.rd
 # - Plot data for longitudinal profiles.
 # - anxillary data such as number of local crossings inundated by SLR
 slrScenarios <- read_rds(here::here("data/slrScenariosLOOKUP.rds")) # for lookups below. 
-photoLookup <- read_csv(here::here("summarySheets/tidalphotos/match_table_021820.csv")) # photos will likely need to be local to ensure they render in htmls.
-photoFolder <- "tidalphotos/"
+photoLookup <- read_xlsx(here::here("summarySheets/photomatchTable_tidal.xlsx")) # photos will likely need to be local to ensure they render in htmls.
+photoFolder <- "tidal_photos/"
 ccode = params$crossingCode
 
 

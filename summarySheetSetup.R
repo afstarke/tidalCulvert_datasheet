@@ -100,6 +100,8 @@ write_rds(slrScenarios, here::here("data/slrScenariosLOOKUP.rds"))
 
 ## Photos
 
+# Build match table
+
 
 
 photo_check <- function(path){
