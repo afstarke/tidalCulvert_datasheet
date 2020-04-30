@@ -26,3 +26,6 @@ pivot.html
 summarySheetFormulas.xlsx
 /data
 *.html
+/summarySheets
+!/summarySheets/summarySheet_fw.Rmd
+!/summarySheets/summary.css
