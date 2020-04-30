@@ -29,5 +29,5 @@ summarySheetFormulas.xlsx
 *.rds
 *.xlsx
 /summarySheets
-!*/summarySheets/summarySheet_fw.Rmd
-!*/summarySheets/summary.css
+!summarySheets/summarySheet_fw.Rmd
+!summarySheets/summary.css
