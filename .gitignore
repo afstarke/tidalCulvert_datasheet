@@ -26,6 +26,7 @@ pivot.html
 summarySheetFormulas.xlsx
 /data
 *.html
+*.rds
 /summarySheets
 !/summarySheets/summarySheet_fw.Rmd
 !/summarySheets/summary.css
