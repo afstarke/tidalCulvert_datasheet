@@ -7,12 +7,12 @@ filepath <-  "C:\\Users\\astarke\\Box Sync\\Culvert Assessment\\Tidal Assessment
 
 testData %>% select(crossingID, longProfile) %>% unnest() ->longdata
 View(longdata)
-testData %>% select(crossingID, heights) %>% unnest() ->heights
+testData %>% select(crossingID, rawheights) %>% unnest() ->heights
 View(heights)
 
 # flatten out this test table to figure out if we should just append to the full dataset.
-LIculvertsAssessments %>% 
-  select(crossingID, heights) %>% 
+LIculvertsAssessments %>% select(crossingID, rawheights)
+  select(crossingID, rawheights) %>% 
   unnest() %>% 
   unite(Feature, Position, col = "FP", sep = " ") %>% 
   select(crossingID, FP, adjustedHt) %>% 
@@ -56,7 +56,7 @@ test2longitudinalProfile %>%
                                                y = adjustedHt, 
                                                xend = Distance + 5, 
                                                yend = adjustedHt, 
-                                               color = `Feature Code`), size = 2) 
+                                               color = Feature), size = 2) 
 
 
 
@@ -121,13 +121,14 @@ plot <- longdata %>% ggplot(aes(x = Distance, y = adjustedHt)) +
     #geom_line(aes(color = Subsrate), size = 1, linetype = 1) +
     geom_line(aes(), size = 1) +
     geom_hline(aes(yintercept = 0)) +
-    labs(main = ~paste0("Tidal Crossing # ", .x),
+    labs(title = paste0("Tidal Crossing # ", .x),
          x = "Distance from Upstream Hydraulic Control (feet)",
          y = "NAVD88 (feet)") + 
       theme_ipsum_rc()))
 
-  profilePlots$profPlots
-
+  profilePlots$profPlots[[2]]
+  
+profilePlots %>% filter(crossingID == 70) %>% pull(profPlots)
 
 
 channelLongidinalProfile_extract <- function(filepath, tidycells){
@@ -164,6 +165,7 @@ channelLongidinalProfile_extract <- function(filepath, tidycells){
 # determine the missing HWI's 
 LIculvertsAssessments %>% select(crossingID, heights) %>%  
   unnest() %>% mutate(hasHt = !is.na(Height)) -> hwi_qunat
+
 
 rpivotTable(hwi_qunat, rows = c("Feature", "Position"), cols = "hasHt", rendererName = "Heatmap", aggregatorName = "Count as Fraction of Rows")
 

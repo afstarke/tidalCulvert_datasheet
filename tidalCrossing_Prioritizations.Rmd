@@ -1,5 +1,5 @@
 ---
-title: "Tidal Crossing Assessment and Priotization"
+title: "Tidal Crossing Priotization"
 subtitle: Suffolk County- Long Island
 output:
   html_document: 
@@ -56,8 +56,9 @@ LIculvertAssessmentData %>% write_rds("data/LIculvertAssessmentData.rds") # Data
 ## Ecological Benefit  
 
 ### E1. Salt marsh complex size  
-Scoring assigned by supervised classifciation of crossings based on proximity to marsh complexes. Crossings near large complexes (>~15 acres in size) scored 5, crossings adjacent to smaller complexes were scored a 3, and crossings disconnected from any marsh complex were scored a 1.
-**TODO:** Verify the complex size scoring 
+Scoring assigned by supervised classifciation of crossings based on proximity to marsh complexes. Crossings near large complexes (>~15 acres in size) scored 5, crossings adjacent to smaller complexes were scored a 3, and crossings disconnected from any marsh complex were scored a 1.  
+Supervised classification was used due to inconsistent spatial relationships between the crossing locations and the marsh complexes. Often crossings are found on the edges or outside of the boundary of the marsh complex.
+
  
 ```{r saltmarshComplex, echo=TRUE, fig.width=6, fig.height=3, message=FALSE, warning=FALSE, paged.print=TRUE}
 # TODO: include the NWI layer to compare the scored crossings with the marsh polygons.
