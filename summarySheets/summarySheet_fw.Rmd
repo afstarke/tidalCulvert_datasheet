@@ -1,0 +1,356 @@
+---
+title: "Freshwater Crossing Score Summary <img id=\"tnc-logo.svg\" src=\"tnc-logo.svg\" />"
+date: "`r Sys.Date()`"
+output:
+  pagedown::poster_jacobs:
+    self_contained: yes
+css: summary.css
+params:
+  crossingCode: xy4080650672832426
+---
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+# TODO: make sure to insert references and cite r packages
+# htmltools::includeScript(path = here::here("script.js"))
+# insert 
+# <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
+
+```
+
+```{r dataload, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# Add ->  knit: pagedown::chrome_print
+# to save as pdf while knitring
+source(here::here("00_libraries.R"))
+source(here::here("summarySheetSetup.R"))
+
+
+
+fw_data <- read_rds(here::here("data/fwaterPrioritizations.rds")) 
+slrScenarios <- read_rds(here::here("data/slrScenariosLOOKUP.rds"))
+photoLookup <- read_csv(here::here("summarySheets/photos/match_table_021820.csv"))
+photoFolder <- "photos/"
+# ccode <- "xy4081776773219572" # to be replaced by params$crossingCode
+ccode = params$crossingCode
+
+# TODO: Eventually parameterize this filtering to feed into a map function
+# IDEA: 1st step: filter, select the proper columns needed for the summary sheet, with column identifying the section that it will land. 
+# 2nd step: filter crossing of interest from larger dataset, transpose the data to be in long format and then join to above data frame. 
+# 3rd step: For each chunk of the summary sheet, filter based on section and then make table using kable or gt or other.
+
+fw_doc_data <- fw_data %>% 
+  # Will need to handle duplicate crossingCodes due to multiple assessments.
+  filter(CrosCode == ccode) %>% mutate(CrosCode_link = paste0("https://naacc.org/naacc_display_crossing.cfm?aqId=", SurveyID))
+
+coords <- fw_doc_data %>% st_drop_geometry() %>% 
+  mutate(Coordinates = paste(round(latitude, digits = 5), "N ", round(longitude, digits = 5), "W", sep = "")) %>%
+  select(Coordinates) %>% pull()
+
+fw_table_data <- fw_doc_data %>% 
+  mutate(Coordinates = paste(round(latitude, digits = 5), "N ", round(longitude, digits = 5), "W", sep = ""),
+         type_material = paste(fw_doc_data$Culvert_Material, fw_doc_data$CrosType, sep = " ")) %>% 
+  st_drop_geometry() %>% janitor::adorn_rounding(digits = 2) %>% 
+  mutate(Suffolk_2085_HIGHMED_Inund_Freq = recode(Suffolk_2085_HIGHMED_Inund_Freq, # How often is..inundated 2080s
+                                                  `0` = "Open Water",
+                                                  `1` = "Inundated at least once every 30 days",
+                                                  `2` = "Inundated at least once every 60 days",
+                                                  `3` = "Inundated at least once every 90 days",
+                                                  `4` = "Inundated by the 10-year storm",
+                                                  `5` = "Inundated by the 100-year storm",
+                                                  `6` = "Never",
+                                                  `7` = "Below the 100-year storm but connected",
+                                                  `8` = "Protected by dikes",
+                                                  `-99` = "Never",
+                                                  .default = "Never",
+                                                  .missing = "Never"), # HACK: NA still being added to tables.Fixed below.
+         Suffolk_InitialCondition_Inund_Freq	= recode(Suffolk_InitialCondition_Inund_Freq, # present day storm freq
+                                                  `0` = "Open Water",
+                                                  `1` = "Inundated at least once every 30 days",
+                                                  `2` = "Inundated at least once every 60 days",
+                                                  `3` = "Inundated at least once every 90 days",
+                                                  `4` = "Inundated by the 10-year storm",
+                                                  `5` = "Inundated by the 100-year storm",
+                                                  `6` = "Beyond the 100-year storm",
+                                                  `7` = "Below the 100-year storm but connected",
+                                                  `8` = "Protected by dikes",
+                                                  `-99` = "Beyond the 100-year storm",
+                                                  .default = "Beyond the 100-year storm",
+                                                  .missing = "Beyond the 100-year storm"),
+          StrmName = if_else(StrmName == " ", # If not " " (blank) then use name.
+                             true = "Unidentified", 
+                             false = as.character(StrmName)),
+         Rd_EvacRte = if_else(Rd_EvacRte == 1, "Yes", "No"),
+         PtrPriorit = if_else(PtrPriorit == 1, "Yes", "No"),
+         Percent_Imperv_HUC12 = paste0(Percent_Imperv_HUC12 * 100, "%"),
+         Functional_Class = recode(Functional_Class,
+                                   `-99` = "Undefined",
+                                   `11` = "Principal Arterial - Interstate",
+                                   `12` = "Principal Arterial - Other Freeway/Expressway",
+                                   `14` = "Principal Arterial - Other", 
+                                   `16` = "Minor Arterial",
+                                   `17` = "Major Collector",
+                                   `18` = "Minor Collector",
+                                   `19` = "Local"),
+         CrosCode = paste0("[",CrosCode, "](", CrosCode_link, ")")) %>% 
+  tidyr::gather(key = "field_Name", value = "dataValue") %>% 
+  dplyr::right_join(fsdn) %>% 
+  replace_na(replace = list(value = "-", score = "-")) %>% 
+  mutate(score = ifelse(str_detect(string = field_Name, pattern = "Score*"), yes = TRUE, no = FALSE)) %>% 
+  dplyr::select(Description, dataValue, SummarySection, dataType)  %>% 
+  spread(dataType, dataValue) %>% 
+  dplyr::select(Description, SummarySection, value, score) %>% 
+  mutate(score = na_if(score, -99)) %>% # pesky -99's sneaking in.
+  replace_na(replace = list(value = "--", score = "--")) %>% 
+  mutate(value = recode(value, 
+                        `-99` = "--",
+                        .default = value))
+  
+
+
+ords <- summaryNeeds %>% select(Description, tableOrder)
+
+# Style for kable tables.
+style <- function(.tab, pos = "center"){
+  kable_styling(kable_input = .tab, 
+                bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = T, 
+                position = pos) #%>% 
+  # column_spec(1, width = "30em") %>%
+    # column_spec(2, width = "10em") 
+}
+
+assesDate <- format(fw_doc_data$Date_Observed, format = "%B %d, %Y")
+```
+
+
+Project Background 
+=========================================================================
+
+The Long Island Road-Stream and Tidal Crossing Improvement Project, led by The Nature Conservancy with input from state, county, municipal, and other partners, has identified and prioritized road-stream and tidal crossings in Suffolk County, NY for upgrade or replacement. The prioritization is based on social and ecological criteria. Road-stream crossings, which include culverts and bridges, are an essential element of our transportation network. They allow roads to pass over rivers, streams, tidal creeks and wetlands. Undersized, poorly designed, or failing infrastructure at these crossings restricts water flow and can lead to flooding, road closures, property damage, degraded natural systems and impaired water quality.
+
+This document provides location and prioritization scoring for the freshwater crossing described below. Freshwater crossings  were assessed using the methodology developed by the [North Atlantic Aquatic Connectivity Collaborative (NAACC)](https://streamcontinuity.org/naacc). With the information these assessments provide, communities can strategically plan capital investments, secure funding, and implement high priority improvement projects with partners. 
+
+
+#### _Prioritization Scoring_
+Crossings are prioritized based on four categories of benefits: ecological benefit, resilience benefit, transportation benefit, and infrastructure condition benefit . Within each category, individual metrics are scored on a scale of 1 to 5 . Higher scores indicate a greater benefit and therefore higher priority for upgrade or replacement. Within each benefit category, metrics are summed and then re-scaled to a 1 to 5 scale. Finally, all four benefit scores are summed to calculate the Total Prioritization Score, with a potential range of 4 to 20. A detailed explanation of all the metrics and scoring methods for this prioritization is provided in the *Prioritization Scoring Summary* document found at the [project resources site.](https://tnc.box.com/s/b8blt0go96hlsxu6cb06e9y952scpjfr) 
+
+General Crossing Information
+================================================================================
+
+<center>
+Assessed on <b>`r assesDate` </b>following the:  
+__NAACC Freshwater Protocol__
+</center>
+
+
+```{r CrossingGeneralInfo, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+fw_table_data %>% 
+  filter(SummarySection == "Crossing General Information") %>% 
+  left_join(ords) %>% 
+  arrange(tableOrder) %>% 
+  select(Description, value) %>% 
+  kable(col.names = NULL) %>% 
+  style()
+
+```
+
+
+Site Location
+================================================================================
+
+<!-- #### `r coords` -->
+
+```{r siteMap, echo=FALSE, fig.align='center', fig.height=1.5, fig.width=2.5, message=FALSE, warning=FALSE, out.width='100%', paged.print=FALSE}
+
+towns <- st_read(here::here("data/basemap_data.gpkg"), layer =  'admin_LI_town_lines', quiet = TRUE)
+li <- st_read(here::here("data/basemap_data.gpkg"), layer = "admin_LI_shore_24k", quiet = TRUE)
+county <- st_read(here::here("data/basemap_data.gpkg"), layer = "admin_LI_County_line", quiet = TRUE)
+
+coast <- st_read(here::here("data/ne_10m_coastline.shp"), quiet = T)
+# roads <- st_read(here::here("data/ne_10m_roads.shp"), quiet = T)
+
+# osmransport
+tm_shape(coast) + 
+  tm_lines(lwd = 0.1) +
+ tm_shape(li) +
+  tm_polygons(col = "white",
+              lwd = 0.002,
+              border.col = "black") +
+ tm_shape(county) +
+  tm_lines(lwd = 0.2) +
+ tm_shape(towns) +
+  tm_lines() +
+  tmap_mode(mode = "plot") +
+ tm_shape(shp = fw_data) +
+  tm_dots(col = "grey", size = .05, alpha = .3) +
+ tm_shape(shp = fw_doc_data, is.master = TRUE) +
+  tm_dots(col = "red", size = 0.13) +
+  tm_layout(outer.margins=c(.05,0,.05,0),  
+            inner.margins=c(0,0,.02,0), asp=0, 
+            frame = F)
+            
+
+```
+This crossing is located within the `r if_else(is.na(fw_doc_data$Estuary_Name), "", paste0("<strong>", fw_doc_data$Estuary_Name, "</strong>", " in the"))` <strong>Town of  `r fw_doc_data$gTown` </strong> at the intersection of the `r str_to_lower(fw_doc_data$Road_Jurisdiction)` owned `r strong(fw_doc_data$Road)` and `r strong(fw_doc_data$StrmName)`.  
+Coordinates: `r coords`
+
+Final Scoring
+================================================================================
+
+```{r scoring, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+fw_table_data %>% dplyr::select(-value) %>% arrange(desc(Description)) %>% 
+  filter(SummarySection == "Scoring") %>% 
+  left_join(ords) %>% 
+  arrange(tableOrder) %>% 
+  select(Description, score) %>% kable(col.names = NULL) %>% 
+  # style() %>% 
+  # kable_styling(bootstrap_options = "striped", full_width = F)
+  style()
+
+```
+
+
+
+Ecological Benefit
+================================================================================
+ 
+```{r}
+
+fw_table_data %>% 
+  filter(SummarySection == "Ecological Factors") %>% 
+  left_join(ords) %>% 
+  filter(!is.na(tableOrder)) %>% 
+  arrange(tableOrder) %>% 
+  select(Description, value, score) %>%
+  kable(col.names = c("", "", "Score"), align = 'lcc') %>% 
+  style() %>% 
+  # footnote(general = "In accordance with the protocols, Aquatic Organism Passage (AOP) was assessed during summer low water conditions. As such, aquatic organism passage may be better than assessed during higher water conditions such as spring.", general_title = "Note:", footnote_as_chunk = T, fixed_small_size = T) %>% 
+  I()
+
+```
+
+Resilience Benefit
+================================================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+fw_table_data %>% 
+  filter(SummarySection == "Resilience Factors") %>% 
+  left_join(ords) %>% 
+  filter(!is.na(tableOrder)) %>% 
+  arrange(tableOrder) %>% 
+  select(Description, value, score) %>%
+  kable(col.names = c("", "", "Score"), align = 'lcc') %>% 
+  style()
+
+```
+
+Transportation Benefit
+================================================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+fw_table_data %>% 
+  filter(SummarySection == "Transportation Factors") %>% 
+  left_join(ords) %>% 
+  filter(!is.na(tableOrder)) %>%
+  arrange(tableOrder) %>% 
+  select(Description, value, score) %>%
+  kable(col.names = c("", "", "Score"), align = 'lcc') %>% 
+  style()
+
+
+
+``` 
+  
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+h2("Infrastructure Condition Benefit")
+
+fw_table_data %>%
+  filter(SummarySection == "Condition Factors") %>% 
+  left_join(ords) %>% 
+  filter(!is.na(tableOrder)) %>%
+  arrange(tableOrder) %>% 
+  select(Description, value, score) %>%
+  kable(col.names = c("", "", "Score"), align = 'lcc') %>% 
+  style()
+
+
+
+```   
+
+<section style="break-inside: avoid-page;">
+_Disclaimer_ 
+============================================================================== 
+This document is a screening tool for prioritizing planning efforts and is not intended to replace a site visit for making engineering or management decisions.  Due diligence is required to ensure that all infrastructure and property owners, permitting agencies and project engineers are consulted in advance of project planning. Please note that different entities may own the roadway, crossing infrastructure, water management structures, and the surrounding land. Information presented here represents the best available at the time of the assessment.  
+
+</section>
+
+Site Photos   
+================================================================================
+
+```{r fig.show="hold", message=FALSE, warning=FALSE, out.width="48%", paged.print=FALSE}
+# upstream
+up <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "upstream", path = photoFolder) %>% # changed to relative path to see if it fixes the chrome_print
+                  photo_check()
+inlet <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "inlet", path = photoFolder) %>% 
+                  photo_check()
+outlet <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "outlet", path = photoFolder) %>% 
+                  photo_check()
+down <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "downstream", path = photoFolder) %>% 
+                  photo_check()
+
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, out.width="48%", paged.print=FALSE}
+
+
+tags$div(class = "polaroid ",
+         tags$a(target = "_blank",
+                tags$img(src = up)),
+         tags$div(class = "desc", "Upstream view"))
+```
+
+
+```{r echo=FALSE, message=FALSE, out.width="48%", warning=FALSE, paged.print=FALSE}
+
+tags$div(class = "polaroid",
+         tags$a(target = "_blank", 
+                tags$img(src = inlet, alt = "Downstream view toward structure")),
+         tags$div(class = "desc", "Inlet"))
+```
+
+
+```{r echo=FALSE, message=FALSE, out.width="48%", warning=FALSE, paged.print=FALSE}
+
+tags$div(class = "polaroid",
+         tags$a(target = "_blank",
+                tags$img(src = outlet, alt = "Upstream view toward structure")),
+         tags$div(class = "desc", "Outlet"))
+```
+
+
+```{r echo=FALSE, message=FALSE, out.width="48%", warning=FALSE, paged.print=FALSE}
+
+tags$div(class = "polaroid",
+         tags$a(target = "_blank",
+                tags$img(src = down, alt = "Downstream view from structure")),
+         tags$div(class = "desc", "Downstream view"))
+
+```
+
+***  
+#### _Additional Information_  
+ 
+- Download the NAACC protocol for assessing aquatic organism (AOP) passage [here](https://streamcontinuity.org/naacc/assessments/aquatic-connectivity-non-tidal). All crossings were assessed during summer low water conditions per the protocol. As such, AOP may vary under different conditions.   
+- Visit the [NAACC Data Center](https://naacc.org/naacc_data_center_home.cfm) to access all data collect in the field under the NAACC protocol. Search by NAACC crossing code listed in General Crossing Information below.
+
