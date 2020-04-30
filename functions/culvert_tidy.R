@@ -27,6 +27,40 @@ culvert_fetch <- function(filepath){
   return(cells)
 }
 
+
+#' Clean and tidy up field collected data 
+#'
+#' @param decodedcolumn 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+cleanField <- function(decodedcolumn){
+  tmp <- decodedcolumn %>% 
+    unnest() %>% 
+    select(dataName, values) %>% 
+    spread(key = dataName, value = values) %>% 
+    select(crossingID, dateAssessed, observers, everything()) %>% # organize the order of the columns.
+    mutate(dateAssessed2 = lubridate::parse_date_time(dateAssessed, orders = 'ymd'),
+           AsmtStartTime = format(AsmtStartTime, format = "%H:%M:%S"),
+           AsmtEndTime = format(AsmtEndTime, format = "%H:%M:%S"),
+           crossingID = as.numeric(crossingID)) %>% 
+    mutate_if(is.character, list(~na_if(., "N/A"))) %>%   # Convert character columns with "N/A" to NA
+    mutate_at(numericVars, as.numeric) %>% 
+    mutate_at(logicalVars, as.logical)
+  
+  tmp2 <- tmp %>% 
+    select(crossingID, starts_with("veg")) %>% 
+    gather(-crossingID, key = 'key', value = "val") %>% 
+    separate(col = key, into = c("key", "Vegchoice")) %>% 
+    mutate(VegetMat_select = ifelse(val, yes = val, no = NA)) %>% 
+    filter(!is.na(VegetMat_select)) %>% select(crossingID, Vegchoice) 
+  tmp %>% left_join(tmp2) %>% select(-starts_with("vegMat"))
+  
+}
+
+
 # surveyHtCorrection ---------------------------------------------------------
 # 
 #' surveyHtCorrection
@@ -46,9 +80,9 @@ culvert_fetch <- function(filepath){
 #' @examples
 #' 
 surveyHtCorrection <- function(rawHeight, shotCode, Lidarht, roadCentHt, TPforsight_upSt, TPbacksight_upSt, TPforsight_dwSt, TPbacksight_dwSt){
-  case_when(shotCode == "R" ~ as.numeric(sum(Lidarht, roadCentHt)) + -as.numeric(rawHeight),
-            shotCode == "U" ~ as.numeric(sum(Lidarht, roadCentHt)) + -as.numeric(TPforsight_upSt) + as.numeric(TPbacksight_upSt) + -as.numeric(rawHeight),
-            shotCode == "D" ~ as.numeric(sum(Lidarht, roadCentHt)) + -as.numeric(TPforsight_dwSt) + as.numeric(TPbacksight_dwSt) + -as.numeric(rawHeight),
+  case_when(shotCode == "R" ~ as.numeric(sum(Lidarht, roadCentHt, na.rm = T)) + -as.numeric(rawHeight),
+            shotCode == "U" ~ as.numeric(sum(Lidarht, roadCentHt, na.rm = T)) + -as.numeric(TPforsight_upSt) + as.numeric(TPbacksight_upSt) + -as.numeric(rawHeight),
+            shotCode == "D" ~ as.numeric(sum(Lidarht, roadCentHt, na.rm = T)) + -as.numeric(TPforsight_dwSt) + as.numeric(TPbacksight_dwSt) + -as.numeric(rawHeight),
             shotCode == "X" ~ as.numeric(NA), # missing data value for the 'X' code that I don't know how to deal with yet.
             is.na(shotCode) ~ as.numeric(NA)) # if missing shot code, it's likely missing other data.
 }
@@ -71,6 +105,8 @@ surveyHtCorrection <- function(rawHeight, shotCode, Lidarht, roadCentHt, TPforsi
 channelLongidinalProfile_extract <- function(filepath, tidycells){
   # Set up variables for adjusting to NAVD88 with surveyHtCorrection()
   crossingID <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'L7') %>% as.numeric()
+  # BUG: Originally LIDAR data was being maintained in the worksheet. Now it is managed in the GIS data itself. Need to devise a workaround here.
+  # TODO: Fix this bug.
   Lidarht <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SUMMARY', celladdress = 'J54') %>% as.numeric()
   roadCentHt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'J107') %>% as.numeric()
   
@@ -155,6 +191,7 @@ crossSection <- function(filepath, tidycells){
   # Set up variables for adjusting to NAVD88 with surveyHtCorrection()
   # constants for each crossing
   # Lidarht will be collected in Desktop data on ArcOnline. Must integrate this somehow.
+  # IDEA: Strategy- drop the columns represting the adjusted heights from the nested tables, THEN after joining to the GIS data recalculate the heights using the LIDAR values form the GIS data.
   Lidarht <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SUMMARY', celladdress = 'J54') %>% as.numeric()
   roadCentHt <- Lidarht
   # Road width used in the calculations of distance.
@@ -211,29 +248,30 @@ crossSection <- function(filepath, tidycells){
   # 
   # Insterted this munge code to simplify outputs to a tidy table of Feature-NAVD_ht-Distance for direct use in ggplot.
   # For RAW values remove and output just the cross object.
-  cross %>% 
-    gather(-Feature, key = measure, value = ht) %>% 
-    separate(col = measure, into = c('position', 'k'), sep = " ") %>% 
-    unite(col = Feature, Feature, position, sep ="_") %>% 
-    spread(key = k, value = ht) %>% 
-    separate(col = Feature, into = c("Feature", "Position"), sep = "_", extra = "merge", fill = "right") %>% 
-    mutate(Height = as.numeric(Height), 
+  # return(cross)
+  cross %>%
+    gather(-Feature, key = measure, value = ht) %>%
+    separate(col = measure, into = c('position', 'k'), sep = " ") %>%
+    unite(col = Feature, Feature, position, sep ="_") %>%
+    spread(key = k, value = ht) %>%
+    separate(col = Feature, into = c("Feature", "Position"), sep = "_", extra = "merge", fill = "right") %>%
+    mutate(Height = as.numeric(Height),
            Feature = str_trim(gsub(x = Feature, pattern = "[0-9]", replacement = ""))) %>% # remove marsh plain shot #s for later averaging
-    group_by(Feature, Position) %>% 
-    mutate(Height = mean(Height, na.rm = TRUE)) %>% 
-    distinct(Feature, .keep_all = TRUE) %>% 
-    mutate(adjustedHt = mean(surveyHtCorrection(rawHeight = Height, 
-                                                shotCode = cntrlPtcode, 
-                                                Lidarht = Lidarht, 
+    group_by(Feature, Position) %>%
+    mutate(Height = mean(Height, na.rm = TRUE)) %>%
+    distinct(Feature, .keep_all = TRUE) %>%
+    mutate(adjustedHt = mean(surveyHtCorrection(rawHeight = Height,
+                                                shotCode = cntrlPtcode,
+                                                Lidarht = Lidarht,
                                                 roadCentHt = roadCentHt,
-                                                TPforsight_upSt = TPforsight_upSt, 
+                                                TPforsight_upSt = TPforsight_upSt,
                                                 TPbacksight_upSt = TPbacksight_upSt,
-                                                TPforsight_dwSt = TPforsight_dwSt, 
-                                                TPbacksight_dwSt = TPbacksight_dwSt))) %>% 
-    ungroup() %>% 
+                                                TPforsight_dwSt = TPforsight_dwSt,
+                                                TPbacksight_dwSt = TPbacksight_dwSt))) %>%
+    ungroup() %>%
     add_row(Feature = "Road Center", adjustedHt = roadCentHt)
   
-  
+
 }
 # use purrr magic to catch any issues. 
 crossSection <- possibly(crossSection, otherwise = "Unable to extract")
