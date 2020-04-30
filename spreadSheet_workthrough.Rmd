@@ -1,10 +1,10 @@
 ---
-title: "Tidal Spreadsheet fun"
+title: "Tidal spreadsheet workflow"
 output: github_document
 
 ---
 ## Take 2:   
-After some digging into the task of extracting data from these spreadsheets, and the prospects of additional analyses (prioritization sensitivity, perhaps) as well as easing the management of field and desktop assessment needs, a new(ish) approach is laid out below. In general a reboot of the teams initial proposal of using a sort of look up key to identify the locations of important data from the spreadsheets.
+After some digging into the task of extracting data from these spreadsheets, and the prospects of additional analyses (prioritization sensitivity, perhaps) as well as easing the management of field and desktop assessment needs, a new(ish) approach is laid out below. In general a reboot of the teams initial proposal of using a sort of look up key to identify the locations of important data from within the spreadsheets.
 
 To begin with, this process relies heavily on the tidyxl package, as well as the tidyverse packages more broadly. 
 
@@ -103,7 +103,7 @@ There's a few issues (potential) that I've come across.
 * May have been mentioned above, dates are formatted differently it seems across and within spreadsheets. Maybe a setting in the author's version of excel? 
 
 ### TO DO's:  
-* create lookups to recode the values pulled from the dropdown cells in the sheets
+
 * Figure out how to properly translate the dates and times from the format excel is using to R
 
  
