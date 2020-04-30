@@ -37,7 +37,7 @@ summaryNeeds <- read_xlsx(path = here::here("../../../The Nature Conservancy/Lon
 #' load the Prioritization data
 #' which contains scoring and metrics for scoring.
 # TODO: Add tidal to the obect name to distinguish
-LIculvertPrioritization <- read_rds(here::here("data", "/LIculvertPrioritizations.rds"))
+tidalPrioritization <- read_rds(here::here("data", "/LIculvertPrioritizations.rds"))
 # load the assessment data which contains some additional metrics and info used in the summary sheets.
 LIculvertAssessmentData <- read_rds(here::here("data", "/LIculvertAssessmentData.rds"))
 
@@ -46,7 +46,7 @@ LIculvertAssessmentData <- read_rds(here::here("data", "/LIculvertAssessmentData
 tsdn <- summaryNeeds %>% 
   filter(protocol == "Tidal") %>% 
   filter(needed == "Y") %>% 
-  select(field_Name, Description, SummarySection)
+  select(field_Name, Description, SummarySection, dataType, tableOrder)
 
 write_rds(tsdn, here::here("data/tsdn.rds"))
 # IDEA: 1st step: filter, select the proper columns needed for the summary sheet, with column identifying the section that it will land. 
