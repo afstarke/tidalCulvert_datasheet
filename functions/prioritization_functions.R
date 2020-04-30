@@ -13,14 +13,16 @@
 #'  criteria for additional assessment of sensitivity. 
 #' 
 #'
-
+# TODO: Revise and update documentation 
 
 #**********************************************
 # E1. Salt Marsh Complex Size ----
 
-#' #REVIEW: Confirm what field this is referencing from Karen's model outputs.
-#' likely to be da_saltMarshArea
-#'
+#' #CHANGED:
+#' Scoring assigned by supervised classifciation of
+#' crossings based on proximity to marsh complexes. Crossings near large complexes
+#' (>~15 acres in size) scored 5, crossings adjacent to smaller complexes were
+#' scored a 3, and crossings disconnected from any marsh complex were scored a 1.
 
 
 #**********************************************
@@ -141,7 +143,6 @@ crit_crossing_ratio <- function(crossing.ratio){
 #' 
 erosion_class <- function(scour_pool, channel_width){
   eclass <- scour_pool / channel_width
-  lassClass
   return(eclass)
 }
 
@@ -157,14 +158,14 @@ erosion_class <- function(scour_pool, channel_width){
 crit_erosion_class <- function(us_eclass, ds_eclass){
   crit <- function(er){
     case_when(
-      er <= 1 ~ 1,
-      er > 1 & er <= 1.2 ~ 2, 
-      er > 1.2 & er <= 2.0 ~ 3,
-      er > 2.0 & er <= 3 ~ 4,
-      er > 3 ~ 5
+      er > 3 ~ 5L,
+      er > 2.0 ~ 4L, 
+      er > 1.2 ~ 3L,
+      er > 1 ~ 2L,
+      er > 0 ~ 1L
     )
   }
-  crit_e_class <- max(crit(us_eclass), crit(ds_eclass), na.rm = TRUE)
+  crit_e_class <- pmax(crit(us_eclass), crit(ds_eclass), na.rm = TRUE)
   return(crit_e_class)
 }
 
@@ -178,46 +179,218 @@ taop <- tidal_range_ratio
 crit_taop <- crit_tidal_range
 
 #*****************
-#' E3 final score
+# E3: Final Score ----
 #' 
 #' 
 DTOR_TAOP <- function(tidal_rng_score, crossing_ratio_score, erosion_class_score, taop){
   scores <- c(tidal_rng_score, crossing_ratio_score, erosion_class_score, taop)
-  if(all(scores %in% 1:5)){
-    finalscore <- mean(scores, na.rm = TRUE) #REVIEW: Confirm that we would want to drop any NAs
+  # if(all(scores %in% 1:5)){
+  #   finalscore <- mean(scores, na.rm = TRUE) #REVIEW: Confirm that we would want to drop any NAs
+  #   return(finalscore)
+  # } else{
+  #   return("Scores not valid. Check individual components to ensure scores are between 1 and 5.")
+  # }
+  # 
+  finalscore <- mean(scores, na.rm = TRUE) #REVIEW: Confirm that we would want to drop any NAs
     return(finalscore)
-  } else{
-    return("Scores not valid. Check individual components to ensure scores are between 1 and 5.")
-  }
-  
 }
 
 
 
 #****************************************
-# Vegetation Matrix
+# E4. Vegetation Matrix ----
 #'
 #' Vegetation matrix scoring
 #' Used 'Resilient Tidal Crossings' documentation as guide
-#' for scoring
+#' for scoring. 
+#' 
+#' @param vegMatChoice 
 #' 
 
 vegetationScore <- function(vegMatChoice){
   score <- case_when(
-    vegMatChoice == "1A" ~ 1,
-    vegMatChoice == "1B" ~ 3,
-    vegMatChoice == "1C" ~ 5,
-    vegMatChoice == "2A" ~ 0,
-    vegMatChoice == "2B" ~ 0,
-    vegMatChoice == "2C" ~ 0,
-    vegMatChoice == "3A" ~ 3,
-    vegMatChoice == "3B" ~ 4,
-    vegMatChoice == "3C" ~ 5
+    vegMatChoice == "1A" ~ 1L,
+    vegMatChoice == "1B" ~ 3L,
+    vegMatChoice == "1C" ~ 5L,
+    vegMatChoice == "2A" ~ 0L,
+    vegMatChoice == "2B" ~ 0L,
+    vegMatChoice == "2C" ~ 0L,
+    vegMatChoice == "3A" ~ 3L,
+    vegMatChoice == "3B" ~ 4L,
+    vegMatChoice == "3C" ~ 5L
   )
   return(score)
 }
 
+#' # Current Crossing Condition ----
+#' 
+#' #**********************************************
+#' # C1.v1 Crossing Condition ----
+#' #' Replicating the NH protocol 
+#' #' [29 April 2020] Team confirmed no scour used in this metric. Captured in C4. Erosion class below.
+#' #' 
+#' #' TODO: agree on scoring method- 1-5; 1-3-5.
+#' #'
+#' #' 
+#' #' @param overallCond 
+#' #' @param hwall_upCond 
+#' #' @param wwall_upCond 
+#' #' @param hwall_dwnCond 
+#' #' @param wwall_dwnCond 
+#' #' @param scourUp 
+#' #' @param scourDwn 
+#' #' @param scourIn 
+#' 
+#' crossingConditionScore_v3 <- function(overallCond, 
+#'                                    hwall_upCond, 
+#'                                    wwall_upCond, 
+#'                                    hwall_dwnCond,
+#'                                    wwall_dwnCond,
+#'                                    scourUp, 
+#'                                    scourDwn, 
+#'                                    scourIn){
+#'   # scour tally for determining number of 'high' scour scores.
+#'   # 'High' scour is ranked a 5 in the workbooks, therefore sum of 5
+#'   highscours <- sum(scourUp == 5, scourDwn == 5, scourIn == 5, na.rm = TRUE) # get tally of 'high' scour scores.
+#'   poorConditions <- sum(hwall_upCond == 4, hwall_dwnCond == 4, wwall_dwnCond == 4, wwall_dwnCond == 4, overallCond == 4, na.rm = TRUE) # tally 'poor' conditions
+#'   combinedScores <- sum(highscours, poorConditions, na.rm = TRUE)
+#'   goods <- sum(hwall_upCond == 2, hwall_dwnCond == 2, wwall_dwnCond == 2, wwall_dwnCond == 2, overallCond == 2, na.rm = TRUE)
+#'   fairs <- sum(hwall_upCond == 3, hwall_dwnCond == 3, wwall_dwnCond == 3, wwall_dwnCond == 3, overallCond == 3, na.rm = TRUE)
+#'   goodfairDiff <- goods - fairs # from NH protocol: Difference between tallied number of good and fair condition scores (presumable across sturcture)
+#'   
+#'   # Scoring section
+#'   finalscore <- dplyr::case_when(
+#'     overallCond == 1 ~ NA_integer_, # 1 is coded as blank, or unassessed in workbook.
+#'     combinedScores >= 3 ~ 5L, # note 2 ways to score a 5. If there are 3 or more high scours and poor conditions
+#'     overallCond == 3 | hwall_upCond == 5 & wwall_upCond == 5 & hwall_dwnCond == 5 & wwall_dwnCond == 5 ~ 5L, # note 2 ways to score a 5. If overall a poor and there's no wingwalls or headwalls
+#'     combinedScores == 2 | overallCond == 4 ~ 4L,
+#'     poorConditions == 1 | highscours == 1 ~ 3L,
+#'     poorConditions == 0 & highscours == 0 & goodfairDiff < 1 ~ 2L,
+#'     poorConditions == 0 & highscours == 0 & goodfairDiff > 1 ~ 1L
+#'     
+#'   )
+#'  
+#'   return(finalscore)
+#' }
+#' 
+#' 
+#' #**********************************************
+#' # C1.v2 Crossing Condition V2----
+#' #'
+#' #' TODO: agree on scoring method .
+#' #' This method splits out just the scoring of condition, _does not include scouring scores_.
+#' #' From Teams:
+#' #' 4-5 good conditions  => 1 
+#' #' 'mostly fair' conditions (no poors, and more fairs than goods)  => 2
+#' #' one poor condition => 3
+#' #' 2 poor conditions => 4
+#' #' '> = ' 3 poor conditions  => 5 (NH also scores crossings with out wing and headwalls a 5 if the overall condition is poor)
+#' #' 
+#' #' @param overallCond 
+#' #' @param hwall_upCond 
+#' #' @param wwall_upCond 
+#' #' @param hwall_dwnCond 
+#' #' @param wwall_dwnCond 
+#' 
+#' crossingConditionScore_v2 <- function(overallCond, 
+#'                                       hwall_upCond, 
+#'                                       wwall_upCond, 
+#'                                       hwall_dwnCond,
+#'                                       wwall_dwnCond){
+#'   # tally the number of scores given across the 5 areas condition is assessed at.
+#'   goods <- sum(hwall_upCond == 2, hwall_dwnCond == 2, wwall_dwnCond == 2, wwall_dwnCond == 2, overallCond == 2, na.rm = TRUE) # tally of 'Good'
+#'   fairs <- sum(hwall_upCond == 3, hwall_dwnCond == 3, wwall_dwnCond == 3, wwall_dwnCond == 3, overallCond == 3, na.rm = TRUE) # tally of 'Fair'
+#'   poors <- sum(hwall_upCond == 4, hwall_dwnCond == 4, wwall_dwnCond == 4, wwall_dwnCond == 4, overallCond == 4, na.rm = TRUE) # tally 'poor' conditions
+#'   goodfairDiff <- goods - fairs # from NH protocol: Difference between tallied number of good and fair condition scores (presumable across sturcture)
+#'   
+#'   # Scoring section
+#'   finalscore <- dplyr::case_when(
+#'     overallCond == 1 ~ NA_integer_, # 1 is coded as blank, or unassessed in workbook.
+#'     overallCond == 3 | hwall_upCond == 5 & wwall_upCond == 5 & hwall_dwnCond == 5 & wwall_dwnCond == 5 ~ 5L, # note 2 ways to score a 5. If overall a poor and there's no wingwalls or headwalls
+#'     poors == 2 | overallCond == 4 ~ 4L,
+#'     poors == 1  ~ 3L,
+#'     poors == 0 & fairs > goods ~ 2L,
+#'     poors == 0 & goods >= 4 ~ 1L
+#'     
+#'   )
+#'   
+#'   return(finalscore)
+#' }
+
+# 
+#' crossingConditionScore
+#'
+#' @param overallCond 
+#' @param hwall_upCond 
+#' @param wwall_upCond 
+#' @param hwall_dwnCond 
+#' @param wwall_dwnCond 
+#'
+#' @return
+#' @export
+#' @details had run the crossing conditon using NH methods, 
+#' NH methods with scour pulled out and TNC method. 
+#' TNC method resulted in the best distribution for scoring. 
+#' 
+#' @examples
+crossingConditionScore <- function(overallCond, 
+                                      hwall_upCond, 
+                                      wwall_upCond, 
+                                      hwall_dwnCond,
+                                      wwall_dwnCond,
+                                      roadCond){
+  # tally the number of scores given across the 5 areas condition is assessed at.
+  rescore <- function(input){
+    
+    val <- case_when(
+      input == 2 ~ 1,
+      input == 3 ~ 3,
+      input == 4 ~ 5
+    )
+    return(val)
+  }
+  
+  finalscore <- mean(rescore(overallCond), 
+                     rescore(hwall_upCond), 
+                     rescore(hwall_dwnCond), 
+                     rescore(wwall_dwnCond), 
+                     rescore(wwall_upCond), 
+                     rescore(roadCond),
+                     na.rm = TRUE, trim = 0)
+  
+  return(finalscore)
+}
 
 
 
+# highwater_clearance_ratio ---------------------------------------------------------
+#' an attempt at scoring based on a ratio of elevations (high water and road) 
+#' to avoid issue with a static scoring method across different tidal 
+#' regime/heights. 
+#' 
+#' See: https://streamcontinuity.org/sites/streamcontinuity.org/files/pdf-doc-ppt/Scoring%20System%20for%20Tidal%20Crossings%2003-19-19.pdf
+
+#' highwater_ratio
+#'
+#' @param hwi 
+#' @param roadHt 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+highwater_ratio <- function(hwi, roadHt){
+  
+  highwaterRescale <- function(a,b){
+    minVal <- min(a,b, na.rm = T)
+    rescaleVal <- abs(minVal) + 1
+    return(rescaleVal)
+  }
+  
+   ratio <- highwaterRescale(hwi, roadHt) + hwi / highwaterRescale(hwi, roadHt) + roadHt
+  
+  return(ratio)
+}
+
+# Submetric scores and Final Score calculated in tidalCrossing_Prioritizations.Rmd
 
