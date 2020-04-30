@@ -132,7 +132,7 @@ Proportion of crossings that have a measure for each feature and position (up/do
 
 ```{r}
 # Pivot Table
-hwi_qunat <- LIculvertsAssessments %>% select(crossingID, heights) %>%  
+hwi_qunat <- LIculvertsAssessments %>% select(crossingID, heights) %>% filter(crossingID != 71) %>% # Crossing 71 tossing error. 
   unnest() %>% mutate(hasHt = !is.na(adjustedHt) | !is.na(Height))
 
 crosComs <-   LIculvertData %>% select(crossingID, crossSection_hts_coms) %>% mutate(crossingID = as.character(crossingID))
