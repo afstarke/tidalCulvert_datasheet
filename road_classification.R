@@ -7,16 +7,16 @@
 #' [4/14 2:56 PM] Stephen Lloyd
 #' D:\gisdata\Projects\LI\Culvert_Assessment\data\FreshwaterPrioritization\StreetSegment.gdb
 
+#'
+#' May 1- dyuplicate records had made their way into the code runs of prioritizations. 
+# st_layers(dsn = "M:/Projects/LI/Culvert_Assessment/CulvertPrioritizations/CulvertPrioritizations.gdb")$name
+# st_layers(dsn = "../../../Documents/ArcGIS/Projects/Culverts_LongIsland/Culverts_LongIsland.gdb")$name
 
-st_layers(dsn = "M:/Projects/LI/Culvert_Assessment/CulvertPrioritizations/CulvertPrioritizations.gdb")$name
-st_layers(dsn = "../../../Documents/ArcGIS/Projects/Culverts_LongIsland/Culverts_LongIsland.gdb")$name
+gis_roadData <- read_sf(dsn = "M:/Projects/LI/Culvert_Assessment/data/Tidal Crossings/Tidal_Crossing_Desktop.gdb", 
+                      layer = "tidalCrossings_roadFuncClass")
 
-gis_roadData <- read_sf(dsn = "../../../Documents/ArcGIS/Projects/Culverts_LongIsland/Culverts_LongIsland.gdb", 
-                      layer = "TidalCrossings_desktop_wroad")
-
-evacRtes <- read_csv("data/roadAppends.csv")
 roadData <- gis_roadData %>% 
-  select(crossingID, Functional_Class, FunctionalClass_supervised, FCC) %>% 
+  select(crossingID, Functional_Class, FunctionalClass_supervised) %>% 
   left_join(evacRtes %>% select(crossingID, Rd_EvacRte)) %>% st_drop_geometry()
 
 write_rds(x = roadData, path = "data/roadFunctional_class.rds")
