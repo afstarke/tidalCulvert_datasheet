@@ -182,8 +182,8 @@ crit_taop <- crit_tidal_range
 # E3: Final Score ----
 #' 
 #' 
-DTOR_TAOP <- function(tidal_rng_score, crossing_ratio_score, erosion_class_score, taop){
-  scores <- c(tidal_rng_score, crossing_ratio_score, erosion_class_score, taop)
+degtidalrestr <- function(tidal_rng_score, crossing_ratio_score, erosion_class_score){
+  scores <- c(tidal_rng_score, crossing_ratio_score, erosion_class_score)
   # if(all(scores %in% 1:5)){
   #   finalscore <- mean(scores, na.rm = TRUE) #REVIEW: Confirm that we would want to drop any NAs
   #   return(finalscore)
@@ -191,7 +191,7 @@ DTOR_TAOP <- function(tidal_rng_score, crossing_ratio_score, erosion_class_score
   #   return("Scores not valid. Check individual components to ensure scores are between 1 and 5.")
   # }
   # 
-  finalscore <- mean(scores, na.rm = TRUE) #REVIEW: Confirm that we would want to drop any NAs
+  finalscore <- mean(scores, na.rm = TRUE) 
     return(finalscore)
 }
 
