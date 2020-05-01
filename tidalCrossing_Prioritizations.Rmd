@@ -60,19 +60,19 @@ Scoring assigned by supervised classifciation of crossings based on proximity to
 Supervised classification was used due to inconsistent spatial relationships between the crossing locations and the marsh complexes. Often crossings are found on the edges or outside of the boundary of the marsh complex.  
 
  
-```{r saltmarshComplex, echo=TRUE, fig.width=6, fig.height=3, message=FALSE, warning=FALSE, paged.print=TRUE}
+```{r saltmarshComplex, echo=TRUE, fig.height=3, fig.width=6, message=FALSE, warning=FALSE, paged.print=TRUE}
 # TODO: include the NWI layer to compare the scored crossings with the marsh polygons.
 # Catchment data are joined/updated into the Desktop_Data hosted on AGOL for this
 catchment_data <- read_rds("data/LIculvert_Catchments.rds")  # This data is originally from Karen's model output. Revise as neede for new crossing locations.
 h4("Catchment areas and Culvert locations")
-
-marshmap <- mapview(catchment_data, alpha.regions = 0.2,  zcol = "MMP_AC", col.regions = tnc_color(1:5)) + mapview(LIculvertData_location, zcol = "MarshComplex_Scoring") 
-
-marshmap
-
-LIculvertData_location %>% st_drop_geometry() %>% select(crossingID, MarshComplex_Scoring) %>% rename(Score_MarshComplex = MarshComplex_Scoring) %>% 
-  datatable(rownames = FALSE) %>% 
-  formatRound(-1, digits = 2)
+# 
+# marshmap <- mapview(catchment_data, alpha.regions = 0.2,  zcol = "MMP_AC", col.regions = tnc_color(1:5)) + mapview(LIculvertData_location, zcol = "MarshComplex_Scoring") 
+# 
+# marshmap
+# 
+# LIculvertData_location %>% st_drop_geometry() %>% select(crossingID, MarshComplex_Scoring) %>% rename(Score_MarshComplex = MarshComplex_Scoring) %>% 
+#   datatable(rownames = FALSE) %>% 
+#   formatRound(-1, digits = 2)
 
 h4("Marsh complex size")
 (LIculvertData_location %>% select(MarshComplex_Scoring) %>% st_drop_geometry() %>% mutate(MarshComplex_Scoring = as.factor(MarshComplex_Scoring)) %>% 
@@ -264,8 +264,10 @@ Combining the scores of the tidal range ratio, Crossing ratio, erosion classific
 ```{r DOTR_TAOP, message=FALSE, warning=FALSE, paged.print=TRUE}
 dtr <- LIculvertPrioritization %>% rowwise() %>% 
   # Calculate the up and down stream classification 'raw' scores
-  mutate(Score_dotr_taop = DTOR_TAOP(tidal_rng_score = submetric_TidalRange, crossing_ratio_score = submetric_crossingRatio, erosion_class_score = submetric_crossingRatio, taop = submetric_TidalRange), eval_taop = submetric_TidalRange) %>% # TAOP is same as tidal range score.
-  select(crossingID, submetric_TidalRange, submetric_crossingRatio, eval_taop, Score_dotr_taop)
+  mutate(Score_dotr = degtidalrestr(tidal_rng_score = submetric_TidalRange, 
+                                         crossing_ratio_score = submetric_crossingRatio,
+                                         erosion_class_score = submetric_crossingRatio)) %>% 
+  select(crossingID, submetric_TidalRange, submetric_crossingRatio, eval_taop, Score_dotr)
 
 dtr %>% datatable(rownames = FALSE) %>% 
   formatRound(-1, digits = 2) 
@@ -274,7 +276,7 @@ dtr %>% datatable(rownames = FALSE) %>%
   ggpairs(title = "Degree of tidal restriction metric components") + theme(strip.text.y = element_text(angle = 0))) %>% ggplotly()
 
 LIculvertPrioritization <- LIculvertPrioritization %>%
-  left_join(dtr %>% select(crossingID, eval_taop), by = "crossingID")
+  left_join(dtr %>% select(crossingID, Score_dotr), by = "crossingID")
 
 
 ```
@@ -450,7 +452,7 @@ Following the NH protocol the first version of scoring includes the severity of 
 
 ```{r crossingConditionEval, message=FALSE, warning=FALSE, paged.print=TRUE}
 
-crscond <- LIculvertAssessmentData %>% 
+crscond <- LIculvertAssessmentData %>% st_drop_geometry() %>% 
   select(crossingID, 
          RoadSurfaceCondition,
          StructureConditionOverall, 
@@ -464,24 +466,15 @@ crscond <- LIculvertAssessmentData %>%
                                                      wwall_upCond = WingwallCondition_upStream, 
                                                      hwall_dwnCond = HeadwallCondition_dwnStream, 
                                                      wwall_dwnCond = WingwallCondition_dwnStream, 
-                                                     roadCond = RoadSurfaceCondition))
+                                                     roadCond = RoadSurfaceCondition)) %>% 
+  ungroup()
+
 # correlation and distrbution plots
-(crscond %>% select(-crossingID) %>%  
-  ggpairs(title = "Crossing Condition and components feeding into") + theme(strip.text.y = element_text(angle = 0))) %>% ggplotly()
+# (crscond %>% select(-crossingID) %>%  
+#   ggpairs(title = "Crossing Condition and components feeding into") + theme(strip.text.y = element_text(angle = 0))) %>% ggplotly()
 
-
-# # Change detection plot
-# crscond %>% select(starts_with("eval"), crossingID) %>% 
-#   ggplot(aes(x = as.factor(crossingID), y = Score_crossConditon)) + 
-#   geom_point(colour = "blue", alpha = 0.3) + 
-#   geom_segment(aes(xend = as.factor(crossingID), 
-#                    yend = Score_crossConditon), 
-#                arrow = arrow(length = unit(0.2, "cm"))) + 
-#   geom_point(aes(x = as.factor(crossingID), y = Score_crossConditon), color = "red", alpha = 0.3) +
-#   theme(axis.text.x = element_text(angle = 90)) + 
-#   geom_rug(sides = "r", position = "jitter") +
-#   labs(title = "Condition and Scour vs OUR Condition scoring", 
-#        subtitle = "Line connecting scores for each crossing \nblue = including scour in calcs")
+crscond %>% 
+  ggplot(aes(x = Score_crossConditon)) + geom_histogram()
 
 # Like it? Add this metric to the prioritization table
 LIculvertPrioritization <- LIculvertPrioritization %>%
@@ -511,11 +504,11 @@ partpr <- LIculvertAssessmentData %>% #
                                is.na(PtrPriorit) ~ 1L,
                                PtrPriorit == 0 ~ 1L,
                                TNCPriorit == 1 ~ 5L))
-partpr %>% mapview(zcol = "Score_partPrior")
-
-partpr %>% datatable(rownames = FALSE) %>% 
-  formatRound(-1, digits = 2) 
-
+# partpr %>% mapview(zcol = "Score_partPrior")
+# 
+# partpr %>% datatable(rownames = FALSE) %>% 
+#   formatRound(-1, digits = 2) 
+# 
 
 
 # (partpr %>% select(-crossingID) %>%  
@@ -523,9 +516,9 @@ partpr %>% datatable(rownames = FALSE) %>%
 #   ggpairs(title = "Partner Priotirty") + 
 #   theme(strip.text.y = element_text(angle = 0))) %>% ggplotly()
 
-partpr %>% st_drop_geometry() %>% group_by(PtrPriorit, TNCPriorit, MarPriorit) %>% tally() %>% kable()
+# partpr %>% st_drop_geometry() %>% group_by(PtrPriorit, TNCPriorit, MarPriorit) %>% tally() %>% kable()
 
-partpr %>% ggplot(aes(x = Score_partPrior)) + geom_bar()
+partpr %>% ggplot(aes(x = Score_partPrior)) + geom_bar() + scale_color_brewer()
 
 # Like it? Add this metric to the prioritization table
 LIculvertPrioritization <- LIculvertPrioritization %>% 
@@ -604,7 +597,7 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 ```{r finalScore, message=FALSE, warning=FALSE, paged.print=FALSE}
 # There's a need to push out data from the assessments as well for the summary sheets, 
 # TODO: Determine if the join should happen here or in a setup script elsewhere (ie. summarySheetSetup.R)
-
+LIculvertPrioritization <- crossingLocations %>% left_join(LIculvertPrioritization)
 write_rds(LIculvertPrioritization, path = "data/LIculvertPrioritizations.rds")
 
 ```
