@@ -1,4 +1,4 @@
-# Long Island Road-Stream Crossing R
+# Long Island Road-Stream Crossing
 This repository documents:  
 
  - steps taken to migrate field data from summary datasheets to spatial data base.  
