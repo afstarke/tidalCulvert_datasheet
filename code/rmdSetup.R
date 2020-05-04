@@ -68,10 +68,10 @@ crossingTrackerlist <- crossingTracker %>%
 
 # Culvert Catchments ----
 if(spatialDataUpdate == 1){
-  smcs <- st_read("M:/Projects/LI/Culvert_Assessment/data/Tidal_Desktop_Assessment/Tidal_Catchments.gdb", layer = "MASTER_TidalCatchments_Latest")
-  smcs %>% write_rds(path = "data/LIculvert_Catchments.rds")
+  catchments <- st_read("M:/Projects/LI/Culvert_Assessment/data/Tidal_Desktop_Assessment/Tidal_Catchments.gdb", layer = "MASTER_TidalCatchments_Latest")
+  catchments %>% write_rds(path = "data/LIculvert_Catchments.rds")
 }else{
-  smcs <- read_rds("data/LIculvert_Catchments.rds")  
+  catchments <- read_rds("data/LIculvert_Catchments.rds")  
   }
     
 # Culvert locations ----
