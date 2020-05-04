@@ -104,4 +104,15 @@ fw_drops <- fw_ti %>% filter(!CrosCode %in% fw_keeps) %>% filter(protocol == 1) 
 ti_keeps <- culledPts %>% filter(protocol == 2) %>% pull(CrosCode) %>% as.character() # points we selected as preferred tidal protocol n=57
 ti_drops <- fw_ti %>% filter(!CrosCode %in% ti_keeps) %>% filter(protocol == 2)
 
-fw_data %>% mutate(sumsheet = paste0("D:/culvert_project/html_outputs/", CrosCode, ".html")) %>% mapview(popup =)
+fw_data %>% mutate(sumsheet = paste0("D:/culvert_project/html_outputs/", CrosCode, ".html")) %>% mapview()
+
+
+## Desktop-data from AGOL comparison to catchment data
+a <- catchment_data %>% 
+  select(Tidal_ID, WET_PERC, MMP_AC_WHOLE, IS_PERC_MEAN, MARSH_AC) %>% rename(crossingID = Tidal_ID) %>% 
+  st_drop_geometry()
+b <- LIculvertData_location %>% 
+  select(crossingID, da_WatershedLandCover_imperv, da_MarshMigrPot_acres, da_saltMarshArea) %>% 
+  st_drop_geometry() 
+
+c <- a %>% left_join(b)
