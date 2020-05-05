@@ -70,18 +70,19 @@ Supervised classification was used due to inconsistent spatial relationships bet
 # Catchment data are joined/updated into the Desktop_Data hosted on AGOL for this
 catchment_data <- read_rds("data/LIculvert_Catchments.rds")  # This data is originally from Karen's model output. Revise as neede for new crossing locations.
 
-(LIculvertData_location %>% select(MarshComplex_Scoring) %>% st_drop_geometry() %>% mutate(MarshComplex_Scoring = as.factor(MarshComplex_Scoring)) %>% 
-  ggplot(aes(x = MarshComplex_Scoring, fill = MarshComplex_Scoring)) + 
-    geom_bar() + 
+(LIculvertData_location %>% select(MarshComplex_Scoring) %>% st_drop_geometry() %>% mutate(MarshComplex_Scoring = MarshComplex_Scoring) %>% 
+  ggplot(aes(x = MarshComplex_Scoring, fill = as.factor(MarshComplex_Scoring))) + 
+    geom_bar() + geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
     scale_fill_manual(values = unname(tncgradient[c(1,3,5)])) +
-    labs(title = "Scoring distribution of marsh complex size", subtitle = "Scored under supervised classification") + theme(strip.text.y = element_text(angle = 0)))
+    labs(title = "Scoring distribution of marsh complex size", subtitle = "Scored under supervised classification", fill = "Scoring") + theme(strip.text.y = element_text(angle = 0)))
 
 crossingLocations <- LIculvertData_location %>% select(crossingID) # use for rejoining later for final feature class.
 # Like it? Add this metric to the prioritization table
 # LIculvertPrioritization will be added to through out this code. 
 LIculvertPrioritization <- LIculvertData_location %>% 
-  rename(Score_MarshComplex = MarshComplex_Scoring) %>% select(crossingID, Score_MarshComplex) %>%
-  st_drop_geometry() # sf object was throwing errors.
+  mutate(Score_MarshComplex = as.numeric(MarshComplex_Scoring)) %>% 
+  select(crossingID, Score_MarshComplex) %>%
+  st_drop_geometry() # sf object was throwing errors and unwanted behaviour.
 
 
 ```
@@ -100,10 +101,10 @@ LIculvertData_location %>% select(da_saltMarshArea) %>%
   labs(title = "Distribution of marsh \nacreage upstream of crossing", subtitle = "")
 
 smsu <- LIculvertData_location %>% select(crossingID, da_saltMarshArea) %>% 
-  mutate(Score_marshAc = cut(x = da_saltMarshArea, 
+  mutate(Score_marshAc = as.numeric(cut(x = da_saltMarshArea, 
                              # breaks = c(-Inf, 1, 7, 25, 75, Inf),
                              breaks = c(-Inf, 1, 5, 10, 50, Inf),
-                             labels = c(1:5))) %>% 
+                             labels = c(1:5), ordered_result = F))) %>% 
   st_drop_geometry()
 p("To produce scoring that is distributed across the range of values, I created breaks by using log-transformed salt marsh area, which normalized the distribution, then roughly took equal intervals across the log-transformed x axis adjusting the break values to be whole numbers. Similar approaches were taken for other metrics with skewed distributions.")
 smsu %>% 
@@ -114,6 +115,13 @@ smsu %>%
        subtitle = "log transformed",
        fill = "Proposed scoring")
 
+smsu %>% ggplot(aes(x = Score_marshAc, fill = as.factor(Score_marshAc))) +
+  scale_fill_manual(values = unname(tncgradient)) +
+  geom_bar() + 
+  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
+  labs(subtitle = "Distribution of scores", title = "Marsh Acerage", x = NULL ) +
+  theme(legend.position = "none")
+  
 # 
 # smsu %>% 
 #  group_by(Score_marshAc) %>% tally(name = "# of crossings") %>% gt::gt()
@@ -140,6 +148,7 @@ These sub-metrics described below are:
 #### E3a. Tidal Range Ratio  
 Ratio of the upstream tidal range to downstream tidal range. Tidal range is estimated from the difference in elevation from the high water indicator stain and low tide elevation at the time of the assessment. A ratio of 0.5 would indicate that the downstream tidal range is twice as large as the upstream tidal range. A 1:1 ratio would mean that the tidal ranges are equal on both sides of the crossing.  
 
+NOTE: Are the crossings with large (>1) ratios considered impounded?
 
 
 ```{r tidalrange, message=FALSE, warning=FALSE, paged.print=TRUE, layout="l-body-outset"}
@@ -158,6 +167,14 @@ trr %>% st_drop_geometry %>% tidyr::drop_na() %>%
   geom_histogram(bins = 60) +
   scale_fill_manual(values = unname(tncgradient)) +
   labs(title = "Tidal range ratio distribution", fill = "Proposed scoring")
+
+trr %>% st_drop_geometry %>% tidyr::drop_na() %>% 
+  ggplot(aes(x = submetric_TidalRange, fill = as.factor(submetric_TidalRange))) +
+  scale_fill_manual(values = unname(tncgradient)) +
+  geom_bar() + 
+  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
+  labs(subtitle = "Distribution of scores", title = "Tidal range ratio", x = NULL ) +
+  theme(legend.position = "none")
 
 #  
 # Save results of the tidal range ratio portion to a new object. 
@@ -201,6 +218,13 @@ cr %>% st_drop_geometry %>% tidyr::drop_na() %>%
   scale_x_log10() +
   labs(title = "Crossing Raio distribution", subtitle = "log 10 transformed", fill = "Proposed scoring")
 
+cr %>% st_drop_geometry %>% tidyr::drop_na() %>% 
+  ggplot(aes(x = submetric_crossingRatio, fill = as.factor(submetric_crossingRatio))) + 
+  scale_fill_manual(values = unname(tncgradient)) +
+  geom_bar() + 
+  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
+  labs(subtitle = "Distribution of scores", title = "Crossing Ratio", x = NULL ) +
+  theme(legend.position = "none")
 
 # Map 
 # mapview(cr, zcol = "submetric_crossingRatio")
@@ -239,12 +263,19 @@ ec %>% st_drop_geometry %>% tidyr::drop_na() %>%
   scale_x_log10() +
   labs(title = "Downstream Erosion Classification", subtitle = "log transformed", fill = "submetric scoring")
 
+scale_fill_manual(values = unname(tncgradient)) +
+  geom_bar() + 
+  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
+  labs(subtitle = "Distribution of scores", title = "Crossing Ratio", x = NULL ) +
+  theme(legend.position = "none")
+
 ec %>% st_drop_geometry %>% tidyr::drop_na() %>% 
   ggplot(aes(x = erosionClass_upStrm, fill = as.factor(submetric_erosionClass))) + 
   geom_histogram() + 
   scale_fill_manual(values = unname(tncgradient)) + 
   scale_x_log10() +
   labs(title = "Upstream Erosion Classification", subtitle = "log transformed", fill = "submetric scoring")
+submetric_crossingRatio
 # NOTE: These distributions, or the color scheme of the scoring applied to thesee distributions are odd not discretely binned as you'd think they would be because the scoring is calculated by taking the max of the upstream and downstream ratios and scoring accordingly.
 
 # Like what we see? Join to the master LIculvertPrioritization tibble.
@@ -301,8 +332,14 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 
 ## Total Ecological Benefit Score
 ```{r ecobenefitScore, message=FALSE, warning=FALSE, paged.print=FALSE}
-# score_ecobenefit = sum
-  
+# score_ecobenefit = sum of each benefit score within, rescale to 1-5. 
+#'
+# Score_MarshComplex
+# Score_marshAc
+# Score_dotr
+# Score_vegetation
+
+LIculvertPrioritization <- LIculvertPrioritization %>% mutate(Total_Eco = sum(Score_MarshComplex, Score_marshAc, Score_dotr, Score_vegetation))
 ```
 
 ***
@@ -378,12 +415,12 @@ LIculvertData_location %>% ggplot(aes(x = da_MarshMigrPot_acres)) +
   labs(title = "Distribution of  marsh migration \npotential across crossings", subtitle = "log transformed") + scale_x_log10()
 
 p("Scoring of log-transformed data")
-LIculvertData_location %>% select(crossingID, da_MarshMigrPot_acres) %>% mutate(Score_marshmigpotAc = cut(x = da_MarshMigrPot_acres, breaks = c(-Inf, 1, 7, 25, 75, Inf), labels = c(1:5))) %>%
+LIculvertData_location %>% select(crossingID, da_MarshMigrPot_acres) %>% mutate(Score_marshmigpotAc = as.numeric(cut(x = da_MarshMigrPot_acres, breaks = c(-Inf, 1, 7, 25, 75, Inf), labels = c(1:5), ordered_result = F))) %>%
   ggplot(aes(da_MarshMigrPot_acres, fill = Score_marshmigpotAc)) + geom_histogram() + 
   scale_fill_manual(values = unname(tncgradient)) + 
   labs(title = "Distribution of  marsh migration \npotential across crossings", subtitle = "log transformed", fill = "Score") + scale_x_log10()
   
-smmp <- LIculvertData_location %>% select(crossingID, da_MarshMigrPot_acres) %>% mutate(Score_marshmigpotAc = cut(x = da_MarshMigrPot_acres, breaks = c(-Inf, 1, 7, 25, 75, Inf), labels = c(1:5)))# created breaks by using log-transformed salt marsh area, which normalized the distribution, then roughly took equal intervals across the log-transformed x axis adjusting the break values to be whole numbers.
+smmp <- LIculvertData_location %>% select(crossingID, da_MarshMigrPot_acres) %>% mutate(Score_marshmigpotAc = as.numeric(cut(x = da_MarshMigrPot_acres, breaks = c(-Inf, 1, 7, 25, 75, Inf), labels = c(1:5))))# created breaks by using log-transformed salt marsh area, which normalized the distribution, then roughly took equal intervals across the log-transformed x axis adjusting the break values to be whole numbers.
 
 smmp %>% 
   ggplot(aes(x = da_MarshMigrPot_acres, fill = Score_marshmigpotAc)) + 
