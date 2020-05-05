@@ -1,5 +1,6 @@
 ## Tidal Crossing Assessment and Prioritizations
 # 
+# Submetric scores and Final Score calculated in tidalCrossing_Prioritizations.Rmd using these functions.
 
 #' Function definitions serve two purposes; documentation and portability.
 #'  Calculation of the Prioritization metric 'Evaluation Score' is a 2 (or more) step 
@@ -317,7 +318,7 @@ vegetationScore <- function(vegMatChoice){
 #'   return(finalscore)
 #' }
 
-# 
+# C1: Crossing Condition ----
 #' crossingConditionScore
 #'
 #' @param overallCond 
@@ -363,7 +364,7 @@ crossingConditionScore <- function(overallCond,
 
 
 
-# highwater_clearance_ratio ---------------------------------------------------------
+# C3: highwater_clearance_ratio ---------------------------------------------------------
 #' an attempt at scoring based on a ratio of elevations (high water and road) 
 #' to avoid issue with a static scoring method across different tidal 
 #' regime/heights. 
@@ -392,5 +393,10 @@ highwater_ratio <- function(hwi, roadHt){
   return(ratio)
 }
 
-# Submetric scores and Final Score calculated in tidalCrossing_Prioritizations.Rmd
+
+# Total Benefit Score
+tot_benefit <- function(){}
+
+# Total Prioritization Score
+
 

@@ -98,11 +98,16 @@ fw_ti_data %>% st_write("data/fw_ti.geojson")
 # 2 = tidal protocol
 # culledPts are the points (protocols really) that we want to retain.
 culledPts <- st_read("data/fw_tidal_selected_points.geojson")
+fw_ti_data <- st_read("data/fw_ti.geojson")
 mapview(culledPts)
 fw_keeps <- culledPts %>% filter(protocol == 1) %>% pull(CrosCode) %>% as.character() #points we selected as preferred fw protocl n=13
-fw_drops <- fw_ti %>% filter(!CrosCode %in% fw_keeps) %>% filter(protocol == 1) # filter out the ones we want from the intersected data to make a list of points to drop
+fw_drops <- fw_ti_data %>% filter(!CrosCode %in% fw_keeps) %>% filter(protocol == 1) # filter out the ones we want from the intersected data to make a list of points to drop
 ti_keeps <- culledPts %>% filter(protocol == 2) %>% pull(CrosCode) %>% as.character() # points we selected as preferred tidal protocol n=57
-ti_drops <- fw_ti %>% filter(!CrosCode %in% ti_keeps) %>% filter(protocol == 2)
+ti_drops <- fw_ti_data %>% filter(!CrosCode %in% ti_keeps) %>% filter(protocol == 2)
+mapview(fw_drops, col.regions = "red") +
+  mapview(ti_drops, col.regions = "green") +
+  mapview(LIculvertData_location, col.regions = "yellow") +
+  mapview(fw_data, col.regions = "pink")
 
 fw_data %>% mutate(sumsheet = paste0("D:/culvert_project/html_outputs/", CrosCode, ".html")) %>% mapview()
 

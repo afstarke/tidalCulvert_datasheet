@@ -141,7 +141,7 @@ photo_link <- function(crossingID, matchTable, subject, path){
     return(picpath)
   }else{
     if(length(picpath) >= 2){
-      return(picpath[1])
+      return(picpath[2])
     }else{
       return(NULL)
     }
