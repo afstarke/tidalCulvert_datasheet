@@ -17,7 +17,7 @@ output:
 ## Tidal Prioritization
 
 ### Intention
-This document is meant to outline and walk through the workflow of the data used in the prioritization metrics of the tidal crossings assessed under TNC's methods. These methods are applied to all the crossings uniformly. Summary sheet infomation, specific to an individual crossing, will be based on the output from this code. 
+This document is meant to outline and document the workflow of the data and methods used in the prioritization metrics of the tidal crossings assessed under TNC's methods. These methods are applied to all the crossings uniformly. Metrics specific to an individual crossing, will be based on the output from this code combined with other information useful to partners.
 
 ```{r priorizationFunctions, message=FALSE, warning=FALSE, include=FALSE, paged.print=TRUE}
 # package setup and sourcing data etc.
@@ -28,13 +28,16 @@ library(naniar)
 library(plotly)
 library(kableExtra)
 library(DT)
-theme_set(theme_ipsum())
+theme_set(theme_ipsum(base_family = 'Chronicle Text G2 A'))
 options(digits = 2, scipen = 999)
 # knitr::opts_chunk$set(out.width = "100%")
 tncgradient <- c(tnc_color("Leaf Green"), tnc_color("Spring Green"), tnc_color("Yellow Field"),  tnc_color("Red Rock"), tnc_color("Crimson"))
 ```
 
 ### Starting Data source  
+Data are sourced from 2 locations. The primary geographic data are found in a hosted feature layer on AGOL. These point geographies contain general spatial information on each crossing (town, cross roads etc.) along with the desktop assessment portion of the prioritization. Data were migrated to this platform from the original field datasheets for increased data QA and processing effeciencies.   
+Field data are currently maintained in excel spreadsheets hosted in a shared Box folder. These data include all field assessement data for those sites that were visited. This data will likely be transitioned to a more robust managed database structure. 
+These data were collected primarily under the TNC-NH/NHDES Coastal Program protocol [^Resilient Tidal Crossings]. Deviations from these methods are documented here and will be described in more detail in other project documents. 
 Data extracted from Tidal Crossings Field workbooks using a suite of functions found in _/functions_ directory.  To save memory and time a seperate script runs the extraction process and saves an output file (.rds) to the _/data_ folder within this working directory. Call the datasets as needed here in the doc. Alternatively, running rmdSetup.R will source all functions and run updates on data if _'dataUpdate = TRUE'_ found near top of code chunk. From the full 'LIculvertsAssessments' data see 
 
 ```{r data, echo=TRUE, message=FALSE, warning=FALSE, paged.print=TRUE}
@@ -54,7 +57,7 @@ LIculvertAssessmentData %>% write_rds("data/LIculvertAssessmentData.rds") # Data
 ```
 
 ***
-# Ecological Benefit  
+## Ecological Benefit  
 
 ### E1. Salt marsh complex size  
 Scoring assigned by supervised classifciation of crossings based on proximity to marsh complexes. Crossings near large complexes (>~15 acres in size) scored 5, crossings adjacent to smaller complexes were scored a 3, and crossings disconnected from any marsh complex were scored a 1.  
@@ -63,24 +66,15 @@ Supervised classification was used due to inconsistent spatial relationships bet
  
 ```{r saltmarshComplex, echo=TRUE, fig.height=3, fig.width=6, message=FALSE, warning=FALSE, paged.print=TRUE}
 # TODO: include the NWI layer to compare the scored crossings with the marsh polygons.
+# TODO: update desktop_data layer to ensure mmp and marsh size are in line with catchment layer
 # Catchment data are joined/updated into the Desktop_Data hosted on AGOL for this
 catchment_data <- read_rds("data/LIculvert_Catchments.rds")  # This data is originally from Karen's model output. Revise as neede for new crossing locations.
-# h4("Catchment areas and Culvert locations")
-# 
-# marshmap <- mapview(catchment_data, alpha.regions = 0.2,  zcol = "MMP_AC", col.regions = tnc_color(1:5)) + mapview(LIculvertData_location, zcol = "MarshComplex_Scoring") 
-# 
-# marshmap
-# 
-# LIculvertData_location %>% st_drop_geometry() %>% select(crossingID, MarshComplex_Scoring) %>% rename(Score_MarshComplex = MarshComplex_Scoring) %>% 
-#   datatable(rownames = FALSE) %>% 
-#   formatRound(-1, digits = 2)
 
-# h4("Marsh complex size")
 (LIculvertData_location %>% select(MarshComplex_Scoring) %>% st_drop_geometry() %>% mutate(MarshComplex_Scoring = as.factor(MarshComplex_Scoring)) %>% 
   ggplot(aes(x = MarshComplex_Scoring, fill = MarshComplex_Scoring)) + 
     geom_bar() + 
     scale_fill_manual(values = unname(tncgradient[c(1,3,5)])) +
-    labs(title = "Scoring distribution of marsh complex size", subtitle = "Scored under supervised classification") + theme(strip.text.y = element_text(angle = 0))) %>%  ggplotly()
+    labs(title = "Scoring distribution of marsh complex size", subtitle = "Scored under supervised classification") + theme(strip.text.y = element_text(angle = 0)))
 
 crossingLocations <- LIculvertData_location %>% select(crossingID) # use for rejoining later for final feature class.
 # Like it? Add this metric to the prioritization table
@@ -97,13 +91,10 @@ proposed breaks: <1; 1-5; 5-10; 10-50; >50
 
 *TODO:* 
 - Determine scoring for the size of marsh in the catchment. 
-- `catachment_data$WET_PERC == LIculvertAssessmentData$da_WatershedLndCover_wetland`
+`catachment_data$WET_PERC == LIculvertAssessmentData$da_WatershedLndCover_wetland`
 
 ```{r Saltmarshupstream, message=FALSE, warning=FALSE, paged.print=TRUE}
-h4("Marsh acreage")
 
-#TODO: Update the desktop data as needed.
-# Salt marsh area = da_saltMarshArea in desktop data.
 LIculvertData_location %>% select(da_saltMarshArea) %>% 
   ggplot(aes(da_saltMarshArea)) + geom_histogram(bins = 50) + 
   labs(title = "Distribution of marsh \nacreage upstream of crossing", subtitle = "")
@@ -113,18 +104,20 @@ smsu <- LIculvertData_location %>% select(crossingID, da_saltMarshArea) %>%
                              # breaks = c(-Inf, 1, 7, 25, 75, Inf),
                              breaks = c(-Inf, 1, 5, 10, 50, Inf),
                              labels = c(1:5))) %>% 
-  st_drop_geometry()# created breaks by using log-transformed salt marsh area, which normalized the distribution, then roughly took equal intervals across the log-transformed x axis adjusting the break values to be whole numbers.
+  st_drop_geometry()
+p("To produce scoring that is distributed across the range of values, I created breaks by using log-transformed salt marsh area, which normalized the distribution, then roughly took equal intervals across the log-transformed x axis adjusting the break values to be whole numbers. Similar approaches were taken for other metrics with skewed distributions.")
 smsu %>% 
-  ggplot(aes(x = da_saltMarshArea, fill = Score_marshAc)) + scale_fill_manual(values = unname(tncgradient)) +
+  ggplot(aes(x = da_saltMarshArea, fill = Score_marshAc)) + 
+  scale_fill_manual(values = unname(tncgradient)) +
   geom_histogram(bins = 50) + scale_x_log10() + 
   labs(title = "Distribution of marsh \nacreage upstream of crossing", 
        subtitle = "log transformed",
        fill = "Proposed scoring")
 
-
-smsu %>% 
- group_by(Score_marshAc) %>% tally(name = "# of crossings") %>% gt::gt()
-
+# 
+# smsu %>% 
+#  group_by(Score_marshAc) %>% tally(name = "# of crossings") %>% gt::gt()
+# 
 
 # Like it? Add this metric to the prioritization table
 # LIculvertPrioritization will be added to through out this code. 
@@ -145,7 +138,8 @@ These sub-metrics described below are:
  + E3c: Erosion Classification
 
 #### E3a. Tidal Range Ratio  
-Ratio of the upstream tidal range to downstream tidal range. Tidal range is estimated from the difference in elevation from the high water indicator stain and low tide elevation at the time of the assessment. A ratio of 0.5 would indicate that the downstream tidal range is twice as large as the upstream tidal range. A 1:1 ratio would mean that the tidal ranges are equal on both sides of the crossing. 
+Ratio of the upstream tidal range to downstream tidal range. Tidal range is estimated from the difference in elevation from the high water indicator stain and low tide elevation at the time of the assessment. A ratio of 0.5 would indicate that the downstream tidal range is twice as large as the upstream tidal range. A 1:1 ratio would mean that the tidal ranges are equal on both sides of the crossing.  
+
 
 
 ```{r tidalrange, message=FALSE, warning=FALSE, paged.print=TRUE, layout="l-body-outset"}
@@ -161,15 +155,10 @@ trr <- LIculvertAssessmentData %>%
 
 trr %>% st_drop_geometry %>% tidyr::drop_na() %>% 
   ggplot(aes(x = tidalRangeRatio, fill = as.factor(submetric_TidalRange))) + 
-  geom_histogram() +
-  scale_fill_manual(values = unname(tncgradient)) 
+  geom_histogram(bins = 60) +
+  scale_fill_manual(values = unname(tncgradient)) +
+  labs(title = "Tidal range ratio distribution", fill = "Proposed scoring")
 
-trr %>% 
-  datatable(rownames = FALSE) %>% 
-  formatRound(-1, digits = 2) 
-# 
-# (trr %>% select(-crossingID) %>% st_drop_geometry() %>% 
-#   ggpairs(title = "Tidal range ratio components correlations") + theme(strip.text.y = element_text(angle = 0))) %>%  ggplotly()
 #  
 # Save results of the tidal range ratio portion to a new object. 
 LIculvertPrioritization <- LIculvertPrioritization %>% left_join({trr %>% st_drop_geometry()}, by = "crossingID")
@@ -210,11 +199,11 @@ cr %>% st_drop_geometry %>% tidyr::drop_na() %>%
   geom_histogram() + 
   scale_fill_manual(values = unname(tncgradient)) + 
   scale_x_log10() +
-  labs(title = "Crossing Raio distribution", subtitle = "log 10 transformed", fill = "submetric scoring")
+  labs(title = "Crossing Raio distribution", subtitle = "log 10 transformed", fill = "Proposed scoring")
 
 
 # Map 
-mapview(cr, zcol = "submetric_crossingRatio")
+# mapview(cr, zcol = "submetric_crossingRatio")
 # Show coorelations and to flag outliers
 # (cr %>% st_drop_geometry() %>% select(-crossingID) %>% 
 #   ggpairs(title = "Crossing ratio components correlations") + theme(strip.text.y = element_text(angle = 0))) %>%  ggplotly()
@@ -256,12 +245,7 @@ ec %>% st_drop_geometry %>% tidyr::drop_na() %>%
   scale_fill_manual(values = unname(tncgradient)) + 
   scale_x_log10() +
   labs(title = "Upstream Erosion Classification", subtitle = "log transformed", fill = "submetric scoring")
-
-# ec %>% datatable(rownames = FALSE) %>% 
-#   formatRound(-1, digits = 2) 
-# 
-# (ec %>% select(-crossingID) %>% st_drop_geometry() %>% 
-#   ggpairs(title = "Erosion classification components correlations") + theme(strip.text.y = element_text(angle = 0))) %>%  ggplotly()
+# NOTE: These distributions, or the color scheme of the scoring applied to thesee distributions are odd not discretely binned as you'd think they would be because the scoring is calculated by taking the max of the upstream and downstream ratios and scoring accordingly.
 
 # Like what we see? Join to the master LIculvertPrioritization tibble.
 # BUG: There's duplicate crossings entering here somehow.
@@ -272,7 +256,7 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 
 ***   
 
-### Degree of Tidal Restriction Scoring
+### Degree of Tidal Restriction Scoring  
 Average of 3 submetrics (E3a, E3b, E3c)
 
 Combining the scores of the tidal range ratio, Crossing ratio, erosion classification to yield Degree of Tidal Restriction score. 
@@ -284,19 +268,10 @@ dtr <- LIculvertPrioritization %>% rowwise() %>%
                                          erosion_class_score = submetric_erosionClass)) %>% 
   select(crossingID, submetric_TidalRange, submetric_crossingRatio, submetric_erosionClass, Score_dotr)
 
-# dtr %>% datatable(rownames = FALSE) %>% 
-#   formatRound(-1, digits = 2) 
-
-# (dtr %>% select(-crossingID) %>% 
-#   ggpairs(title = "Degree of tidal restriction metric components") + theme(strip.text.y = element_text(angle = 0))) %>% ggplotly()
-
 
 dtr %>%  
   ggplot(aes(x = Score_dotr)) +#, fill = as.factor(Score_dotr))) + 
   geom_histogram(bins = 100) +
-  # geom_density() + 
-  # scale_fill_manual(values = unname(tncgradient)) + 
-
   labs(title = "E3. Degree of tidal restriction")
 
 
@@ -307,7 +282,8 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 ```
 
 
-### E4. Vegetation Score {style="color: #3fb618:"}
+### E4. Vegetation Score {style="font-color: #3fb618:"}  
+
 ```{r vegetationScore, fig.height=4, fig.width=4, message=FALSE, warning=FALSE, paged.print=TRUE}
 
 vegsc <- LIculvertAssessmentData %>% 
@@ -340,8 +316,9 @@ GIS layers to be created/joined
  
 GIS layers to be created/joined  
 
-### R3. Heavy rainfall flood risk of the watershed  
+### R3. Heavy rainfall flood risk of the watershed   
 Following the freshwater prioritization scoring break down:
+- 
 
 | >40%   | 5 | 
 | 30-40% | 4 |
@@ -371,9 +348,10 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 
 ```
 
-IN the catchment data already-- IS_PERC_MEAN  
+
 
 ### R4. Area of potential tidal marsh advancement upstream of restriction  
+
 proposed breaks: <1; 1-7, 7-25, 25-75, >75
 Same breaks as the marsh size
 
@@ -382,6 +360,13 @@ MMP_AC_WHOLE - which is up-to-date compared to the Desktopdata on AGOL
 
 ```{r marshmigrationPot, fig.height=3, fig.width=5, message=FALSE, warning=FALSE}
 #TODO: Update AGOL feature layer to be current with catchment data. Confirm the IS_PERC_MEAN is updated as well.
+# TODO: add these values in at appropriate places.
+# FROM Karen: 
+# Here are the MMP acre calculations for the 3 from above:
+# 529- 1.130506 ac
+# 531- 0.302704 ac
+# 2003- 3.311209 ac
+
 p("Untransformed distribution skewed heavily as expected")
 LIculvertData_location %>% ggplot(aes(x = da_MarshMigrPot_acres)) +  geom_histogram() + 
   labs(title = "Distribution of  marsh migration \npotential across crossings")
@@ -427,9 +412,10 @@ LIculvertPrioritization <- LIculvertPrioritization %>% left_join({smmp %>% selec
 ```
 ## Total Resilience Benefit Score  
 ***  
-## Transportation Benefit
+## Transportation Benefit  
 
-### T1. Road Functional Classification
+### T1. Road Functional Classification  
+
 ```{r message=FALSE, warning=FALSE, paged.print=FALSE}
 # Data for finding road functional classification 
 # See road_classification.R code 
@@ -482,14 +468,19 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 
 ```
 
-### T2. Evacuation Route  
-See T1.  
-## Total Transportation Benefit Score
+### T2. Evacuation Route   
+See T1 for methods.  
+
+## Total Transportation Benefit Score  
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+
+```
+
 
 ***
-## Infrastructure Condition Benefit
+## Infrastructure Condition Benefit  
 
-### C1. Crossing Condition 
+### C1. Crossing Condition  
 _Current crossing condition_ evaluates several components of the crossing structure to effectively summarize the overall condition. Structure condition, such as headwall and wingwall condition. Scour has been removed as that condition is found in _Eroision Classification_. 
 
 #### Testing condition scoring with and without scour scores.
@@ -613,7 +604,7 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 ```
 
 
-### C4. Erosion classification
+### C4. Erosion classification  
  
 The ratio of scour pool width to channel width for both up and down stream sections. A large ratio indicates a larger scour pool. Score is based on the larger of the 2 ratios. 
 
@@ -657,7 +648,7 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 
 
 
-## Final Prioritization Scoring
+## Final Prioritization Scoring  
 
 ```{r finalScore, message=FALSE, warning=FALSE, paged.print=FALSE}
 # There's a need to push out data from the assessments as well for the summary sheets, 
@@ -667,9 +658,10 @@ write_rds(LIculvertPrioritization, path = "data/LIculvertPrioritizations.rds")
 
 ```
 
-### Methods
+### References: 
+[^Resilient Tidal Crossings]: New Hampshire Department of Environmental Services. 2019. “Resilient Tidal Crossings:An Assessment and Prioritization to Address New Hampshire’s Tidal Crossing Infrastructure for Coastal Resilience”.  R-WD-19-20. Portsmouth, NH. Available online at: https://www.des.nh.gov/organization/divisions/water/wmb/coastal/resilient-tidal.htm
 
-### Results
+### Results  
 
 
 
