@@ -1,3 +1,7 @@
+#' Road data processed through below code and using ArcPro to update fields on AGOL 
+#' these data are read in with the desktop/location data.
+#'
+
 #' Data for finding road functional classification. Errors on reading in using
 #' sf, seems to be an issue with a lock file on the gdb layer. Asides, the join
 #' feature was monstorous so went into ArcPro on the server and buffered crossing features (500m),
@@ -25,10 +29,10 @@ write_rds(x = roadData, path = "data/roadFunctional_class.rds")
 
 
 
-# 
-# evacRte <- read_sf(dsn = "M:/Projects/LI/Culvert_Assessment/data/FreshwaterPrioritization/RoadwayInventorySystem2017Pub.gdb", layer = "Suffolk_EvacRoutes") %>% 
-#   st_transform(crs = )
-# 
+
+evacRte <- read_sf(dsn = "M:/Projects/LI/Culvert_Assessment/data/FreshwaterPrioritization/RoadwayInventorySystem2017Pub.gdb", layer = "Suffolk_EvacRoutes") %>%
+  st_transform(crs = 4326)
+
 
 
 # 

@@ -85,7 +85,7 @@ rm(tidalCrossings_desktop)
 if(dataUpdate == 1){
   LIculvert_GISpts <- culvertPOTpts %>% st_transform(4326) %>% 
     st_zm(drop = TRUE) %>% 
-    mutate(PriorityScore = as.numeric(PtrPriorit) + as.numeric(TNCPriorit) + as.numeric(MarPriorit)) %>% # create a new 'priority score'
+    mutate(PriorityScore = as.numeric(PtrPriorit) + as.numeric(TNCPriorit_1) + as.numeric(MarPriorit_1)) %>% # create a new 'priority score'
     mutate(listedOnFieldSched = crossingID %in% crossings_TODO, Located = "Y",
            crossingID = as.numeric(crossingID)) 
   LIculvert_GISpts %>% write_rds(path = "data/LIculvert_GISpts.rds")
