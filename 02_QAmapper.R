@@ -56,7 +56,7 @@ library(mapedit)
   mapview(col.regions = 'green', layer.name = "FW sites within 50m of Tidal") + 
   {tidal_subset %>% 
       mapview(col.regions = 'blue', layer.name = "Tidal sites within 50m of FW")} -> map
-map
+map + mapview(culledPts, col.regions = "red")
 fw <- fw_subset %>% select(CrosCode) %>% mutate(protocol = 1) %>% rename(geometry = Shape)
 
 ti <- tidal_subset %>% mutate(CrosCode = as.character(crossingID)) %>% select(CrosCode) %>%  mutate(protocol = 2)
@@ -64,7 +64,7 @@ ti <- tidal_subset %>% mutate(CrosCode = as.character(crossingID)) %>% select(Cr
 fw_ti <- rbind(ti, fw) 
 fw_ti
 fw_ti_data <- fw_ti %>% left_join(fw_data %>% st_drop_geometry()) %>% left_join(LIculvertDataStatus %>% mutate(CrosCode = as.character(crossingID)))
-fw_ti_data %>% st_write("data/fw_ti.geojson")
+fw_ti_data %>% st_write("data/fw_ti_droppedFW.geojson")
 
 #' QA'ed points on Apr 14th with sub-team to choose which protocol each of these
 #' duplicated points should fall under. These points were selected by
@@ -92,6 +92,9 @@ fw_ti_data %>% st_write("data/fw_ti.geojson")
 #' crossing or tidal? Should the feasibility of conversion to tidal be
 #' considered?
 #' 
+LIculvertsAssessments <- readRDS("data/LIculvertsAssessments.rds") # tidal assessment workbooks, with varying degrees of completness. This is the bulk of the data collected, but does not include complete desktop assessments. Those data are recorded and managed in the AGOL-hosted feature _desktopData_. 
+LIculvertData_location <- read_rds("data/LIculvertData_location.rds") # tidal assessment data joined to locations of crossings identified in assessments. 
+checkPts <- st_read("M:/Projects/LI/Culvert_Assessment/data/FreshwaterPrioritization/FreshwaterPrioritization.gdb", layer = "TidalStreamName_Points_in_FreshwaterPrioritization")
 
 # read in edited points- 
 # 1 = freshwater protocol
@@ -101,15 +104,28 @@ culledPts <- st_read("data/fw_tidal_selected_points.geojson")
 fw_ti_data <- st_read("data/fw_ti.geojson")
 mapview(culledPts)
 fw_keeps <- culledPts %>% filter(protocol == 1) %>% pull(CrosCode) %>% as.character() #points we selected as preferred fw protocl n=13
-fw_drops <- fw_ti_data %>% filter(!CrosCode %in% fw_keeps) %>% filter(protocol == 1) # filter out the ones we want from the intersected data to make a list of points to drop
+fw_drops <- fw_ti_data %>% filter(!CrosCode %in% fw_keeps) %>% filter(protocol == 1) %>% pull(CrosCode) %>% as.character() # # filter out the ones we want from the intersected data to make a list of points to drop
 ti_keeps <- culledPts %>% filter(protocol == 2) %>% pull(CrosCode) %>% as.character() # points we selected as preferred tidal protocol n=57
 ti_drops <- fw_ti_data %>% filter(!CrosCode %in% ti_keeps) %>% filter(protocol == 2)
+
+# Deleted pdf and html outputs for crossings that we are dropping from FW. Did not code this to prevent accidental reruns.
+htmlfilesToRemove <- paste0("D:/culvert_project/html_outputs/", fw_drops, ".html")
+file.exists(htmlfilesToRemove)
+purrr::walk(htmlfilesToRemove, browseURL)
+
+pdffilesToRemove <- paste0("C:/Users/astarke/Box Sync/LI_Road_Stream_Tidal_Crossing_Project_Resources/Documents/SummarySheets/", fw_drops, ".pdf")
+file.exists(pdffilesToRemove)
+file.remove(pdffilesToRemove)
+purrr::walk(pdffilesToRemove, ~system(paste0('open ', .x)))
+
 mapview(fw_drops, col.regions = "red") +
   mapview(ti_drops, col.regions = "green") +
   mapview(LIculvertData_location, col.regions = "yellow") +
-  mapview(fw_data, col.regions = "pink")
+  mapview(fw_data, col.regions = "pink") +
+  mapview({checkPts %>% filter(is.na(Remove))}, col.regions = "darkblue")
 
-fw_data %>% mutate(sumsheet = paste0("D:/culvert_project/html_outputs/", CrosCode, ".html")) %>% mapview()
+# 
+# fw_data %>% mutate(sumsheet = paste0("D:/culvert_project/html_outputs/", CrosCode, ".html")) %>% mapview()
 
 
 ## Desktop-data from AGOL comparison to catchment data
