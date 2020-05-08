@@ -1,16 +1,18 @@
 ---
 title: "Tidal Crossing Priotization"
-subtitle: Suffolk County- Long Island
 output:
-  html_document: 
+  word_document:
+    toc: yes
+  html_document:
     code_folding: hide
     fig_caption: yes
-    fig_height: 5
     fig_width: 6
     highlight: kate
-    theme: cosmo
+    theme: journal
     toc: yes
     toc_float: yes
+subtitle: Suffolk County- Long Island
+always_allow_html: yes
 ---  
 
 
@@ -60,8 +62,7 @@ LIculvertAssessmentData %>% write_rds("data/LIculvertAssessmentData.rds") # Data
 ## Ecological Benefit  
 
 ### E1. Salt marsh complex size  
-Scoring assigned by supervised classifciation of crossings based on proximity to marsh complexes. Crossings near large complexes (>~15 acres in size) scored 5, crossings adjacent to smaller complexes were scored a 3, and crossings disconnected from any marsh complex were scored a 1.  
-Supervised classification was used due to inconsistent spatial relationships between the crossing locations and the marsh complexes. Often crossings are found on the edges or outside of the boundary of the marsh complex.  
+Scoring assigned by manually classifying crossings based on proximity to marsh complexes. Crossings in or adjacent to large complexes (>~15 acres in size) scored 5, crossings in or adjacent to smaller complexes were scored a 3, and crossings disconnected from any marsh complex were scored a 1. Manual classification was used due to inconsistent spatial relationships between the crossing locations and the marsh complexes. Often crossings are found on the edges or outside of the boundary of the marsh complex but are in important waterways connecting these complexes.  
 
  
 ```{r saltmarshComplex, echo=TRUE, fig.height=3, fig.width=6, message=FALSE, warning=FALSE, paged.print=TRUE}
@@ -108,7 +109,7 @@ smsu <- LIculvertData_location %>% select(crossingID, da_saltMarshArea) %>%
   st_drop_geometry()
 p("To produce scoring that is distributed across the range of values, I created breaks by using log-transformed salt marsh area, which normalized the distribution, then roughly took equal intervals across the log-transformed x axis adjusting the break values to be whole numbers. Similar approaches were taken for other metrics with skewed distributions.")
 smsu %>% 
-  ggplot(aes(x = da_saltMarshArea, fill = Score_marshAc)) + 
+  ggplot(aes(x = da_saltMarshArea, fill = as.factor(Score_marshAc))) + 
   scale_fill_manual(values = unname(tncgradient)) +
   geom_histogram(bins = 50) + scale_x_log10() + 
   labs(title = "Distribution of marsh \nacreage upstream of crossing", 
@@ -139,7 +140,7 @@ LIculvertPrioritization <- LIculvertPrioritization %>% left_join({smsu %>% selec
 ***  
 ### E3. Degree of Tidal Restriction and AOP  
 
-Consists of 3 _sub-metrics_ that when averaged yield the score for degree of tidal restriction and AOP.
+Consists of 3 _sub-metrics_ that when averaged yield the score for degree of tidal restriction.
 These sub-metrics described below are:    
  + E3a: Tidal Range Ratio
  + E3b: Crossing Ratio
@@ -263,6 +264,8 @@ ec %>% st_drop_geometry %>% tidyr::drop_na() %>%
   scale_x_log10() +
   labs(title = "Downstream Erosion Classification", subtitle = "log transformed", fill = "submetric scoring")
 
+ec %>% st_drop_geometry %>% tidyr::drop_na() %>% 
+  ggplot(aes(x = submetric_erosionClass, fill = as.factor(submetric_erosionClass))) +
 scale_fill_manual(values = unname(tncgradient)) +
   geom_bar() + 
   geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
@@ -275,7 +278,7 @@ ec %>% st_drop_geometry %>% tidyr::drop_na() %>%
   scale_fill_manual(values = unname(tncgradient)) + 
   scale_x_log10() +
   labs(title = "Upstream Erosion Classification", subtitle = "log transformed", fill = "submetric scoring")
-submetric_crossingRatio
+
 # NOTE: These distributions, or the color scheme of the scoring applied to thesee distributions are odd not discretely binned as you'd think they would be because the scoring is calculated by taking the max of the upstream and downstream ratios and scoring accordingly.
 
 # Like what we see? Join to the master LIculvertPrioritization tibble.
@@ -287,7 +290,7 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 
 ***   
 
-### Degree of Tidal Restriction Scoring  
+#### Degree of Tidal Restriction Scoring  
 Average of 3 submetrics (E3a, E3b, E3c)
 
 Combining the scores of the tidal range ratio, Crossing ratio, erosion classification to yield Degree of Tidal Restriction score. 
@@ -313,7 +316,7 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 ```
 
 
-### E4. Vegetation Score {style="font-color: #3fb618:"}  
+### E4. Vegetation Score 
 
 ```{r vegetationScore, fig.height=4, fig.width=4, message=FALSE, warning=FALSE, paged.print=TRUE}
 
@@ -321,7 +324,10 @@ vegsc <- LIculvertAssessmentData %>%
   select(crossingID, Vegchoice) %>% mutate(Score_vegetation = vegetationScore(Vegchoice))
 
 # Made Unassessed a -2 score for display in plots. .
-vegsc %>% select(Score_vegetation) %>% mutate(Score_vegetation_na = replace_na(Score_vegetation, replace = -2)) %>% ggplot(aes(x = Score_vegetation_na)) + geom_histogram() + 
+vegsc %>% select(Score_vegetation) %>% 
+  mutate(Score_vegetation_na = replace_na(Score_vegetation, replace = -2)) %>% 
+  ggplot(aes(x = Score_vegetation_na)) + 
+  geom_histogram() + 
   scale_x_continuous(breaks = c(-2, 0:5)) + 
   labs(subtitle = "Unassessed = -2", main = "Vegetation matrix scoring distribution")
 
@@ -332,6 +338,9 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 
 ## Total Ecological Benefit Score
 ```{r ecobenefitScore, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+
+
 # score_ecobenefit = sum of each benefit score within, rescale to 1-5. 
 #'
 # Score_MarshComplex
@@ -339,7 +348,19 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 # Score_dotr
 # Score_vegetation
 
-LIculvertPrioritization <- LIculvertPrioritization %>% mutate(Total_Eco = sum(Score_MarshComplex, Score_marshAc, Score_dotr, Score_vegetation))
+
+LIculvertPrioritization <- LIculvertPrioritization %>% rowwise() %>% 
+  mutate(Total_Eco = benefit_score(sum(Score_MarshComplex, Score_marshAc, Score_dotr, Score_vegetation, na.rm = T))) %>% ungroup()
+
+LIculvertPrioritization %>%  
+  ggplot(aes(x = Total_Eco, fill = as.factor(Total_Eco))) +
+  scale_fill_manual(values = unname(tncgradient)) +
+  geom_bar() + 
+  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
+  labs(subtitle = "Distribution of scores", title = "Ecological Benefit", x = NULL ) +
+  theme(legend.position = "none")
+
+
 ```
 
 ***
@@ -396,7 +417,7 @@ Distribution of marsh migration potentianl across catchments.
 MMP_AC_WHOLE - which is up-to-date compared to the Desktopdata on AGOL
 
 ```{r marshmigrationPot, fig.height=3, fig.width=5, message=FALSE, warning=FALSE}
-#TODO: Update AGOL feature layer to be current with catchment data. Confirm the IS_PERC_MEAN is updated as well.
+#TODO: Update AGOL feature layer to be current with catchment data. 
 # TODO: add these values in at appropriate places.
 # FROM Karen: 
 # Here are the MMP acre calculations for the 3 from above:
@@ -448,6 +469,7 @@ LIculvertPrioritization <- LIculvertPrioritization %>% left_join({smmp %>% selec
 
 ```
 ## Total Resilience Benefit Score  
+
 ***  
 ## Transportation Benefit  
 
@@ -457,10 +479,9 @@ LIculvertPrioritization <- LIculvertPrioritization %>% left_join({smmp %>% selec
 # Data for finding road functional classification 
 # See road_classification.R code 
 # TODO: append the road classification data to the feature service hosted on AGOL 
-roadData <- read_rds(path = "data/roadFunctional_class.rds")
+# roadData <- read_rds(path = "data/roadFunctional_class.rds")
 
-tb <- LIculvertAssessmentData %>% 
-  left_join(roadData) %>% 
+tb <- LIculvertData_location %>% select(FunctionalClass_supervised) %>% 
   select(crossingID, FunctionalClass_supervised, Rd_EvacRte) %>% 
   mutate(
     ss_Rd_EvacRte = if_else(Rd_EvacRte == 1, "Yes", "No"), # TODO: Think about adding prefixes to the data needed for the summary sheets.
