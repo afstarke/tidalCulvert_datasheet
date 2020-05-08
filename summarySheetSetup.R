@@ -66,11 +66,11 @@ write_rds(tsdn, here::here("data/tsdn.rds"))
 # I also put the Field Description list on Teams, as well as in the folder: \\nyspatial.tnc.org\gisdata\Projects\LI\Culvert_Assessment\data\FreshwaterPrioritization\
 # [2/18 7:23 PM] Stephen Lloyd
 # Photos are here: \\nyspatial.tnc.org\gisdata\Projects\LI\Culvert_Assessment\photos and the match table I created is in there called: match_table_021820.csv
-
+# 
 # fw_data <- st_read("M://Projects/LI/Culvert_Assessment/data/FreshwaterPrioritization/FreshwaterPrioritization_for_webtool.gdb", stringsAsFactors = F, layer = "TNC_NAACC_FreshwaterPrioritization_032720") %>%
 # st_transform(crs = 4326)
 # fw_data %>% write_rds(here::here("data/fwaterPrioritizations.rds"))
-## @knitr freshDataRead
+# ## @knitr freshDataRead
 
 fw_data <- read_rds(here::here("data/fwaterPrioritizations.rds")) 
 
