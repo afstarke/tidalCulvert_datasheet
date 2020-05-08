@@ -395,7 +395,46 @@ highwater_ratio <- function(hwi, roadHt){
 
 
 # Total Benefit Score
-tot_benefit <- function(){}
+# From Stephen- All benefit scores were rescaled using this break down.
+# Dim EB
+# If  [Total_EcoBenefit] > 16 Then
+# EB = 5
+# elseif  [Total_EcoBenefit] > 12 Then
+# EB = 4
+# elseif  [Total_EcoBenefit] > 8 Then
+# EB = 3
+# elseif  [Total_EcoBenefit] > 4 Then
+# EB = 2
+# elseif  [Total_EcoBenefit] > 0 Then
+# EB = 1
+# else
+# EB = -99
+# end if
+# From Stephen- For scroing resilience benefit in FW prioritizations
+# Dim RB
+# If  [Total_ResilienceBenefit] > 12 Then
+# RB = 5
+# elseif  [Total_ResilienceBenefit] > 9 Then
+# RB = 4
+# elseif  [Total_ResilienceBenefit] > 6 Then
+# RB = 3
+# elseif  [Total_ResilienceBenefit] > 3 Then
+# RB = 2
+# elseif  [Total_ResilienceBenefit] > 0 Then
+# RB = 1
+# else
+# RB = -99
+# end if
+benefit_score <- function(total.benefit.score, resilience.score = F){
+  if(resilience.score == F){
+    score <- cut(x = total.benefit.score, breaks = c(-Inf, 4, 8, 12, 16, Inf), labels = c(1:5))
+    score <- as.numeric(score)
+  }else{
+    score <- cut(x = total.benefit.score, breaks = c(-Inf, 3, 6, 9, 12, Inf), labels = c(1:5))
+    score <- as.numeric(score)
+  }
+  return(score)
+}
 
 # Total Prioritization Score
 
