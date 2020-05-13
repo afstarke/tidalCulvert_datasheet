@@ -76,7 +76,7 @@ if(spatialDataUpdate == 1){
     
 # Culvert locations ----
 # Pull from AGOL directly. # NOTE: token needed to get access, refreshed token occaisionally. 
-tidalCrossings_desktop <- sf::st_read("https://services.arcgis.com/F7DSX1DSNSiWmOqh/arcgis/rest/services/TidalCrossing_desktopDataEntry/FeatureServer/0/query?where=fid+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryPoint&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnHiddenFields=false&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pgeojson&token=rXQND8tWRi6aRHIctc9qvLNmzLfWXIMciC3nyF3PjM5A74eZqB50UUHoh-m-0-rvwYQhxhNGZRqWcy4rFiUc3y1Q6GN9T63xgqYTkITNJflipAVm1du0odPf7zNx83FscLtfnQN1m_12J-3NggHOYAT1v-3vS1f4fFq9ZcdBDZ7FLFvG-Lfen9ah5akJazBmY39sotUV6iCa1Rs1uEoSphz6fPFnHUWyayCLVsWUKqMCGo-Olv7aJdMZvkl5Frjg", 
+tidalCrossings_desktop <- sf::st_read("https://services.arcgis.com/F7DSX1DSNSiWmOqh/arcgis/rest/services/TidalCrossing_desktopDataEntry/FeatureServer/0/query?where=fid+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryPoint&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnHiddenFields=false&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pgeojson&token=aK__wCdXvhxvEXy7C0lazehgQuwjyubP-hO-h-6GMvC41SVS2F0ZTwcBji4qFe5g7lBN1zxzoWAMNCc-FhddVlLNXOnnkii17JqcCk_xXSY54bUC0hRM-HymLaPH9ZQkiLoYCPnMtHea45Ne8l__9F1Q2fdRAQGpBzLwGeJX63kJ77TmfQ2pHXWrV7c4zrFTwj0yq0TlJmcyd_a92z1azp-Ykn2ggUEH-I1MpRx8d3FsVYmeXa1O12oMBUGdCY7S", 
                                       stringsAsFactors = F) #dont bring in as factors.
 culvertPOTpts <- tidalCrossings_desktop #%>% select(crossingID:Latitude) # trim desktop data?
 # remove to keep the workspace tidy.
@@ -95,6 +95,7 @@ if(dataUpdate == 1){
 # remove to keep the workspace tidy.
 rm(culvertPOTpts)
 
+roadHts <- lidarHt %>% select(crossingID, da_LiDarHt_CL) %>% st_drop_geometry()
 
 ## @knitr culvertData  ----
 # Extract the field data from the workbooks and bring them in.
@@ -109,6 +110,7 @@ if(dataUpdate == 1){
   # TODO: Check that the fielddata column contains the same data as the LIculvertData object- if so remove the later from this script
   LIculvertsAssessments <- culvert_tidy(tidalCulvert_datasheetsFolder) 
   LIculvertsAssessments <- LIculvertsAssessments %>% 
+    left_join(roadHts, by = "crossingID") %>% # join in the LIDAR road heights to incoprorate the desktop collected road heights for calculating longProfile.
     mutate(crossingID = map_chr(.x = tidycells, ~culvert_extract(tidycells = .x, sheetOI = 'Data Sheet - SITE', celladdress = 'L7')),
            decoded = map(.x = tidycells, .f = ~decodeSheet(.x, keysheet)), # this is where the sausage is made. 
            fielddata = map(.x = decoded, .f = ~cleanField(.x)),
@@ -173,6 +175,9 @@ if (typeof(LIculvertData$crossingID) == typeof(LIculvert_GISpts$crossingID)) {
 LIculvertData_location <- LIculvert_GISpts %>% 
   left_join(LIculvertData, by = "crossingID")  # this object is picking up 2 extra joins- perhaps dupicate CrossingIDs? YUP> 2007 is duplicated in GIS file.
   
+# Culvert Data Status ----
+#' summaries for general project guidance
+#' Mostly unused now as project transitions to prioritizations.
 
 if(dataUpdate == 1){
   LIculvertDataStatus <- LIculvertsAssessments %>% 

@@ -80,7 +80,7 @@ tidal_range_ratio <- function(us_hwi_stain,
 crit_tidal_range <- function(tide_r_ratio){
   val <- tide_r_ratio
   dplyr::case_when(
-    val >= 0.90 ~ 1L, # TODO: This needs to be built out more. Other variables feed into this in NH docs
+    val >= 0.90 ~ 1L, 
     val >= 0.80 & val < 0.90 ~ 2L,
     val >= 0.70 & val < 0.80 ~ 3L,
     val >= 0.50 & val < 0.70 ~ 4L,
@@ -220,7 +220,18 @@ vegetationScore <- function(vegMatChoice){
     vegMatChoice == "3B" ~ 4L,
     vegMatChoice == "3C" ~ 5L
   )
-  return(score)
+  score2 <- case_when(
+    vegMatChoice == "1A" ~ 1L, # native only, same both sides
+    vegMatChoice == "1B" ~ 3L, # native only, different species on either side but appear similar (high marsh - low marsh)
+    vegMatChoice == "1C" ~ 5L, # native only, tidal species one side, fresh species the other.
+    vegMatChoice == "2A" ~ 1L, # invasives through out, same both sides
+    vegMatChoice == "2B" ~ 2L, # invasives through out, up and down stream communtites are slightly different
+    vegMatChoice == "2C" ~ 4L, # invasives through out, up and down stream communities represent different marsh types
+    vegMatChoice == "3A" ~ 3L, # invasives on one side, tidal marsh on both sides
+    vegMatChoice == "3B" ~ 4L, # invasives on one side, similar species/marsh type on either side 
+    vegMatChoice == "3C" ~ 5L # invasices on one side, up and down stream different species
+  )
+  return(score2)
 }
 
 #' # Current Crossing Condition ----
@@ -373,8 +384,8 @@ crossingConditionScore <- function(overallCond,
 
 #' highwater_ratio
 #'
-#' @param hwi 
-#' @param roadHt 
+#' @param hwi High water indicator- one of either wrack line or stain on structure
+#' @param roadHt Road height as acquired by LIDAR via desktop assessment portion of assessment
 #'
 #' @return
 #' @export
@@ -384,14 +395,19 @@ highwater_ratio <- function(hwi, roadHt){
   
   highwaterRescale <- function(a,b){
     minVal <- min(a,b, na.rm = T)
-    rescaleVal <- abs(minVal) + 1
+    rescaleVal <- abs(minVal) + .00001 # Make it very small but above zero
     return(rescaleVal)
   }
   
-   ratio <- highwaterRescale(hwi, roadHt) + hwi / highwaterRescale(hwi, roadHt) + roadHt
+   ratio <- (highwaterRescale(hwi, roadHt) + hwi) / (highwaterRescale(hwi, roadHt) + roadHt)
   
   return(ratio)
 }
+
+# Resilience Benefit ----
+#'
+#' Scores are calculated in tidalCrossing_Prioritizations.Rmd
+
 
 
 # Total Benefit Score

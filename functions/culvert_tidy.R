@@ -4,7 +4,7 @@
 # Read in files from specified folder
 # Create tibble with columns of spreadsheet name, size, last modified, and list column with tidyxl 'cells' 
 # Then use map and mutate functions to extract out the bits that are needed. 
-# Can be done additively and transparently as more variables are desired.
+# Can be done additively as more variables are desired.
 
 # ---- culvert_fetch
 #' Tidy up spread sheet contents using tidyxl for later gathering
@@ -67,8 +67,8 @@ cleanField <- function(decodedcolumn){
 #'
 #' @param rawHeight height as recorded in field.
 #' @param shotCode control point code, R, U, D, X
-#' @param Lidarht lidar height as obtained using LiDAR data
-#' @param roadCentHt 
+#' @param Lidarht lidar height as obtained using LiDAR data from desktop assessment
+#' @param roadCentHt Road center height measured in field.
 #' @param TPforsight_upSt 
 #' @param TPbacksight_upSt 
 #' @param TPforsight_dwSt 
@@ -94,7 +94,7 @@ surveyHtCorrection <- function(rawHeight, shotCode, Lidarht, roadCentHt, TPforsi
 #' @param filepath A path to excel file containing Tidal Culvert datasheet.
 #' @return tidy dataframe containing information relating to the cross sectional
 #'   profile measured in field and recorded in M99:M102 and A122:M140
-#'  
+#' @param lidarHt Road center height (NAVD88) collected in desktop assessment, stored in GIS.
 #'
 #' @examples
 #' 
@@ -102,12 +102,13 @@ surveyHtCorrection <- function(rawHeight, shotCode, Lidarht, roadCentHt, TPforsi
 # filepath <- list.files(tidalCulvert_datasheetsFolder, full.names = T)[[3]] 
 
 
-channelLongidinalProfile_extract <- function(filepath, tidycells){
+channelLongidinalProfile_extract <- function(filepath, tidycells, lidarHt){
   # Set up variables for adjusting to NAVD88 with surveyHtCorrection()
   crossingID <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'L7') %>% as.numeric()
   # BUG: Originally LIDAR data was being maintained in the worksheet. Now it is managed in the GIS data itself. Need to devise a workaround here.
   # TODO: Fix this bug.
-  Lidarht <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SUMMARY', celladdress = 'J54') %>% as.numeric()
+  Lidarht <- lidarHt # Swap in the desktop collected values.
+  # Lidarht <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SUMMARY', celladdress = 'J54') %>% as.numeric()
   roadCentHt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'J107') %>% as.numeric()
   
   TPforsight_upSt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'Y110') %>% as.numeric()
@@ -191,7 +192,8 @@ crossSection <- function(filepath, tidycells){
   # Set up variables for adjusting to NAVD88 with surveyHtCorrection()
   # constants for each crossing
   # Lidarht will be collected in Desktop data on ArcOnline. Must integrate this somehow.
-  # IDEA: Strategy- drop the columns represting the adjusted heights from the nested tables, THEN after joining to the GIS data recalculate the heights using the LIDAR values form the GIS data.
+  # IDEA: Strategy- drop the columns represting the adjusted heights from the nested tables, THEN after joining to the GIS data 
+  # recalculate the heights using the LIDAR values form the GIS data.
   Lidarht <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SUMMARY', celladdress = 'J54') %>% as.numeric()
   roadCentHt <- Lidarht
   # Road width used in the calculations of distance.
