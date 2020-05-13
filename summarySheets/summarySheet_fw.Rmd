@@ -352,5 +352,5 @@ tags$div(class = "polaroid",
 #### _Additional Information_  
  
 - Download the NAACC protocol for assessing aquatic organism (AOP) passage [here](https://streamcontinuity.org/naacc/assessments/aquatic-connectivity-non-tidal). All crossings were assessed during summer low water conditions per the protocol. As such, AOP may vary under different conditions.   
-- Visit the [NAACC Data Center](https://naacc.org/naacc_data_center_home.cfm) to access all data collect in the field under the NAACC protocol. Search by NAACC crossing code listed in General Crossing Information below.
+- Visit the [NAACC Data Center](https://naacc.org/naacc_data_center_home.cfm) to access all data collect in the field under the NAACC protocol. Search by NAACC crossing code listed in General Crossing Information above
 
