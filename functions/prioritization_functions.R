@@ -385,13 +385,13 @@ crossingConditionScore <- function(overallCond,
 #' highwater_ratio
 #'
 #' @param hwi High water indicator- one of either wrack line or stain on structure
-#' @param roadHt Road height as acquired by LIDAR via desktop assessment portion of assessment
+#' @param poi Road height as acquired by LIDAR via desktop assessment portion of assessment
 #'
 #' @return
 #' @export
 #'
 #' @examples
-highwater_ratio <- function(hwi, roadHt){
+highwater_ratio <- function(hwi, poi){
   
   highwaterRescale <- function(a,b){
     minVal <- min(a,b, na.rm = T)
@@ -399,7 +399,7 @@ highwater_ratio <- function(hwi, roadHt){
     return(rescaleVal)
   }
   
-   ratio <- (highwaterRescale(hwi, roadHt) + hwi) / (highwaterRescale(hwi, roadHt) + roadHt)
+   ratio <- (highwaterRescale(hwi, poi) + hwi) / (highwaterRescale(hwi, poi) + poi)
   
   return(ratio)
 }
