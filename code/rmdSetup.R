@@ -95,7 +95,8 @@ if(dataUpdate == 1){
 # remove to keep the workspace tidy.
 rm(culvertPOTpts)
 
-roadHts <- lidarHt %>% select(crossingID, da_LiDarHt_CL) %>% st_drop_geometry()
+roadHts <- LIculvert_GISpts %>% select(crossingID, da_LiDarHt_CL) %>% st_drop_geometry() %>% 
+  mutate(crossingID = as.character(crossingID))
 
 ## @knitr culvertData  ----
 # Extract the field data from the workbooks and bring them in.
@@ -110,13 +111,13 @@ if(dataUpdate == 1){
   # TODO: Check that the fielddata column contains the same data as the LIculvertData object- if so remove the later from this script
   LIculvertsAssessments <- culvert_tidy(tidalCulvert_datasheetsFolder) 
   LIculvertsAssessments <- LIculvertsAssessments %>% 
+    mutate(crossingID = map_chr(.x = tidycells, ~culvert_extract(tidycells = .x, sheetOI = 'Data Sheet - SITE', celladdress = 'L7'))) %>% 
     left_join(roadHts, by = "crossingID") %>% # join in the LIDAR road heights to incoprorate the desktop collected road heights for calculating longProfile.
-    mutate(crossingID = map_chr(.x = tidycells, ~culvert_extract(tidycells = .x, sheetOI = 'Data Sheet - SITE', celladdress = 'L7')),
-           decoded = map(.x = tidycells, .f = ~decodeSheet(.x, keysheet)), # this is where the sausage is made. 
+    mutate(decoded = map(.x = tidycells, .f = ~decodeSheet(.x, keysheet)), # this is where the sausage is made. 
            fielddata = map(.x = decoded, .f = ~cleanField(.x)),
-           longProfile = map2(.x = filePath, .y = tidycells, .f = ~channelLongidinalProfile_extract(.x, .y)), # longitudinal profile data
-           rawheights = map2(.x = filePath, .y = tidycells, .f = ~crossSection(.x, .y)), # crossing sectional profile data # Added possibly() to function call in tidyCulvert.R
-           crossHeights = pmap(.l = list(tidycells, longProfile, rawheights), 
+           longProfile = pmap(.l = list(filePath, tidycells, da_LiDarHt_CL), .f = ~channelLongidinalProfile_extract(..1, ..2, ..3)), # longitudinal profile data
+           rawheights = pmap(.l = list(filePath, tidycells, da_LiDarHt_CL), .f = ~crossSection(..1, ..2, ..3)), # crossing sectional profile data # Added possibly() to function call in tidyCulvert.R
+           crossHeights = pmap(.l = list(tidycells, longProfile, rawheights), # TODO: Better build out the horizontal distance calcs.
                                .f = possibly(calcHeights, otherwise = "Failed to calculate")))
   LIculvertsAssessments %>% write_rds(path = "data/LIculvertsAssessments.rds")
 }else{
