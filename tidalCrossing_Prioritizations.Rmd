@@ -1,116 +1,149 @@
 ---
 title: "Tidal Crossing Priotization"
 subtitle: Suffolk County- Long Island
+always_allow_html: true
 output:
-  word_document:
-    toc: no
-    reference_docx: styletemplate.docx
-  html_document:
+  html_document: 
     code_folding: hide
+    css: styles.css
     fig_caption: yes
-    fig_width: 3
+    fig_width: 3.5
     highlight: kate
+    self_contained: yes
     theme: journal
     toc: yes
     toc_float: yes
+    toc_depth: 3
+    number_sections: false
+  word_document:
+    toc: no
+    reference_docx: styletemplate.docx
+editor_options: 
+  chunk_output_type: inline
 ---  
 
 ```{r setup, message=FALSE, warning=FALSE, include=FALSE}
 
 knitr::opts_chunk$set(
-	echo = FALSE,
-	message = FALSE,
-	warning = FALSE,
+	echo = TRUE,
+	fig.height = 3,
 	fig.width = 3,
-	fig.height = 3
+	message = FALSE,
+	warning = FALSE
 )
 ```
 
-## Tidal Prioritization
 
-### Intention
-This document is meant to outline and document the workflow of the data and methods used in the prioritization metrics of the tidal crossings assessed under TNC's methods. These methods are applied to all the crossings uniformly. Metrics specific to an individual crossing, will be based on the output from this code combined with other information useful to partners.
+# Tidal Prioritizations
+
+## Documentation 
+This document is meant to outline and document the workflow of the data processing and methods used in the calculation of the prioritization metrics for the tidal crossings assessed under Road-Stream Crossings project. The methods outlined here are applied to all the crossings uniformly and independently of one another. Metrics specific to an individual crossing, will be based on the output from this code combined with other information useful to partners.
 
 ```{r priorizationFunctions, message=FALSE, warning=FALSE, include=FALSE, paged.print=TRUE}
 # package setup and sourcing data etc.
 source("functions/prioritization_functions.R")
 source("00_libraries.R") # libraries used elsewhere and stored here for convienence
-# source("code/rmdSetup.R")
+source("utilities/helpers.R") # mostly for QA there are a few helpers that can be used- openDS/openPics/openField
+source("code/rmdSetup.R") # Enable to update data as needed. This script extracts data from AGOL and all the datasheets.
 library(GGally)
 library(naniar)
 # library(plotly)
 library(kableExtra)
 library(DT)
-theme_set(theme_ipsum(base_family = 'Arial', base_size = 8, plot_title_size = 9, subtitle_size = 7) + theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm")))
-
+library(d3heatmap)
+theme_set(theme_tnc_base() +
+            theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"), 
+                  text = element_text(size = 11),
+                  plot.title = element_text(size = 12),
+                  plot.subtitle = element_text(size = 11),
+                  axis.text.x = element_text(size = 12)))
+# Set options to show only 2 digitis and force no scientific notation
 options(digits = 2, scipen = 999)
 # knitr::opts_chunk$set(out.width = "100%")
 
 ```
 
-### Starting Data source  
-Data are currently sourced from 2 locations. The primary geographic data are found in a hosted feature layer on AGOL. These point geographies contain general spatial information on each crossing (town, cross roads etc.) along with the desktop assessment portion of the prioritization. Data were migrated to this platform from the original field datasheets for increased data QA and processing effeciencies. With that transfer desktop data found in the field data sheets are to be considered incomplete.     
+## Data sources  
+The prioritization scores are derived from combining two primary data sources, a field-collected dataset and a remotely collected . The geographic data are currently hosted on ArcGIS Online as a feature layer. These point geographies contain general spatial information on each crossing (town, cross road, road classification etc.) along with the desktop assessment portion of the prioritization. Data were migrated to this platform from the original field datasheets for increased data QA and processing effeciencies. With that transfer desktop data found in the field data sheets are to be considered incomplete.     
 Field data are currently maintained in excel spreadsheets hosted in the team's shared Box folder. These data include all field assessement data for those sites that were visited. This data will likely be transitioned to a more robust managed database structure. 
 These data were collected primarily under the TNC-NH/NHDES Coastal Program protocol [^Resilient Tidal Crossings]. Deviations from these methods are documented here and will be described in more detail in other project documents. 
 Data extracted from Tidal Crossings Field workbooks using a suite of functions found in _/functions_ directory.  To save memory and time a seperate script runs the extraction process and saves an output file (.rds) to the _/data_ folder within this working directory. These data can then be called in as needed here. Alternatively, running rmdSetup.R will source all functions and run updates on data if _'dataUpdate = TRUE'_, currently the default, found near top of code chunk. 
 
+### ArcGIS app
+As mentioned all the spatial and desktop assessment data are stored on ArcGIS Online. An data [editing/entry app is here:](http://tnc.maps.arcgis.com/apps/webappviewer/index.html?id=2ec527053bc6497a9d942df70ceb9e94) for updating certain fields. The access to the fields for edits are controlled in the underlying feature class layers in the LI Culvert Mapping group (KL and SL can access/edit etc.)
 
 ```{r data, message=FALSE, warning=FALSE, paged.print=TRUE}
-LIculvertsAssessments <- readRDS("data/LIculvertsAssessments.rds") # tidal assessment workbooks, with varying degrees of completness. This is the bulk of the data collected, but does not include complete desktop assessments. Those data are recorded and managed in the AGOL-hosted feature _desktopData_. 
+LIculvertAssessments <- readRDS("data/LIculvertAssessments.rds") # tidal assessment workbooks, with varying degrees of completness. This is the bulk of the data collected, but does not include complete desktop assessments. Those data are recorded and managed in the AGOL-hosted feature _desktopData_. 
 LIculvertData_location <- read_rds("data/LIculvertData_location.rds") # tidal assessment data joined to locations of crossings identified in assessments. 
 
-LIculvertsAssessments %>% filter(crossingID != 71) %>% # FIXME: this crossing is a PIA needs review and fixing.
-  select(crossingID, rawheights) %>% 
+LIculvertAssessments %>% filter(crossingID != 71) %>% # FIXME: this crossing is a PIA needs review and fixing.
+  select(crossingID, crossSectionProfile) %>% 
   unnest() %>% 
   unite(Feature, Position, col = "FP", sep = " ") %>% 
   select(crossingID, FP, adjustedHt) %>% 
   mutate(crossingID = as.numeric(crossingID)) %>% 
   spread(key = FP, value = adjustedHt) -> heights # heights are needed for some of the calculations. Perhaps a better method would be to use SQL-like queries referencing multiple tables as needed. 
 
-LIculvertAssessmentData <- LIculvertData_location %>% left_join(heights) 
-LIculvertAssessmentData %>% write_rds("data/LIculvertAssessmentData.rds") # Data are updated each run.
+LIculvertAssessmentData <- LIculvertData_location %>% left_join(heights) # makes for a very wide dataset
+LIculvertAssessmentData %>% write_rds("data/LIculvertAssessmentData.rds") # Data are updated each run. This 
 ```
 
-***
-## Ecological Benefit  
+*** 
 
-### E1. Salt marsh complex size  
+# Ecological Benefit 
+
+## E1. Salt marsh complex size  
 Scoring assigned by manually classifying crossings based on proximity to marsh complexes. Crossings in or adjacent to large complexes (>~15 acres in size) scored 5, crossings in or adjacent to smaller complexes were scored a 3, and crossings disconnected from any marsh complex were scored a 1. Manual classification was used due to inconsistent spatial relationships between the crossing locations and the marsh complexes. Often crossings are found on the edges or outside of the boundary of the marsh complex but are in important waterways connecting these complexes.  
+*Should we include a reference on marsh function with respect to size to justify a break at 15 acres?* 
 
  
 ```{r saltmarshComplex, message=FALSE, warning=FALSE, paged.print=TRUE}
 # # Catchment data are joined/updated into the Desktop_Data hosted on AGOL for this
 # catchment_data <- read_rds("data/LIculvert_Catchments.rds")  # This data is originally from Karen's model output. Revise as neede for new crossing locations.
+# TODO: Fix font issue in plots- cutting off in many locations. 
 
 (LIculvertData_location %>% select(MarshComplex_Scoring) %>% st_drop_geometry() %>% mutate(MarshComplex_Scoring = MarshComplex_Scoring) %>% 
   ggplot(aes(x = MarshComplex_Scoring, fill = as.factor(MarshComplex_Scoring))) + 
    geom_bar() + 
    geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
    scale_fill_tnc("gradient1") + 
-   labs(title = "Scoring distribution of \nmarsh complex size", subtitle = "Scores manually classified", fill = "Scoring") + theme(strip.text.y = element_text(angle = 0)))
+   labs(title = "E1. Marsh complex size", 
+        subtitle = "scoring distribution", 
+        fill = "Scoring",
+        x = "Metric Score",
+        y = "Count") + 
+   theme(strip.text.y = element_text(angle = 0), legend.position = "none")) 
+
 
 crossingLocations <- LIculvertData_location %>% select(crossingID) # use for rejoining later for final feature class.
-# Like it? Add this metric to the prioritization table
+# Add this metric to the prioritization table
 # LIculvertPrioritization will be added to through out this code. 
+# BEWARE that if this code is run or rerun in chunks that this might throw errors as columns may be missing or duplicated in the join process. 
 LIculvertPrioritization <- LIculvertData_location %>% 
   mutate(Score_MarshComplex = as.numeric(MarshComplex_Scoring)) %>% 
-  select(crossingID, Score_MarshComplex) %>%
+  select(crossingID, Score_MarshComplex, AssessmentStatusCode) %>%
+  # This data is maintained in the AGOL version. Excel field data sheets are inconsistent
+  mutate(AssessmentStatus = case_when(AssessmentStatusCode == 1 ~ "Complete",
+                                      AssessmentStatusCode == 2 ~ "Not Assessed",
+                                      AssessmentStatusCode == 3 ~ "Incomplete",
+                                      AssessmentStatusCode == 4 ~ "Inaccessible",
+                                      AssessmentStatusCode == 5 ~ "Unassessable",
+                                      AssessmentStatusCode == 6 ~ "No Culvert present")) %>% 
   st_drop_geometry() # sf object was throwing errors and unwanted behaviour.
 
 
 ```
 
-### E2. Salt marsh size upstream (whole catchment not just eval unit) 
+## E2. Salt marsh size upstream of crossing 
 
-*TODO:*  
-- Confirm scoring for the size of marsh in the catchment. 
+The total area of salt marsh upstream of the crossing is identified using Warren Pinnacle's SLAMM _Initial Condition_ layer of existing marsh habitat. The area of saltmarsh is enumerated for each crossing as part of the desktop assessment (da_catchmentArea_saltMarsh). The distribution of marsh areas fit a log-normal distribution so a modified log-scale was used for converting acreage into metric scores as outlined below. 
 
 
-```{r Saltmarshupstream, message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r marshtable, fig.width=7, message=FALSE, warning=FALSE, paged.print=FALSE}
 
-LIculvertData_location %>% select(da_catchmentArea_saltMarsh) %>% 
-  ggplot(aes(da_catchmentArea_saltMarsh)) + geom_histogram(bins = 50) + 
-  labs(title = "Distribution of marsh \nacreage upstream of crossing", subtitle = "in catchment")
+# LIculvertData_location %>% select(da_catchmentArea_saltMarsh) %>% 
+#   ggplot(aes(da_catchmentArea_saltMarsh)) + geom_histogram(bins = 50) + 
+#   labs(title = "Distribution of marsh \nacreage upstream of crossing", subtitle = "in catchment")
 
 smsu <- LIculvertData_location %>% select(crossingID, da_catchmentArea_saltMarsh) %>% 
   mutate(Score_marshAc = as.numeric(cut(x = da_catchmentArea_saltMarsh, 
@@ -119,66 +152,81 @@ smsu <- LIculvertData_location %>% select(crossingID, da_catchmentArea_saltMarsh
                              labels = c(1:5), ordered_result = F))) %>% 
   st_drop_geometry()
 
-smsu %>% 
+
+smsuTbl <- tibble::tribble(
+  ~ "Marsh segment\n size (acres)",
+  ~ "Score",
+  "$\\geq 50$ acres",
+  "5",
+  "$\\geq 10$" ,
+  "4",
+  "$\\geq 5$",
+  "3",
+  "$\\geq 1$",
+  "2",
+  "$\\lt 1$",
+  "1"
+)
+
+kable(smsuTbl, align = "c", escape = F) %>% 
+  column_spec(column = 1:2, width = ".75in") %>% 
+  kable_styling(latex_options = "striped", bootstrap_options = "striped", full_width = F)
+
+
+``` 
+
+
+```{r Saltmarshupstream, fig.width=6, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+
+smsuDist <- smsu %>% 
   ggplot(aes(x = da_catchmentArea_saltMarsh, fill = as.factor(Score_marshAc))) + 
   scale_fill_tnc("gradient1") +
-  geom_histogram(bins = 50) + scale_x_log10() + 
-  labs(title = "Distribution of marsh \nacreage upstream of crossing", 
-       subtitle = "log transformed",
-       fill = "Proposed \nscoring")
-```
+  geom_histogram(bins = 50) + 
+  scale_x_log10() + 
+  # theme(legend.position = "bottom") +
+  labs(title = "Distribution of marsh \nacreage upstream of crossings", 
+       subtitle = "color coded by metric score",
+       fill = "Metirc score",
+       x = "Salt marsh acreage (ac)")
 
-To produce scoring that is distributed across the range of values, I created breaks by using log-transformed salt marsh area, which normalized the distribution, then roughly took equal intervals across the log-transformed x axis adjusting the break values to be whole numbers. Similar approaches were taken for other metrics with skewed distributions.
-
-Which yielded the following:  
-
-```{r message=FALSE, warning=FALSE, paged.print=FALSE}
-smsu %>% ggplot(aes(x = Score_marshAc, fill = as.factor(Score_marshAc))) +
+smsuScr <- smsu %>% ggplot(aes(x = Score_marshAc, fill = as.factor(Score_marshAc))) +
   scale_fill_tnc("gradient1") +
   geom_bar() + 
   geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
-  labs(subtitle = "Distribution of scores", 
-       title = "Marsh Acerage \nupstream of crossing", x = NULL, caption = "proposed breaks: <1; 1-5; 5-10; 10-50; >50") +
+  labs(subtitle = "Scoring distribution", 
+       title = "E2. Marsh Acerage \nupstream of crossing", x = "Metric score") +
   theme(legend.position = "none")
   
-# 
-# smsu %>% 
-#  group_by(Score_marshAc) %>% tally(name = "# of crossings") %>% gt::gt()
-# 
+smsuScr + smsuDist +  plot_layout(guides = 'collect', widths = c(2,3))
 
-# Like it? Add this metric to the prioritization table
 # LIculvertPrioritization will be added to through out this code. 
 LIculvertPrioritization <- LIculvertPrioritization %>% left_join({smsu %>% select(crossingID, Score_marshAc)}, by = "crossingID") 
-# TODO: Pickup here with building out the prioritization scores.
+
 
 ```
+
 
 
 
 ***  
-### E3. Degree of Tidal Restriction and AOP  
+## E3. Degree of Tidal Restriction and AOP  
 
-Consists of 3 _sub-metrics_ that when averaged yield the score for degree of tidal restriction.
+Consists of 3 __sub-metrics__ that when averaged yield the metric score for the degree of tidal restriction.
 These sub-metrics described below are:    
- - E3a: Tidal Range Ratio  
- - E3b: Crossing Ratio  
- - E3c: Erosion Classification  
+  * E3a: Tidal Range Ratio  
+  * E3b: Crossing Ratio  
+  * E3c: Erosion Classification  
 
-#### E3a. Tidal Range Ratio  
-Ratio of the upstream tidal range to downstream tidal range. Tidal range is estimated from the difference in elevation from the high water indicator stain and low tide elevation at the time of the assessment. A ratio of 0.5 would indicate that the downstream tidal range is twice as large as the upstream tidal range. A 1:1 ratio would mean that the tidal ranges are equal on both sides of the crossing.  
+### E3a. Tidal Range Ratio  
+The tidal range ratio is an indicator of a tidal (flow) restriction at the crossing structure. The ratio is simply the upstream tidal range divided by the downstream tidal range as measured in the field. The tidal range is assumed to be the difference in elevation between the low tide elevation at the time of the assessment (protocol states assessment is to be done at low tide) and the high water indicator stain. A crossing structure with equal tidal ranges on both sides of the structure yields a value of 1. A ratio of 0.5 would indicate that the downstream tidal range is twice as large as the upstream tidal range.  
 
-Are the crossings with large (>1) ratios considered impounded?
 
-Followed NH documnetation [^Resilient Tidal Crossings]:
+Followed NH documnetation ^[Resilient Tidal Crossings]:
 ![Table 7:](tidalRangeRatioTable.PNG)
 
 
-_QA NEEDS_
-Crossing 62 has data that needs to be checked (Low tide elevation is 5' above road....)
-Currently filtering values below 0.
-_TO DO_ Should we consider using both the HWI stain and the wrack? Some crossings have only one of the two.
-
-```{r tidalrange, message=FALSE, warning=FALSE, layout="l-body-outset", paged.print=TRUE}
+```{r tidalrange, fig.width=6, message=FALSE, warning=FALSE, layout="l-body-outset", paged.print=TRUE}
 
 trr <- LIculvertAssessmentData %>% 
   mutate(tidalRangeRatio = tidal_range_ratio(us_hwi_stain = `HWI Stain US`,
@@ -187,15 +235,17 @@ trr <- LIculvertAssessmentData %>%
                                              ds_low_tide_elevation = `Low Tide Water Elevation DS`),
          submetric_TidalRange = crit_tidal_range(tidalRangeRatio)) %>% 
   select(crossingID, `HWI Stain US`, `Low Tide Water Elevation US`, `HWI Stain DS`, `Low Tide Water Elevation DS`, tidalRangeRatio, submetric_TidalRange) %>% 
-  select(crossingID, tidalRangeRatio, submetric_TidalRange) %>% filter(tidalRangeRatio > 0)
+  select(crossingID, tidalRangeRatio, submetric_TidalRange)# %>% filter(tidalRangeRatio > 0)
 
-trr %>% st_drop_geometry %>% tidyr::drop_na() %>% 
-  ggplot(aes(x = tidalRangeRatio, fill = as.factor(submetric_TidalRange))) + 
-  geom_histogram(bins = 60) +
+trrDist <- trr %>% st_drop_geometry %>% tidyr::drop_na() %>%
+  ggplot(aes(x = tidalRangeRatio, fill = as.factor(submetric_TidalRange))) +
+  geom_histogram(bins = 20) +
   scale_fill_tnc("gradient1") +
-  labs(title = "Tidal range ratio distribution", fill = "Proposed \nscoring") + theme(legend.position = "right")
+  labs(title = "Tidal range ratio distribution", fill = "Metric scoring",
+       x = "Tidal range ratio") + 
+  theme(legend.position = "right")
 
-trr %>% st_drop_geometry %>% tidyr::drop_na() %>% 
+trrScr <- trr %>% st_drop_geometry %>% #tidyr::drop_na() %>% 
   ggplot(aes(x = submetric_TidalRange, fill = as.factor(submetric_TidalRange))) +
   scale_fill_tnc("gradient1") +
   geom_bar() + 
@@ -203,9 +253,16 @@ trr %>% st_drop_geometry %>% tidyr::drop_na() %>%
   labs(subtitle = "Distribution of scores", title = "Tidal range ratio", x = NULL ) +
   theme(legend.position = "none")
 
+ (trrScr + trrDist) + plot_layout(guides = 'collect')
 #  
 # Save results of the tidal range ratio portion to a new object. 
 LIculvertPrioritization <- LIculvertPrioritization %>% left_join({trr %>% st_drop_geometry()}, by = "crossingID")
+
+# TODO: Build out a QA document that flags crossings that have suspicious values
+qa_data <- trr %>%  left_join({LIculvertAssessments %>%
+  select(crossingID, filePath) %>% mutate(crossingID = as.numeric(crossingID))}) %>% 
+  mutate(`Check tide and hwi` = if_else(tidalRangeRatio > 1, true = "YES", false = "NO")) %>%
+  select(crossingID, filePath, `Check tide and hwi`)
 
 
 ```  
@@ -215,12 +272,12 @@ There are many sites that do not have enough data to calculate the tidal range r
 **`r LIculvertPrioritization %>% filter(!is.na(tidalRangeRatio)) %>% nrow`** crossings have tidal range ratios calculated.
 
 
-#### E3b. Crossing Ratio
-Crossing ratio is calculated from the greater of 2 ratios. The ratio of crossing structure to the stream section, for both the up and downstream sides. **A wide river with a small structure opening will score high, indicating a restriction**.
+### E3b. Crossing Ratio
+The crossing ratio is a proxy for the degree in which the structure restricts the stream flow. The crossing ratio is calculated as the ratio between the crossing structure's opening and the width of the stream/tidal creek. Both sides of the structure are considered and the greater of 2 ratios (upstream and downstream) are used to score the crossing. **A wide river with a small structure opening will score high, indicating a restriction**.
 
-```{r crossingratios, message=FALSE, warning=FALSE, paged.print=TRUE}
-#IDEA: prefix all scoring variables with 'eval_'
-# Workflow: Create a master tibble that will be added to with each code block. 
+```{r crossingratios, fig.width=6, message=FALSE, warning=FALSE, paged.print=TRUE}
+
+
 cr <- LIculvertAssessmentData %>% 
   # Calculate the up and down stream crossing ratios
   mutate(crossingRatio_upStrm = crossing_ratio(channelWidth = da_ChannelWidth_upStream, # TODO: QA data in desktop
@@ -232,40 +289,47 @@ cr <- LIculvertAssessmentData %>%
     crossingRatio = pmax(crossingRatio_dwStrm, crossingRatio_upStrm),
     # calculate the crossing ratio evaluation score.
     submetric_crossingRatio = crit_crossing_ratio(crossing.ratio = crossingRatio)) %>% #NOTE: Must use pmax with dplyr! And must score for final prioritizations.
-  select(crossingID, crossingRatio, submetric_crossingRatio)
+  select(crossingID, crossingRatio, submetric_crossingRatio, crossingRatio_upStrm, crossingRatio_dwStrm)
 
 # # Show table of inspecting
 # cr %>% st_drop_geometry() %>%  datatable(rownames = FALSE) %>% 
 #   formatRound(-1, digits = 2) 
 
-cr %>% st_drop_geometry %>% 
-  ggplot(aes(x = crossingRatio, fill = as.factor(submetric_crossingRatio))) + 
-  geom_histogram() + 
+crDit <- cr %>% st_drop_geometry %>%
+  ggplot(aes(x = crossingRatio, fill = as.factor(submetric_crossingRatio))) +
+  geom_histogram() +
   scale_fill_tnc("gradient1") +
   scale_x_log10() +
-  labs(title = "Crossing Raio distribution", subtitle = "log 10 transformed", fill = "Proposed \nscoring")
+  labs(title = "Distribution of scores",
+       subtitle = "color coded by metric score",
+       fill = "Metric scoring",
+       x = "Crossing ratio")
 
-cr %>% st_drop_geometry %>%# tidyr::drop_na() %>% 
+crScr <- cr %>% st_drop_geometry %>%# tidyr::drop_na() %>% 
   ggplot(aes(x = submetric_crossingRatio, fill = as.factor(submetric_crossingRatio))) + 
   scale_fill_tnc("gradient1") +
   geom_bar() + 
   geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
   labs(subtitle = "Distribution of scores", title = "Crossing Ratio", x = NULL ) +
   theme(legend.position = "none")
-
+crScr + crDit + plot_layout(guides = 'collect')
 
 # Like what we see? Join to the master LIculvertPrioritization tibble.
 LIculvertPrioritization <- LIculvertPrioritization %>%
   left_join({cr %>% st_drop_geometry()}, by = "crossingID")
 
+qa_data <- LIculvertAssessmentData %>% st_drop_geometry() %>% mutate(checkCrossingwidths = if_else(condition = da_ChannelWidth_dwnStream < CrosDim_dwnA | da_ChannelWidth_upStream < CrosDim_upA, true = "Yes", "NO")) %>% select(crossingID, checkCrossingwidths) %>% left_join(qa_data)
+
 ```
 
+Since crossing ratio is depedent on desktop assessment data (or field assessment if available), many more crossings (n = **`r LIculvertPrioritization %>% filter(!is.na(crossingRatio)) %>% nrow`**) have scores calculated.
+
 ***  
-#### E3c. Erosion Classification  
+### E3c. Erosion Classification  
  
 The ratio of scour pool width to channel width for both up and down stream sections. A large ratio indicates a larger scour pool. The final Erosion Classification score is based on the _LARGER_ of the 2 ratios (up and downstream)
 
-```{r erosionClass, message=FALSE, warning=FALSE, paged.print=TRUE}
+```{r erosionClass, fig.height=5, fig.width=7, message=FALSE, warning=FALSE, paged.print=TRUE}
 
 ec <- LIculvertAssessmentData %>% 
   # Calculate the up and down stream classification 'raw' scores
@@ -278,27 +342,46 @@ ec <- LIculvertAssessmentData %>%
                                              ds_eclass = erosionClass_dwnStrm)) %>% 
   select(crossingID, erosionClass_upStrm, erosionClass_dwnStrm, submetric_erosionClass)
 
-ec %>% st_drop_geometry %>% tidyr::drop_na() %>% 
-  ggplot(aes(x = erosionClass_dwnStrm, fill = as.factor(submetric_erosionClass))) + 
-  geom_histogram() + 
-  scale_fill_tnc("gradient1") + 
-  scale_x_log10() +
-  labs(title = "Downstream Erosion \nClassification", subtitle = "log transformed", fill = "submetric \nscoring")
 
-ec %>% st_drop_geometry %>% tidyr::drop_na() %>% 
+
+ec_ds <- ec %>% st_drop_geometry %>% tidyr::drop_na() %>%
+  ggplot(aes(x = erosionClass_dwnStrm, fill = as.factor(submetric_erosionClass))) +
+  geom_histogram() +
+  scale_fill_tnc("gradient1") +
+  scale_x_log10() +
+  labs(title = "Downstream Erosion \nClassification",
+       fill = "submetric \nscoring",
+       x = "Erosion classification ratio")
+
+ec_us <- ec %>% st_drop_geometry %>% tidyr::drop_na() %>%
+  ggplot(aes(x = erosionClass_upStrm, fill = as.factor(submetric_erosionClass))) +
+  geom_histogram() +
+  scale_fill_tnc("gradient1") +
+  scale_x_log10() +
+  labs(title = "Upstream Erosion \nClassification",
+       fill = "submetric \nscoring", 
+       x = "Erosion classification ratio") 
+
+ec_Scr <- ec %>% st_drop_geometry %>% tidyr::drop_na() %>%
   ggplot(aes(x = submetric_erosionClass, fill = as.factor(submetric_erosionClass))) +
   scale_fill_tnc("gradient1") +
-  geom_bar() + 
-  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
-  labs(subtitle = "Distribution of scores", title = "Crossing Ratio", x = NULL, fill = "submetric \nscoring") +
-  theme(legend.position = "none")
-
-ec %>% st_drop_geometry %>% tidyr::drop_na() %>% 
-  ggplot(aes(x = erosionClass_upStrm, fill = as.factor(submetric_erosionClass))) + 
-  geom_histogram() + 
-  scale_fill_tnc("gradient1") + 
-  scale_x_log10() +
-  labs(title = "Upstream Erosion \nClassification", subtitle = "log transformed", fill = "submetric \nscoring")
+  geom_bar() +
+  geom_text(stat = "count",
+            aes(label = ..count..),
+            position = position_stack(vjust = 0.5)) +
+  labs(
+    subtitle = "Distribution of scores",
+    title = "E3c. Erosion Classification",
+    x = NULL,
+    fill = "submetric \nscoring"
+  ) 
+layout <- "
+AABD
+AABD
+AACD
+AACD
+"
+ec_Scr + ec_us + ec_ds + guide_area() + plot_layout(guides = 'collect', design = layout) & labs(fill = NULL)
 
 # NOTE: These distributions, or the color scheme of the scoring applied to thesee distributions are odd not discretely binned as you'd think they would be because the scoring is calculated by taking the max of the upstream and downstream ratios and scoring accordingly.
 
@@ -309,115 +392,108 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 
 ```
 
+NOTE: These distributions, or the color scheme of the scoring applied to thesee distributions are odd not discretely binned as you'd think they would be because the scoring is calculated by taking the max of the upstream and downstream ratios and scoring accordingly.
+
 ***   
 
-#### Degree of Tidal Restriction Scoring  
-Average of 3 submetrics (E3a, E3b, E3c)
-
-Combining the scores of the tidal range ratio, Crossing ratio, erosion classification to yield Degree of Tidal Restriction score. Resulting averages are then rounded to the nearest whole integer value for the final score.
-_TO DO_ Check in with team that this is preferred method. 
+### E3. Degree of Tidal Restriction/AOP Final Scoring  
+This metric is calculated as the average of the 3 sub-metrics available within E3 (E3a; E3b; E3c). This method of aggregating the scores of the tidal range ratio, crossing ratio, erosion classification ratio, was choosen to mazimize the number of crossings that could be given a score provided that field data may have not been available for calculating the sub-metric scores. A number of these scores rely on data that was not always available for field collection. For example, the high water indicators (stain and wrack) were at times not obvious to the field teams. Averages were made across the sub-metrics that were available then rounded to the nearest whole integer value for the final score.
 
 This set of plots are a bit of an eye-twister, but is the distribution of each of the 'submetrics' that are then color coded by their final score. i.e. There's 10 crossings that scored a 1 for the tidal range ratio, but a 3 for the final DOTR overall score. There aren't any strong correlations across these submetrics (see correlation matrix below). 
 
 ```{r DOTR_TAOP, fig.width=7, fig.height=7, message=FALSE, warning=FALSE, paged.print=TRUE}
 dtr <- LIculvertPrioritization %>% rowwise() %>% 
   # Calculate the up and down stream classification 'raw' scores
-  mutate(Score_dotr = round(degtidalrestr(tidal_rng_score = submetric_TidalRange, 
-                                         crossing_ratio_score = submetric_crossingRatio,
-                                         erosion_class_score = submetric_erosionClass)),
-         Score_dotr_unround = degtidalrestr(tidal_rng_score = submetric_TidalRange, 
+  mutate(raw_Score_dotr = degtidalrestr(tidal_rng_score = submetric_TidalRange, 
                                          crossing_ratio_score = submetric_crossingRatio,
                                          erosion_class_score = submetric_erosionClass),
-         Score_dotr_binned = cut(x = Score_dotr_unround, breaks = c(-Inf, 1.4999, 2.4999, 3.4999, 4.4999, Inf), labels = c(1:5))) %>% 
-  select(crossingID, submetric_TidalRange, submetric_crossingRatio, submetric_erosionClass, Score_dotr, Score_dotr_unround, Score_dotr_binned)
+         Score_dotr = as.numeric(cut(x = raw_Score_dotr, breaks = c(-Inf, 1.4999, 2.4999, 3.4999, 4.4999, Inf), labels = c(1:5), ordered_result = F))) %>% 
+  select(crossingID, submetric_TidalRange, submetric_crossingRatio, submetric_erosionClass, Score_dotr)
 
 tidal_dtr <- dtr %>%  
   ggplot(aes(x = submetric_TidalRange, fill = as.factor(Score_dotr))) + 
   geom_bar() +
   scale_fill_tnc("gradient1") +
   geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
-  labs(fill = "Proposed \nScoring", title = "Tidal range ratio")
+  labs(fill = "Metric score", title = "Tidal range ratio")
 cross_dtr <- dtr %>%  
   ggplot(aes(x = submetric_crossingRatio, fill = as.factor(Score_dotr))) + 
   geom_bar() +
   scale_fill_tnc("gradient1") +
   geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
-  labs(fill = "Proposed \nScoring", title = "Crossing ratio")
+  labs(fill = "Metric score", title = "Crossing ratio")
 erosion_dtr <- dtr %>%  
   ggplot(aes(x = submetric_erosionClass, fill = as.factor(Score_dotr))) + 
   geom_bar() +
   scale_fill_tnc("gradient1") +
   geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
-  labs(fill = "Proposed \nScoring", title = "Erosion class")
-final <- dtr %>%  
-  ggplot(aes(x = Score_dotr_binned, fill = as.factor(Score_dotr_binned))) + 
+  labs(fill = "Metric score", title = "Erosion class")
+
+final <- dtr %>%  filter(!is.na(Score_dotr)) %>% 
+  ggplot(aes(x = Score_dotr, fill = as.factor(Score_dotr))) + 
   geom_bar() +
   scale_fill_tnc("gradient1") +
   geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
-  labs(title = "E3. Degree of tidal restriction", fill = "Proposed \nscoring")
-tidal_dtr + cross_dtr + erosion_dtr + final
+  labs(title = "E3. Degree of tidal restriction - AOP Score", fill = "Metric score", x = "Metric Score")
 
-# dtr %>% select(starts_with("subm")) %>% ggpairs()
-# dtr %>%  
-#   ggplot(aes(x = Score_dotr, fill = as.factor(Score_dotr))) + 
-#   geom_bar() +
-#   scale_fill_tnc("gradient1") +
-#   geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
-#   labs(title = "E3. Degree of tidal restriction", fill = "Proposed \nscoring")
+layout <- "
+AAB
+CDE
+"
+(final + guide_area() + tidal_dtr + cross_dtr + erosion_dtr) + plot_layout(design = layout, guides = "collect") & theme(axis.title.x = element_blank())
 
-
-LIculvertPrioritization <- LIculvertPrioritization %>%
-  left_join({dtr %>% select(crossingID, Score_dotr)}, by = "crossingID")
+ LIculvertPrioritization <- LIculvertPrioritization %>%
+  left_join({dtr %>% select(crossingID, Score_dotr)}, by = "crossingID") # TODO
 
 
 ```
 
 
-### E4. Vegetation Score 
-Field assessed classification of vegetation at the crossing. Based on NH methods. Scored by presence/absence of invasives and species composition upstream and downstream of crossing. This assumes that the crossing structure impacts the hydrology to varying degrees, which results in species composition differences on either side of the crossing. Additionally, the presence of invasive species are considered.
+## E4. Vegetation Score 
 
-Currently we don't have an 'official' scoring method for the vegetation score. NH follows the  scoring below, which is based on a 0-5 range. 
-![Vegetation scoring matrix](vegmatrix.PNG)
-
-Their approach is to essentially drop any crossings that have invasives, by scoring them a 0 and adding them to a sort of 'restoration' list. This seems to make sense as they have another restoration project prioritization tool that they seem to be referring to in the documentation. For us though, probably not relevant. My propsed scoring is below and represented in the plot that follows. 
-_We'll need to resolve this before final scoring._
+The Vegetation score metric is largely based on the NH ^[Resilient Tidal Crossings] field assessment protocols. Functionally it is a classification of the plant community at the crossing being assessed. The scores are derived from the presence of invasives and the species composition upstream and downstream of the crossing. This scoring assumes that impacts to the hydrology caused by the crossing structure would result in a different species composition on either side of the crossing. In addition crossings that connect to areas identified as _'Formerly Connected'_ tidal marsh but the 1974 NYSDEC Tidal Wetlands Inventory ^[NYSDEC 1974 Tidal Wetlands] 
 
 
-vegMatChoice == "1A"  =  1, # native only, same both sides  
-vegMatChoice == "2A" = 1, # invasives through out, same both sides  
-vegMatChoice == "2B" = 2, # invasives through out, up and down stream communtites are slightly different 
-vegMatChoice == "1B"  =  3, # native only, different species on either side but appear similar (high marsh - low marsh)  
-vegMatChoice == "3A" = 3, # invasives on one side, tidal marsh on both sides  
-vegMatChoice == "2C" = 4, # invasives through out, up and down stream communities represent different marsh types 
-vegMatChoice == "3B" = 4, # invasives on one side, similar species/marsh type on either side   
-vegMatChoice == "3C" = 5 # invasices on one side, up and down stream different species  
-vegMatChoice == "1C" = 5, # native only, tidal species one side, fresh species the other.  
+<!-- Currently we don't have an 'official' scoring method for the vegetation score. NH follows the  scoring below, which is based on a 0-5 range.  -->
+<!-- ![Vegetation scoring matrix](vegmatrix.PNG) -->
+
+
+<!-- vegMatChoice == "1A"  =  1, # native only, same both sides   -->
+<!-- vegMatChoice == "2A" = 1, # invasives through out, same both sides   -->
+<!-- vegMatChoice == "2B" = 2, # invasives through out, up and down stream communtites are slightly different  -->
+<!-- vegMatChoice == "1B"  =  3, # native only, different species on either side but appear similar (high marsh - low marsh)   -->
+<!-- vegMatChoice == "3A" = 3, # invasives on one side, tidal marsh on both sides   -->
+<!-- vegMatChoice == "2C" = 4, # invasives through out, up and down stream communities represent different marsh types  -->
+<!-- vegMatChoice == "3B" = 4, # invasives on one side, similar species/marsh type on either side    -->
+<!-- vegMatChoice == "3C" = 5 # invasices on one side, up and down stream different species   -->
+<!-- vegMatChoice == "1C" = 5, # native only, tidal species one side, fresh species the other.   -->
 
 ```{r vegetationScore, message=FALSE, warning=FALSE, paged.print=TRUE}
-
+# 150 with scores- 185 missing.
 vegsc <- LIculvertAssessmentData %>% 
   select(crossingID, Vegchoice) %>% mutate(Score_vegetation = vegetationScore(Vegchoice))
 
 # Made Unassessed a -2 score for display in plots. .
 vegsc %>% select(Score_vegetation) %>% 
-  mutate(Score_vegetation_na = replace_na(Score_vegetation, replace = -2)) %>% # hack to get NAs to plot.
-  ggplot(aes(x = Score_vegetation_na, fill = as.factor(Score_vegetation_na))) + 
+  # mutate(Score_vegetation_na = replace_na(Score_vegetation, replace = -2)) %>% # hack to get NAs to plot.
+  ggplot(aes(x = Score_vegetation, fill = as.factor(Score_vegetation))) + 
   geom_bar() + 
-  scale_fill_manual(values = c("gray","#49a942", "#a0c04d", "#ffe04f", "#f3901d", "#c5351c")) +
+  scale_fill_manual(values = c("#49a942", "#a0c04d", "#ffe04f", "#f3901d", "#c5351c")) +
   geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
   scale_x_continuous(breaks = c(-2, 0:5)) + 
-  labs(subtitle = "Unassessed = -2", main = "Vegetation matrix scoring distribution", fill = "")
+  labs(title = "E4. Vegetation Score", subtitle = "Scoring distribution",
+       x = NULL) +
+  theme(legend.position = 'none')
 
 LIculvertPrioritization <- LIculvertPrioritization %>%
   left_join({vegsc %>% select(crossingID, Score_vegetation) %>% st_drop_geometry()}, by = "crossingID")
 
 ```
 
-## Total Ecological Benefit Score
+# Total Ecological Benefit Score
+To be scored, a crossing will need to have been assessed in the field with at least most of a field survey containing mesaures of high water indicators, structure opening widths, and vegetation classification. The Total Ecological Benefit Score is the rescaled (1 to 5) _SUM_ of the 4 ecological benefit metrics.  
 
 ```{r ecobenefitScore, message=FALSE, warning=FALSE, paged.print=FALSE}
-
-
 
 # score_ecobenefit = sum of each benefit score within, rescale to 1-5. 
 #'
@@ -426,11 +502,9 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 # Score_dotr
 # Score_vegetation
 
-
 LIculvertPrioritization <- LIculvertPrioritization %>% rowwise() %>% 
-  mutate(Total_Eco = benefit_score(sum(Score_MarshComplex, Score_marshAc, Score_dotr, Score_vegetation, na.rm = F))) %>% ungroup()
-
-
+  mutate(Total_Eco = as.integer(benefit_score(sum(Score_MarshComplex, Score_marshAc, Score_dotr, Score_vegetation, na.rm = F)))) %>%
+  ungroup()
 
 LIculvertPrioritization %>%  
   ggplot(aes(x = Total_Eco, fill = as.factor(Total_Eco))) +
@@ -445,10 +519,11 @@ LIculvertPrioritization %>%
 
 ***  
 
-## Resilience Benefit   
+# Resilience Benefit   
 
-### R1. Risk of sea level rise inundation to the road  
-Risk of sea level rise inundation is 
+## R1. Risk of sea level rise inundation to the road  
+
+The probability of road inundation as estimated by the Warren Pinnacle^[SLAMM] inundation model. This metric is a composite score which takes the 5 SLR scenarios into consideration to score wach crossing from a high score (inundated at the most conservative SLR projections) to a low score (Not within a SLR inundation area). Each crossing was joined to each of the 5 scenarios and a series of attributes were created to identify if a crossing was within the boundary of that scenarios inundation. 
 
 ```{r slrInud, message=FALSE, warning=FALSE}
 
@@ -494,8 +569,11 @@ slrIn %>%
   scale_fill_tnc("gradient1") +
   geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
   scale_fill_tnc("gradient1") + 
-  labs(title = "Risk of SLR inundation 2080's",
-       fill = "Proposed \nscoring")
+  labs(title = "R1. Risk of SLR inundation", 
+       subtitle = "for 2080's projection",
+       fill = "Metric score",
+       x = NULL) +
+  theme(legend.position = "none")
 
 
 
@@ -506,7 +584,10 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 
 ```
 
-### R2. Risk of storm surge inundation to the road   
+## R2. Risk of storm surge inundation to the road   
+
+This metric estimates the inundaion rate (how frequent is it currently being flooded) of a crossing, based on the SLAMM data under the current sea level conditions. Crossings that were inundated frequently were given a 5, seldomly inundated crossings were given a 1. 
+
 
 
 ```{r}
@@ -550,8 +631,10 @@ stormSurgeIn %>%
   scale_fill_tnc("gradient1") +
   geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
   scale_fill_tnc("gradient1") + 
-  labs(title = "Risk of storm surge inundation to road",
-       fill = "Proposed \nscoring")
+  theme(legend.position = "none") + 
+  labs(title = "R2. Risk of storm \nsurge inundation to road",
+       fill = NULL,
+       x = NULL)
 
 
 
@@ -562,86 +645,101 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 
 ```
 
-### R3. Heavy rainfall flood risk of the catchment   
-Following the freshwater prioritization scoring break down:   
+## R3. Heavy rainfall flood risk of the catchment   
+Scoring followed the same procedures as the freshwater prioritization scoring. 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-| % Imper | Score|
-|........:|:.....|
-| >40%    |  5   | 
-| 30-40%  |  4   |
-| 20-30%  |  3   |
-| 10-20%  |  2   |
-| <10%    |  1   |
-
-```{r impervious, message=FALSE, warning=FALSE}
-
-LIculvertData_location %>% ggplot(aes(x = da_catchmentLndCover_imperv)) +  geom_histogram()
+rainRisk_tbl <- tibble::tribble(
+  ~ "% Impervious Surface",
+  ~ "Score",
+  "> 40 %",
+  "5",
+  "30-40%" ,
+  "4",
+  "20-30%",
+  "3",
+  "10-20%",
+  "2",
+  "<10%",
+  "1"
+)
+kable(rainRisk_tbl, align = "c", escape = F) %>% 
+  column_spec(column = 1:2, width = "1in") %>% 
+  kable_styling(latex_options = "striped", bootstrap_options = "striped", full_width = F)
   
-rainrisk <- LIculvertData_location %>% select(crossingID, da_catchmentLndCover_imperv) %>% mutate(Score_rainfallRisk= as.numeric(cut(x = da_catchmentLndCover_imperv, breaks = c(-Inf, 10, 20, 30, 40, Inf), labels = c(1:5)))) # created breaks by using log-transformed salt marsh area, which normalized the distribution, then roughly took equal intervals across the log-transformed x axis adjusting the break values to be whole numbers.
+```
 
-rainrisk %>% st_drop_geometry() %>% tidyr::drop_na() %>% 
+
+```{r impervious, fig.width=6, message=FALSE, warning=FALSE}
+
+
+rainrisk <-
+  LIculvertData_location %>% select(crossingID, da_catchmentLndCover_imperv) %>% mutate(Score_rainfallRisk = as.numeric(cut(
+    x = da_catchmentLndCover_imperv,
+    breaks = c(-Inf, 10, 20, 30, 40, Inf),
+    labels = c(1:5)
+  ))) 
+
+rrisk_dist <- rainrisk %>% st_drop_geometry() %>% tidyr::drop_na() %>% 
   ggplot(aes(x = da_catchmentLndCover_imperv, fill = as.factor(Score_rainfallRisk))) + 
   geom_histogram(bins = 30) + 
   scale_fill_tnc("gradient1") + 
   labs(title = "Distribution of impervious % \n upstream of crossing",
-       fill = "Proposed \nscoring", x = "% impervious")
+       fill = "Metric score", x = "% impervious")
 
-# rainrisk %>% group_by(Score_rainfallRisk) %>% st_drop_geometry() %>% tally() %>% gt::gt()
- 
+rriskScr <- rainrisk %>% st_drop_geometry %>%# tidyr::drop_na() %>% 
+  ggplot(aes(x = Score_rainfallRisk, fill = as.factor(Score_rainfallRisk))) + 
+  scale_fill_tnc("gradient1") +
+  geom_bar() + 
+  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
+  labs(subtitle = "Distribution of scores", title = "R3. Heavy rainfall\n flood risk", x = NULL) +
+  theme(legend.position = "none")
+
+rriskScr + rrisk_dist + plot_layout(guides = 'collect')
 
 LIculvertPrioritization <- LIculvertPrioritization %>%
-  left_join({rainrisk %>% select(crossingID, Score_rainfallRisk) %>% st_drop_geometry()}, by = "crossingID")
+  left_join({rainrisk %>% select(crossingID, da_catchmentLndCover_imperv,  Score_rainfallRisk) %>% st_drop_geometry()}, by = "crossingID")
 
 
 ```
 
 
+## R4. Area of potential tidal marsh advancement upstream of restriction  
 
-### R4. Area of potential tidal marsh advancement upstream of restriction  
+Goal of this metric is to capture potential marsh migration value, assuming that the culvert does not impede that migration. It essentially quantifies elevations within a range that would be likely to support salt marsh habitats. Will a marsh be able to presist in this area in light of sea level rise? Areas that have large potential marsh migration cooridors are scored high, low to no marsh migration coordidors scored low.
 
-proposed breaks: <1; 1-7, 7-25, 25-75, >75
-Same breaks as the marsh size
+```{r marshmigrationPot, fig.width=6, message=FALSE, warning=FALSE}
+fmt_dcimals <- function(decimals=0){
+   # return a function responpsible for formatting the 
+   # axis labels with a given number of decimals 
+   function(x) as.character(round(x,decimals))
+}
 
-Distribution of marsh migration potentianl across catchments.
+smmp <-
+  LIculvertData_location %>% select(crossingID, da_MarshMigrPot_acres) %>% mutate(Score_marshmigpotAc = as.numeric(cut(
+    x = da_MarshMigrPot_acres,
+    breaks = c(-Inf, 1, 7, 25, 75, Inf),
+    labels = c(1:5)
+  )))# created breaks by using log-transformed salt marsh area, which normalized the distribution, then roughly took equal intervals across the log-transformed x axis adjusting the break values to be whole numbers.
 
-```{r marshmigrationPot, message=FALSE, warning=FALSE}
+smmp_dist <- smmp %>% 
+ ggplot(aes(da_MarshMigrPot_acres, fill = as.factor(Score_marshmigpotAc))) + geom_histogram() +
+  scale_fill_tnc("gradient1") +
+  labs(title = "Marsh migration potential",
+       subtitle = "acres upstream of crossing",
+       fill = "Metric score",
+       x = "acres") + scale_x_log10(labels = fmt_dcimals(1))
 
-p("Untransformed distribution skewed heavily as expected")
-LIculvertData_location %>% ggplot(aes(x = da_MarshMigrPot_acres)) +  geom_histogram() + 
-  labs(title = "Distribution of  marsh migration \npotential across crossings")
-
-p("Log transformed values, ~normally distributed.")
-LIculvertData_location %>% ggplot(aes(x = da_MarshMigrPot_acres)) +  
-  geom_histogram() + 
-  scale_fill_tnc("gradient1") + 
-  labs(title = "Distribution of  marsh migration \npotential across crossings", subtitle = "log transformed") + scale_x_log10()
-
-p("Scoring of log-transformed data")
-LIculvertData_location %>% select(crossingID, da_MarshMigrPot_acres) %>% mutate(Score_marshmigpotAc = as.numeric(cut(x = da_MarshMigrPot_acres, breaks = c(-Inf, 1, 7, 25, 75, Inf), labels = c(1:5), ordered_result = F))) %>%
-  ggplot(aes(da_MarshMigrPot_acres, fill = as.factor(Score_marshmigpotAc))) + geom_histogram() + 
-  scale_fill_tnc("gradient1") + 
-  labs(title = "Distribution of  marsh migration \npotential across crossings", subtitle = "log transformed", fill = "Score") + scale_x_log10()
-  
-smmp <- LIculvertData_location %>% select(crossingID, da_MarshMigrPot_acres) %>% mutate(Score_marshmigpotAc = as.numeric(cut(x = da_MarshMigrPot_acres, breaks = c(-Inf, 1, 7, 25, 75, Inf), labels = c(1:5))))# created breaks by using log-transformed salt marsh area, which normalized the distribution, then roughly took equal intervals across the log-transformed x axis adjusting the break values to be whole numbers.
-
-smmp %>% 
+smmp_Scr <- smmp %>% 
   ggplot(aes(x = Score_marshmigpotAc, fill = as.factor(Score_marshmigpotAc))) + 
-  geom_histogram(bins = 20) + 
+  geom_bar() +
   scale_fill_tnc("gradient1") + 
-  labs(title = "Distribution of potential \ntidal marsh advancment \nupstream of crossing",
-       fill = "Proposed \nscoring")
-# proposed breaks: <1; 1-7, 7-25, 25-75, >75
-# smcs %>% mutate(Score_marshAc = cut(x = log10(MARSH_AC+1), breaks = 5)) %>% st_drop_geometry() %>% 
-#   # group_by(Score_marshAc) %>% ggplot(aes(x = as.integer(Score_marshAc))) + geom_histogram() +
-#   #   stat_bin(aes(y=..count.., label=..count..), geom ="text", vjust=-.5) 
-# group_by(Score_marshAc) %>% tally()
-# 
-# smmp %>% st_drop_geometry() %>% 
-#  group_by(Score_marshmigpotAc) %>% tally(name = "# of crossings") %>% gt::gt()
+  labs(title = "R4. Area of potential\n marsh advancement",
+       subtitle = "upstream of crossing",
+       fill = "Metric score", x = NULL)
 
-# Like it? Add this metric to the prioritization table
-# LIculvertPrioritization will be added to through out this code. 
-
+smmp_Scr + smmp_dist + plot_layout(guides = 'collect')
+# TODO: Find reason for NA's in this metric
 
 LIculvertPrioritization <- LIculvertPrioritization %>% left_join({smmp %>% select(crossingID, Score_marshmigpotAc) %>% st_drop_geometry()}, by = "crossingID") 
 
@@ -649,29 +747,45 @@ LIculvertPrioritization <- LIculvertPrioritization %>% left_join({smmp %>% selec
 ```
 
 
-### Total Resilience Benefit Score   
+## Total Resilience Benefit Score   
+
+The rescaled sum of the Resilience Benefit metrics (Risk of SLR inundation to the road, risk of storm surge to the road and crossing, risk of rain-related flooding, and the amount of potential marsh habitat in the future) yield the *Total Resilience Benefit Score*. 
 
 ```{r totResilienceSc, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 
-LIculvertPrioritization <- LIculvertPrioritization %>% rowwise() %>% 
-  mutate(Total_Resilience = benefit_score(sum(Score_riskSLR_inundation, Score_stormsuge, Score_rainfallRisk, Score_marshmigpotAc, na.rm = F)), resilience.score = TRUE) %>% ungroup()
 
-LIculvertPrioritization %>%  
+LIculvertPrioritization <-
+  LIculvertPrioritization %>% rowwise() %>%
+  mutate(Total_Resilience = benefit_score(
+    sum(
+      Score_riskSLR_inundation,
+      Score_stormsuge,
+      Score_rainfallRisk,
+      Score_marshmigpotAc,
+      na.rm = F
+    )
+  )) %>% ungroup()
+
+LIculvertPrioritization %>%
   ggplot(aes(x = Total_Resilience, fill = as.factor(Total_Resilience))) +
   scale_fill_tnc("gradient1") +
-  geom_bar() + 
-  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
-  labs(subtitle = "Distribution of scores", title = "Resilience Benefit", x = NULL ) +
+  geom_bar() +
+  geom_text(stat = "count",
+            aes(label = ..count..),
+            position = position_stack(vjust = 0.5)) +
+  labs(title = "Total Resilience Benefit",
+       subtitle = "Distribution of scores",
+       x = NULL) +
   theme(legend.position = "none")
 
 
 ```
 
 ***  
-## Transportation Benefit  
+# Transportation Benefit  
 
-### T1. Road Functional Classification  
+## T1. Road Functional Classification  
 NYSDOT Road functional class data were spatially joined to each crossings. Crossings not aligned with NYSDOT road data (i.e. on foot paths or small unpaved roads) were classified manually, using aerial imagery, field notes, and NYSDOT road data layers as guidance. 
 
 ```{r message=FALSE, warning=FALSE, paged.print=FALSE}
@@ -680,77 +794,96 @@ NYSDOT Road functional class data were spatially joined to each crossings. Cross
 # TODO: append the road classification data to the feature service hosted on AGOL 
 # roadData <- read_rds(path = "data/roadFunctional_class.rds")
 
-tb <- LIculvertData_location %>% #select(FunctionalClass_supervised) %>% 
-  select(crossingID, FunctionalClass_supervised, Evac_Rte) %>% 
+tb <-
+  LIculvertData_location %>% #select(FunctionalClass_supervised) %>%
+  select(crossingID, FunctionalClass_supervised, Evac_Rte) %>%
   mutate(
-    ss_Rd_EvacRte = if_else(Evac_Rte == 1, "Yes", "No"), # IDEA: Add prefixes to the data needed for the summary sheets.
-    Score_Rd_EvacRte = if_else(Evac_Rte == 1, true = 5, false = 1), 
-    ss_Functional_Class = recode(FunctionalClass_supervised, #TODO: Need to recode class 6-7-9 
-                                   `-99` = "Undefined",
-                                 `99` = "Railroad",
-                                 `-98` = "Trail/Path/Other",
-                                   `11` = "Principal Arterial - Interstate",
-                                   `12` = "Principal Arterial - Other Freeway/Expressway",
-                                   `14` = "Principal Arterial - Other", 
-                                   `16` = "Minor Arterial",
-                                   `17` = "Major Collector",
-                                   `18` = "Minor Collector",
-                                   `19` = "Local",
-                                 `6` = "Rural- Minor Arterial",
-                                 `7` = "Rural- Major Collector",
-                                 `9` = "Rural- Local"
-                                 ),
-    Score_Rd_Funclass = recode(FunctionalClass_supervised,
-                              `-99` = -99,
-                                   `11` = 5, #"Principal Arterial - Interstate",
-                                   `12` = 5, #"Principal Arterial - Other Freeway/Expressway",
-                                   `14` = 5, #"Principal Arterial - Other", 
-                                   `16` = 4, #"Minor Arterial",
-                                   `17` = 3, #"Major Collector",
-                                   `18` = 2, #"Minor Collector",
-                                   `19` = 1,  #"Local")) Some local roads might be very important!
-                              `6` = 1, #"Rural- Minor Arterial",
-                                 `7` = 1, #"Rural- Major Collector",
-                                 `9` = 1)) # "Rural- Local"))
+    ss_Rd_EvacRte = if_else(Evac_Rte == 1, "Yes", "No"),
+    # IDEA: Add prefixes to the data needed for the summary sheets.
+    Score_Rd_EvacRte = if_else(Evac_Rte == 1, true = 5, false = 1),
+    ss_Functional_Class = recode(
+      FunctionalClass_supervised,
+      #TODO: Need to recode class 6-7-9
+      `-99` = "Undefined",
+      `99` = "Railroad",
+      `-98` = "Trail/Path/Other",
+      `11` = "Principal Arterial - Interstate",
+      `12` = "Principal Arterial - Other Freeway/Expressway",
+      `14` = "Principal Arterial - Other",
+      `16` = "Minor Arterial",
+      `17` = "Major Collector",
+      `18` = "Minor Collector",
+      `19` = "Local",
+      `6` = "Rural- Minor Arterial",
+      `7` = "Rural- Major Collector",
+      `9` = "Rural- Local"
+    ),
+    Score_Rd_Funclass = recode(
+      FunctionalClass_supervised,
+      `-99` = -99,
+      `11` = 5, #"Principal Arterial - Interstate",
+      `12` = 5, #"Principal Arterial - Other Freeway/Expressway",
+      `14` = 5, #"Principal Arterial - Other",
+      `16` = 4, #"Minor Arterial",
+      `17` = 3, #"Major Collector",
+      `18` = 2, #"Minor Collector",
+      `19` = 1, #"Local")) Some local roads might be very important!
+      `-98` = 1, #"Trail/Path/Other",
+      `99` = as.numeric(NA), #"Railroad", Score RR as NA until decision to do otherwise is made- FW scored as NA
+      `6` = 1, #"Rural- Minor Arterial",
+      `7` = 1, #"Rural- Major Collector",
+      `9` = 1  # "Rural- Local"))
+    )
+  )
 
 
-LIculvertPrioritization <- LIculvertPrioritization %>%  
-  left_join({tb %>% select(crossingID, Score_Rd_EvacRte, Score_Rd_Funclass) %>% st_drop_geometry()}, by = "crossingID")
+LIculvertPrioritization <- LIculvertPrioritization %>%
+  left_join({
+    tb %>% select(crossingID, ss_Functional_Class, ss_Rd_EvacRte, Score_Rd_EvacRte, Score_Rd_Funclass) %>% st_drop_geometry()
+  }, by = "crossingID")
 
-LIculvertPrioritization %>%  
+LIculvertPrioritization %>%
   ggplot(aes(x = Score_Rd_Funclass, fill = as.factor(Score_Rd_Funclass))) +
   scale_fill_tnc("gradient1") +
-  geom_bar() + 
-  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
-  labs(subtitle = "Distribution of scores", title = "Functional Class Benefit", x = NULL ) +
+  geom_bar() +
+  geom_text(stat = "count",
+            aes(label = ..count..),
+            position = position_stack(vjust = 0.5)) +
+  labs(title = "T1. Road functional classification",
+       subtitle = "Distribution of scores",
+       x = NULL) +
   theme(legend.position = "none")
 
 
 ```
 
-### T2. Evacuation Route   
-NYSDOT Road Evacuation routes were spatially joined to crossings, and reviewed for completeness and accuracy. Scores were   
+## T2. Evacuation Route   
+NYSDOT Road Evacuation routes were spatially joined to crossings, and reviewed for completeness and accuracy. Evacuation routes as defined in this metric are officially designated routes and are typically major thoroughfares. The scoring for this metric was simple a binary choice, crossings along designated evacuation routes were scored a 5; all others were given a 1. 
+
 ```{r message=FALSE, warning=FALSE, paged.print=FALSE}
 LIculvertPrioritization %>%  
-  ggplot(aes(x = Score_Rd_EvacRte, fill = as.factor(Score_Rd_EvacRte))) +
+  ggplot(aes(x = as.character(Score_Rd_EvacRte), fill = as.factor(Score_Rd_EvacRte))) +
   scale_fill_tnc("gradient1") +
   geom_bar() + 
   geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
-  labs(subtitle = "Distribution of scores", title = "Evacuation Route Benefit", x = NULL ) +
+  labs(subtitle = "Distribution of scores", title = "T2. Evacuation Route", x = NULL ) +
   theme(legend.position = "none")
 
 
 ```
 
 
-### Total Transportation Benefit Score  
+## Total Transportation Benefit Score  
+
 ```{r message=FALSE, warning=FALSE, paged.print=FALSE}
 
 LIculvertPrioritization <- LIculvertPrioritization %>% rowwise() %>% 
-    mutate(Total_Trans = benefit_score(sum(Score_Rd_EvacRte, Score_Rd_Funclass, na.rm = T))) %>% ungroup()
+    mutate(Total_Trans = benefit_score(sum(Score_Rd_EvacRte, Score_Rd_Funclass, na.rm = F), transporation.score = TRUE)) %>% ungroup()
+tbs <- LIculvertPrioritization %>% rowwise() %>% 
+  select(crossingID, Score_Rd_EvacRte, Score_Rd_Funclass, Total_Trans)
 
 LIculvertPrioritization %>%  
-  ggplot(aes(x = Total_Eco, fill = as.factor(Total_Eco))) +
+  ggplot(aes(x = Total_Trans, fill = as.factor(Total_Trans))) +
   scale_fill_tnc("gradient1") +
   geom_bar() + 
   geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
@@ -762,42 +895,46 @@ LIculvertPrioritization %>%
 
 
 ***
-## Infrastructure Condition Benefit  
+# Infrastructure Condition Benefit  
 
-### C1. Crossing Condition  
+## C1. Crossing Condition  
 _Current crossing condition_ evaluates several components of the crossing structure to effectively summarize the overall condition. Structure condition, such as headwall and wingwall condition. Scour has been removed as that condition is found in _Eroision Classification_. 
 
-#### Testing condition scoring with and without scour scores.
-Following the NH protocol the first version of scoring includes the severity of scour (eval_crossCondition). eval_crossCondition_v2 only includes the conditions of the 5 components of the crossings. See prioritization functions for details. 
 
 ```{r crossingConditionEval, message=FALSE, warning=FALSE, paged.print=TRUE}
+# 149 scored- 186 = NA
 
-crscond <- LIculvertAssessmentData %>% st_drop_geometry() %>% 
-  select(crossingID, 
-         RoadSurfaceCondition,
-         StructureConditionOverall, 
-         HeadwallCondition_dwnStream, 
-         HeadwallCondition_upStream,
-         WingwallCondition_dwnStream,
-         WingwallCondition_upStream) %>% rowwise() %>% 
+crscond <- LIculvertAssessmentData %>% st_drop_geometry() %>%
+  select(
+    crossingID,
+    RoadSurfaceCondition,
+    StructureConditionOverall,
+    HeadwallCondition_dwnStream,
+    HeadwallCondition_upStream,
+    WingwallCondition_dwnStream,
+    WingwallCondition_upStream
+  ) %>% rowwise() %>%
   
-  mutate(Score_crossConditon = crossingConditionScore(overallCond = StructureConditionOverall,
-                                                     hwall_upCond = HeadwallCondition_upStream, 
-                                                     wwall_upCond = WingwallCondition_upStream, 
-                                                     hwall_dwnCond = HeadwallCondition_dwnStream, 
-                                                     wwall_dwnCond = WingwallCondition_dwnStream, 
-                                                     roadCond = RoadSurfaceCondition)) %>% 
+  mutate(
+    Score_crossConditon = crossingConditionScore(
+      overallCond = StructureConditionOverall,
+      hwall_upCond = HeadwallCondition_upStream,
+      wwall_upCond = WingwallCondition_upStream,
+      hwall_dwnCond = HeadwallCondition_dwnStream,
+      wwall_dwnCond = WingwallCondition_dwnStream,
+      roadCond = RoadSurfaceCondition
+    )
+  ) %>%
   ungroup()
 
-# correlation and distrbution plots
-# (crscond %>% select(-crossingID) %>%  
-#   ggpairs(title = "Crossing Condition and components feeding into") + theme(strip.text.y = element_text(angle = 0))) %>% ggplotly()
 
 crscond %>% 
   ggplot(aes(x = Score_crossConditon, fill = as.factor(Score_crossConditon))) + 
   geom_bar() + geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
   scale_fill_tnc("gradient1") + 
-  labs(title = "Crossing condition score distribution", fill = "Score")
+  labs(title = "C1. Crossing condition", 
+       subtitle = "Distribution of scores", x = NULL) +
+  theme(legend.position = "none")
 
 # Like it? Add this metric to the prioritization table
 LIculvertPrioritization <- LIculvertPrioritization %>%
@@ -805,87 +942,122 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 
 ```
 
-### C2. Partner priority
+## C2. Partner priority
 Partner priority provided to TNC 2018-2019.
 
 ```{r partnerPrior, message=FALSE, results='asis', warnings=FALSE}
 
+# All complete.
 partpr <- LIculvertAssessmentData %>% #
-  select(crossingID, PtrPriorit, TNCPriorit) %>% 
-  mutate(Score_partPrior = case_when(PtrPriorit == 1 ~ 5L,
-                               is.na(PtrPriorit) ~ 1L,
-                               PtrPriorit == 0 ~ 1L,
-                               TNCPriorit == 1 ~ 5L))
+  select(crossingID, PtrPriorit, TNCPriorit_1) %>%
+  mutate(
+    partPrior = case_when(
+      PtrPriorit == 1 ~ 1,
+      is.na(PtrPriorit) ~ 0,
+      PtrPriorit == 0 ~ 0,
+      TNCPriorit_1 == 1 ~ 1
+    ),
+    Score_partPrior = case_when(
+      partPrior == 1 ~ 5L,
+      partPrior == 0 ~ 1L
+    )
+  )
 
 
-partpr %>% ggplot(aes(x = Score_partPrior, fill = as.factor(Score_partPrior))) + 
+partpr %>% ggplot(aes(x = as.character(Score_partPrior), fill = as.factor(Score_partPrior))) + 
   geom_bar() + geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) + 
   scale_fill_tnc("gradient1") +
-  labs(title = "Partner priority", fill = "Score")
+  labs(title = "C2. Partner priority", 
+       subtitle = "Distribution of scores", 
+       fill = "Score", x = NULL) + theme(legend.position = "none")
+
 # Like it? Add this metric to the prioritization table
 LIculvertPrioritization <- LIculvertPrioritization %>% 
-  left_join({partpr %>% select(crossingID, Score_partPrior) %>% st_drop_geometry()}, by = "crossingID")
+  left_join({partpr %>% select(crossingID, partPrior, Score_partPrior) %>% st_drop_geometry()}, by = "crossingID")
 
 ```
 
-### C3. High water risk: Lack of clearance
+## C3. High water risk & Lack of clearance
 
-Not all crossings have sufficient data to calculate this metrc. In those cases, crossings are scored a NA and are not included in the averaging of the Infrastructure Condition benefit scores. 
 
-Placeholder:
-It just occured to me that this effectively gets at the same question that we ask in the 'Risk of Storm Surge' benefit score. i.e. how low is the road to the tides. Would that be a better scoring mechanism/approach?
+Not all crossings have sufficient data to calculate this metrc. In those cases, crossings are scored a NA and are not included in the averaging of the Infrastructure Condition benefit scores. What that means is that if a value is missing that crossing is DROPPED from the scoring of the Total Infrastructure Score (and ) 
+__THIS SHOULD BE CONFIRMED AS DESIRED METHOD BY TEAM__
 
-_IDEA:_ Attempt at using a high water indicator/lack of clearance RATIO instead of the absolute difference measures used by NH. 
 
-hwi-loc ratio:
-$$ scaleAdjust^{high water} = minimum(hwi^{stain} | \ road \ center \ height )$$
-$$ scaleAdjust^{lack \ of \ clearance} = minimum(hwi^{wrack} | \ ceiling \ of \ structure )$$
-$$ highwater \ clearance \ risk \ ratio = scaleAdjust + (hwi^{stain} |  hwi^{wrack}) / scaleAdjust + Road \ Height$$
+```{r highwater, message=FALSE, warning=FALSE, paged.print=TRUE}
+# high water is wrack line - lowest road elevation. Indicates that periodic flooding risk
+# lack of clearance = ceiling ht - WHI stain, Indicates the regular level of inundation to the crossing structure
 
-This yeilds a value that's been adjusted to the be
+# TODO: Add in some calculation of the difference between the HWI's for the US and DS sides to flag crossings that are restrictive
+# ONly 72 that are complete enough to get scores.
 
-```{r highwater, fig.height=5, fig.width=7, message=FALSE, warning=FALSE, paged.print=TRUE}
-# high water is wrack line - lowest road elevation
-# lack of clearance = ceiling ht - WHI stain
-# IDEA: Instead use ratios then score the ratio.
-# NOTE: Use the fnction highwater_ratio defined in the prioritizations_funtions.R
-# TODO: Need to complete recoding/rescaling and scoring.
-# TODO: ONce we establish the method for scaling and scoring the high water risk use that same method for the lack of cleanance measure.
+highwater <- LIculvertAssessmentData %>%
+  select(
+    crossingID,
+    starts_with("HWI"),
+    starts_with("Road "),
+    `Ceiling of Structure DS`,
+    `Ceiling of Structure US`
+  ) %>%
+  mutate(
+    # risk of high water - upstream side
+    # Team decided that the higher of the two HWI marks should be used in the scoring
+    # pmax() will pass along the greater of the two elevations- 
+    highwater_dif_US = `Road Surface US` - pmax(`HWI Wrack US`,  `HWI Stain US`, na.rm = T), 
+    # scored 
+    score_highwater_dif_US = as.numeric(
+      cut(x = highwater_dif_US, breaks = c(-Inf, 0, 1.5, 3, 6, Inf)),
+      labels = 5:1,
+      ordered_result = FALSE
+    ),
+    # risk of high water - downstream side
+    highwater_dif_DS = `Road Surface DS` - pmax(`HWI Wrack DS`,  `HWI Stain DS`, na.rm = T),
+    # scored 
+    score_highwater_dif_DS = as.numeric(
+      cut(x = highwater_dif_DS, breaks = c(-Inf, 0, 1.5, 3, 6, Inf)),
+      labels = 5:1,
+      ordered_result = FALSE
+    ),
+    # clearance - downstream side
+    clearance_dif_DS = `Ceiling of Structure DS` - `HWI Stain DS`,
+    # scored 
+    score_clearance_dif_DS = as.numeric(
+      cut(x = clearance_dif_DS, breaks = c(-Inf, 0, 1, 2, 3, Inf)),
+      labels = 5:1,
+      ordered_result = FALSE
+    ),
+    # clearance - upstream side
+    clearance_dif_US = `Ceiling of Structure US` - `HWI Stain US`,
+    # scored
+    highwater_dif_DS = `Road Surface DS` - `HWI Wrack DS` ,
+    score_clearance_dif_US = as.numeric(
+      cut(x = clearance_dif_US, breaks = c(-Inf, 0, 1, 2, 3, Inf)),
+      labels = 5:1,
+      ordered_result = FALSE
+    ), # score is selected from the max value across the 4 sub-scores. 
+    Score_highWaterClearance = pmax(na.rm = T,
+      score_highwater_dif_US,
+      score_clearance_dif_DS,
+      score_highwater_dif_DS,
+      score_clearance_dif_US
+    ))
+      
 
-highwater <- LIculvertAssessmentData %>% 
-  select(crossingID, starts_with("HWI"), starts_with("Road "), `Ceiling of Structure DS`, `Ceiling of Structure US`) %>% 
-  mutate(#highRatio_US = `Road Surface US` - `HWI Wrack US` ,
-         # highRatio_DS = `Road Surface DS` - `HWI Wrack DS` ,
-         # clearance_DS = `Ceiling of Structure DS` - `HWI Stain DS`,
-         # clearance_US = `Ceiling of Structure US` - `HWI Stain US`,
-         highRatio_USv2 = highwater_ratio(`HWI Wrack DS`, `Road Surface DS`),
-         highRatio_DSv2 = highwater_ratio(`HWI Wrack DS`, `Road Surface DS`),
-         clearance_DSv2 = highwater_ratio(`HWI Stain DS`, `Ceiling of Structure DS`),
-         clearance_USv2 = highwater_ratio(`HWI Stain US`, `Ceiling of Structure US`),
-         hwc_ratio = pmax(highRatio_DSv2, highRatio_USv2, clearance_DSv2, clearance_DSv2, na.rm = T),
-         Score_highWaterClearance = cut(x = hwc_ratio, breaks = c(-Inf, .25, .75, 1, 1.35, Inf), labels = 1:5, ordered_result = F))
 
-highwater %>% ggplot(aes(hwc_ratio, fill = Score_highWaterClearance)) + 
-  geom_histogram() +
-  scale_fill_tnc("gradient1") 
-
-highwater %>% ggplot(aes(Score_highWaterClearance, fill = Score_highWaterClearance)) +
+highwater %>%
+  ggplot(aes(x = Score_highWaterClearance, fill = as.character(Score_highWaterClearance))) +
   geom_bar() +
-  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
-  scale_fill_tnc("gradient1")
-
-# # datatable
-# highwater %>% st_drop_geometry() %>% 
-#   datatable(rownames = FALSE) %>% 
-#   formatRound(-1, digits = 2)
-
-(highwater %>% select(starts_with("high"), starts_with("clearance")) %>% st_drop_geometry() %>%
-  ggpairs(title = "High water risk and lack of clearance components") +
-    theme(strip.text.y = element_text(angle = 0))) 
-
-highwater %>% st_drop_geometry() %>% 
-  select(ends_with("v2")) %>% ggpairs(title = "Attempt at using the ratio approach") +
-    theme(strip.text.y = element_text(angle = 0), strip.text = element_text(size = 7))
+  geom_text(stat = "count",
+            aes(label = ..count..),
+            position = position_stack(vjust = 0.5)) +
+  scale_fill_tnc("gradient1") +
+  labs(
+    title = "C3. Risk of high water \nLack of clearance",
+    subtitle = "Distributions of scores",
+    fill = "proposed scoring",
+    x = NULL
+  ) +
+  theme(legend.position = "none")
 
 LIculvertPrioritization <- LIculvertPrioritization %>%
   left_join({highwater %>% select(crossingID, Score_highWaterClearance) %>% st_drop_geometry()}, by = "crossingID")
@@ -893,60 +1065,81 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 ```
 
 
-### C4. Erosion classification  
+## C4. Erosion classification  
  
-The ratio of scour pool width to channel width for both up and down stream sections. A large ratio indicates a larger scour pool. Score is based on the larger of the 2 ratios. 
+The ratio of scour pool width to channel width for both up and down stream sections. A large ratio indicates a larger scour pool. Score is based on the larger of the 2 ratios. This metric aims to identify crossings that have potential erosion issues that are impacting the condition of the structure. 
 
-```{r erosionClass2, message=FALSE, warning=FALSE, paged.print=TRUE}
+```{r erosionClass2, fig.height=5, fig.width=6, message=FALSE, warning=FALSE, paged.print=TRUE}
 # erosion classification is also scored in the ecological benefits.
 # Repurpose the bulk of that code here
 
 ec2 <- ec %>% mutate(Score_erosionconditionClass = submetric_erosionClass) %>% select(-submetric_erosionClass)
-# 
-# (ec2 %>% select(-crossingID) %>% st_drop_geometry() %>% 
-#   ggpairs(title = "Erosion classification components correlations") + theme(strip.text.y = element_text(angle = 0))) %>% ggplotly()
 
-# ec2 %>% 
-#   datatable(rownames = FALSE) %>% 
-#   formatRound(-1, digits = 2)
-# Like what we see? Join to the master LIculvertPrioritization tibble.
-# BUG: There's duplicate crossings entering here somehow.
 
-ec2 %>% st_drop_geometry %>% tidyr::drop_na() %>% 
-  ggplot(aes(x = erosionClass_dwnStrm, fill = as.factor(Score_erosionconditionClass))) + 
-  geom_histogram() + 
-  scale_fill_tnc("gradient1") + 
+ec2_ds <- ec2 %>% st_drop_geometry %>% tidyr::drop_na() %>%
+  ggplot(aes(x = erosionClass_dwnStrm, fill = as.factor(Score_erosionconditionClass))) +
+  geom_histogram() +
+  scale_fill_tnc("gradient1") +
   scale_x_log10() +
-  labs(title = "Downstream Erosion Classification", subtitle = "log transformed", fill = "submetric scoring")
+  labs(title = "Downstream Erosion \nClassification",
+       fill = "submetric \nscoring",
+       x = "Erosion classification ratio")
 
-ec2 %>% st_drop_geometry %>% tidyr::drop_na() %>% 
-  ggplot(aes(x = erosionClass_upStrm, fill = as.factor(Score_erosionconditionClass))) + 
-  geom_histogram() + 
-  scale_fill_tnc("gradient1") + 
+ec2_us <- ec2 %>% st_drop_geometry %>% tidyr::drop_na() %>%
+  ggplot(aes(x = erosionClass_upStrm, fill = as.factor(Score_erosionconditionClass))) +
+  geom_histogram() +
+  scale_fill_tnc("gradient1") +
   scale_x_log10() +
-  labs(title = "Upstream Erosion Classification", subtitle = "log transformed", fill = "submetric scoring")
+  labs(title = "Upstream Erosion \nClassification",
+       fill = "submetric \nscoring", 
+       x = "Erosion classification ratio") 
 
-ec2 %>% ggplot(aes(x = Score_erosionconditionClass, fill = as.factor(Score_erosionconditionClass))) +
+ec2_Scr <- ec2 %>% st_drop_geometry %>% tidyr::drop_na() %>%
+  ggplot(aes(x = Score_erosionconditionClass, fill = as.factor(Score_erosionconditionClass))) +
+  scale_fill_tnc("gradient1") +
   geom_bar() +
-  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
-  scale_fill_tnc("gradient1") + 
-  # scale_fill_tnc("gradient1") + 
-  labs(title = "Erosion Classification Distribution", fill = "submetric scoring")
+  geom_text(stat = "count",
+            aes(label = ..count..),
+            position = position_stack(vjust = 0.5)) +
+  labs(
+    subtitle = "Distribution of scores",
+    title = "E3c. Erosion Classification",
+    x = NULL,
+    fill = "submetric \nscoring"
+  ) 
+layout <- "
+AABD
+AABD
+AACD
+AACD
+"
+ec2_Scr + ec2_us + ec2_ds + guide_area() + plot_layout(guides = 'collect', design = layout) & labs(fill = NULL)
 
 LIculvertPrioritization <- LIculvertPrioritization %>%
   left_join({ec2 %>% select(crossingID, Score_erosionconditionClass) %>% st_drop_geometry()}, by = "crossingID")
 
+
 ```
 
-### Total Infrastructure Condition Benefit Score  
+## Total Infrastructure Condition Benefit Score  
 
 _NOTE:_ Does not include the High water risk/Lack of clearance metrics for *ALL* crossings. 
 
 ```{r finalConditionSc, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 
-LIculvertPrioritization <- LIculvertPrioritization %>% rowwise() %>% 
-  mutate(Total_InfrastructureBen = benefit_score(sum(Score_crossConditon, Score_partPrior, Score_highWaterClearance, Score_erosionconditionClass, na.rm = F))) %>% ungroup()
+
+LIculvertPrioritization <-
+  LIculvertPrioritization %>% rowwise() %>%
+  mutate(Total_InfrastructureBen = benefit_score(
+    sum(
+      Score_crossConditon,
+      Score_partPrior,
+      # Score_highWaterClearance, # NOTE: Dropped C3 from Total scoring as a test to see how we might be able to bump our total # scored up. Will also explore adding in a 'submerged' field that can be used as an alternative score.
+      Score_erosionconditionClass,
+      na.rm = F
+    )
+  )) %>% ungroup()
 
 
 LIculvertPrioritization %>%  
@@ -964,14 +1157,23 @@ LIculvertPrioritization %>%
 
 
 
-## Final Prioritization Scoring  
-Now that's a distribution if I've ever seen one...
+# Final Prioritization Scoring  
+The final prioritization scoring is total sum of all the benefit scores (4 - 20) 
 
 ```{r finalScore, message=FALSE, warning=FALSE, paged.print=FALSE}
 # There's a need to push out data from the assessments as well for the summary sheets, 
 # TODO: Determine if the join should happen here or in a setup script elsewhere (ie. summarySheetSetup.R)
-LIculvertPrioritization <- LIculvertPrioritization %>% rowwise() %>% 
-  mutate(Total_Prioritization = sum(Total_Eco, Total_InfrastructureBen, Total_Resilience, Total_Trans, na.rm = F)) %>% ungroup()
+# TODO: Confirm how we want to roll up the prioritizations in cases where some crossings are incomplete. Currently: Drop any incompletes.
+LIculvertPrioritization <- LIculvertPrioritization %>% rowwise() %>%
+  mutate(
+    Total_Prioritization = sum(
+      Total_Eco,
+      Total_InfrastructureBen,
+      Total_Resilience,
+      Total_Trans,
+      na.rm = F
+    )
+  ) %>% ungroup()
 
 LIculvertPrioritization %>%  
   ggplot(aes(x = Total_Prioritization, fill = as.factor(Total_Prioritization))) +
@@ -981,18 +1183,68 @@ LIculvertPrioritization %>%
   labs(subtitle = "Distribution of scores", title = "Total Benefit Scores", x = NULL ) +
   theme(legend.position = "none")
 
+
+
 LIculvertPrioritization <- crossingLocations %>% left_join(LIculvertPrioritization)
 write_rds(LIculvertPrioritization, path = "data/LIculvertPrioritizations.rds")
 
 ```
+#### Completed assessments
+As the map shows there are quite a few crossings that have been marked as complete that lack the data needed for a score. QA may fix some of these. 
 
 
+```{r totalScoreMap, echo=FALSE, fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
+# tmap::tmap_mode("plot")
+tmap_options(limits = c(facets.view = 7))
+tmap::tmap_mode("view")
+LIculvertPrioritization %>% 
+  # filter(AssessmentStatus == "Complete") %>%
+  tm_shape() + tm_dots(title = "Total Prioritization Score", 
+  size = .1,
+  col = "Total_Prioritization",
+  colorNA = "grey40",
+  palette = tnc_pal("gradient1")(5),
+  popup.vars = c("Crossing ID:" = "crossingID",
+                 "Ecological Benefit:" = "Total_Eco",
+                 "Resilience Benefit:" = "Total_Resilience",
+                 "Transportation Benefit" = "Total_Trans",
+                 "Infrastructure Benefit" = "Total_InfrastructureBen",
+                 "Total Prioritization Score" = "Total_Prioritization"
+                 )
+)
 
-### Correlation Analysis  
+```
+
+#### Incomplete assessments  
+
+There are also a small handful that are marked 'Incomplete' but have scores. Some of these (North shore) were thought to be freshwater crossings as indicated on the datasheet but were decided that they were tidal by the group. Propose to just change the status to Complete.
+
+```{r  echo=FALSE, fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
+
+LIculvertPrioritization %>% 
+  filter(AssessmentStatus == "Incomplete") %>%
+  tm_shape() + tm_dots(title = "Total Prioritization Score", 
+  size = .1,
+  col = "Total_Prioritization",
+  colorNA = "grey80",
+  palette = tnc_pal("gradient1")(5),
+  popup.vars = c("Crossing ID:" = "crossingID",
+                 "Ecological Benefit:" = "Total_Eco",
+                 "Resilience Benefit:" = "Total_Resilience",
+                 "Transportation Benefit" = "Total_Trans",
+                 "Infrastructure Benefit" = "Total_InfrastructureBen",
+                 "Total Prioritization Score" = "Total_Prioritization"
+                 )
+)
+
+```
+
+
+## Correlation Analysis  
 Exploring relationships between model parameters. 
-prefixed values of 'Score' are benefit scores, 'submetric' are calculated components that feed into benefit scoring.
+prefixed values of 'Score' are benefit scores, 'submetric' are calculated components that feed into benefit scoring.  
 
-#### Ecological Benefit Scores  
+### Ecological Benefit Scores    
 
 ```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE, paged.print=FALSE}
 
@@ -1008,7 +1260,11 @@ LIculvertPrioritization %>% st_drop_geometry() %>%
   scale_fill_tnc("gradient1", discrete = F)
 
 ```
-#### Resilience Benefit Scores  
+
+
+### Resilience Benefit Scores   
+
+The crossings missing scores are 
 
 ```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE, paged.print=FALSE}
 
@@ -1024,7 +1280,10 @@ LIculvertPrioritization %>% st_drop_geometry() %>%
   scale_fill_tnc("gradient1", discrete = F)
 
 ```
-#### Transportation Benefit  
+
+
+### Transportation Benefit    
+
 ```{r fig.height=5, fig.width=5, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 LIculvertPrioritization %>% st_drop_geometry() %>%
@@ -1039,7 +1298,7 @@ LIculvertPrioritization %>% st_drop_geometry() %>%
   scale_fill_tnc("gradient1", discrete = F)
 ```
 
-#### Infrastructure Condition Benefit
+### Infrastructure Condition Benefit  
 
 ```{r message=FALSE, warning=FALSE, paged.print=FALSE}
 LIculvertPrioritization %>% st_drop_geometry() %>%
@@ -1054,7 +1313,7 @@ LIculvertPrioritization %>% st_drop_geometry() %>%
   scale_fill_tnc("gradient1", discrete = F)
 ```
 
-#### Across all categories
+### Across all categories  
 
 ```{r fig.height=8, fig.width=8, message=FALSE, warning=FALSE, paged.print=FALSE}
 
@@ -1073,6 +1332,217 @@ LIculvertPrioritization %>% st_drop_geometry() %>%
 
 ```
 
-### References: 
-[^Resilient Tidal Crossings]: New Hampshire Department of Environmental Services. 2019. “Resilient Tidal Crossings:An Assessment and Prioritization to Address New Hampshire’s Tidal Crossing Infrastructure for Coastal Resilience”.  R-WD-19-20. Portsmouth, NH. Available online at: https://www.des.nh.gov/organization/divisions/water/wmb/coastal/resilient-tidal.htm
 
+## QA Needs   
+
+We might want to think about how our final scoring rolls up into the _Total_Prioritization_ score as there are a quite a high number of missing scores/data that are limiting the total number of scores generated. Of the ```r nrow(LIculvertAssessmentData)``` tidal culverts identified, ```r sum(!is.na(LIculvertAssessmentData$dateAssessed))``` were assessed and of those only ```r sum(!is.na(LIculvertPrioritization$Total_Prioritization))``` were complete enough to be fully scored. _Total Infrastructure Benefit_ scores are likely the most limiting, as things are currently calculated. Both of these scores rely on the 
+
+### QA Total Prioritization  
+
+```{r fig.height=11, fig.width=11, message=FALSE, warning=FALSE, paged.print=FALSE}
+LIculvertPrioritization %>% st_drop_geometry() %>% arrange(Total_Prioritization, Total_Eco, Total_InfrastructureBen, Total_Resilience, Total_Trans) %>% 
+  select(crossingID, starts_with("Total")) %>% remove_rownames() %>%  
+  mutate_all(.funs = as.numeric) %>%
+  column_to_rownames(var = 'crossingID') %>% 
+    d3heatmap(
+      na.rm = T,
+      height = 800,
+      width = 1000,
+      xaxis_height = 250,
+      yaxis_width = 200,
+      Rowv = F,
+      Colv = F,
+      scale = "column",
+      colors = tnc_pal("gradient1")(5)
+    )
+
+
+```
+
+
+### QA Ecological Benefits-
+
+```{r fig.height=11, fig.width=11, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+
+# Field assessment status has been mangaged within the excel documents and are incomplete (older asssessments may be missing this field). PUlling these values from those fields to append into the GIS data side- These values are coded such that a domain can be setup for dropdowns. 
+# LIculvertAssessmentData %>%
+#   select(crossingID, FieldAssessmentComplete) %>% st_drop_geometry() %>%
+#   rename(AssessmentStatus = FieldAssessmentComplete) %>%
+#   mutate(
+#     AssessmentStatusCode = case_when(
+#       AssessmentStatus == "Y" ~ 1,
+#       AssessmentStatus == "N" ~ 2,
+#       AssessmentStatus == "In Progress" ~ 3,
+#       AssessmentStatus == "Inaccessible" ~ 4,
+#       AssessmentStatus == "No Culvert" ~ 5,
+#       AssessmentStatus == "Unassessable" ~ 6,
+#       TRUE ~ as.numeric(NA)
+#     )
+#   ) %>% View()
+#   write_excel_csv(path = "data/assessStatus.csv")
+
+LIculvertPrioritization %>% st_drop_geometry() %>% 
+  select(crossingID,
+  Score_MarshComplex,
+  Score_marshAc,
+  Score_dotr,
+  Score_vegetation,
+  Total_Eco
+) %>% remove_rownames() %>%  arrange(Total_Eco) %>% 
+  mutate_all(.funs = as.numeric) %>%
+  column_to_rownames(var = 'crossingID') %>% 
+    d3heatmap(
+      na.rm = T,
+      height = 800,
+      width = 1000,
+      xaxis_height = 250,
+      yaxis_width = 200,
+      Rowv = F,
+      Colv = F,
+      scale = "column",
+      colors = tnc_pal("gradient1")(5)
+    )
+
+```
+
+### QA Resilience Benefit  
+
+```{r fig.height=11, fig.width=11, message=FALSE, warning=FALSE, paged.print=FALSE}
+LIculvertPrioritization %>% st_drop_geometry() %>% 
+  select(crossingID,
+  Score_rainfallRisk, Score_riskSLR_inundation, Score_marshmigpotAc, Score_stormsuge, Total_Resilience
+) %>% remove_rownames() %>%  
+  mutate_all(.funs = as.numeric) %>%
+  arrange(Total_Resilience) %>% 
+  column_to_rownames(var = 'crossingID') %>% 
+    d3heatmap(
+      na.rm = T,
+      height = 800,
+      width = 1000,
+      xaxis_height = 250,
+      yaxis_width = 200,
+      Rowv = F,
+      Colv = F,
+      scale = "column",
+      colors = tnc_pal("gradient1")(5)
+    )
+```
+
+### QA Transportation Benefit  
+
+```{r fig.height=3, fig.width=7, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+
+LIculvertPrioritization %>% st_drop_geometry() %>% 
+  select(crossingID,
+  Score_Rd_EvacRte, Score_Rd_Funclass, Total_Trans
+) %>% remove_rownames() %>%  
+  mutate_all(.funs = as.numeric) %>%
+  column_to_rownames(var = 'crossingID') %>% 
+    d3heatmap(
+      na.rm = T,
+      height = 800,
+      width = 1000,
+      xaxis_height = 250,
+      yaxis_width = 200,
+      Rowv = F,
+      Colv = F,
+      scale = "column",
+      colors = tnc_pal("gradient1")(5)
+    )
+
+LIculvertPrioritization %>% 
+  select(crossingID, Total_Trans, ss_Functional_Class) %>% st_drop_geometry() %>% 
+  replace_na(replace = list(Total_Trans = 0)) %>%
+  ggplot(aes(x = ss_Functional_Class, y = Total_Trans)) + 
+  geom_jitter() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+Unscored crossings are all RR crossings that weren't given a 'functional road class', because they aren't roads. THoughts? Should we give a score for these?
+
+### QA Infrastructure Condition Benefits
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+
+
+LIculvertPrioritization %>% st_drop_geometry() %>% 
+  select(crossingID,
+  Score_crossConditon, Score_erosionconditionClass, Score_partPrior, Score_highWaterClearance, Total_InfrastructureBen
+) %>% remove_rownames() %>%  arrange(Total_InfrastructureBen, Score_highWaterClearance, Score_crossConditon, Score_erosionconditionClass, Score_partPrior) %>% 
+  mutate_all(.funs = as.numeric) %>%
+  column_to_rownames(var = 'crossingID') %>% 
+    d3heatmap(
+      na.rm = T,
+      height = 800,
+      width = 1000,
+      xaxis_height = 250,
+      yaxis_width = 200,
+      Rowv = F,
+      Colv = F,
+      scale = "column",
+      colors = tnc_pal("gradient1")(5)
+    )
+
+
+```
+
+
+##### QA Highwater and Clearance submetrics
+This submetric (C3) is reliant on having 
+
+```{r fig.height=11, fig.width=11, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+
+gg_miss_var(highwater)
+# naniar::add_n_miss(highwater) %>% View()
+
+
+highwater %>% st_drop_geometry() %>% remove_rownames() %>%
+  column_to_rownames(var = 'crossingID') %>% arrange(Score_highWaterClearance, `Road Center NA`, `Road Surface DS`, `Road Surface US`) %>% 
+  mutate_all(.funs = as.numeric) %>%
+  d3heatmap(
+    na.rm = T,
+    height = 800,
+    width = 1000,
+    xaxis_height = 250,
+    yaxis_width = 200,
+    Rowv = F,
+    Colv = F,
+    scale = "column",
+    colors = tnc_pal("gradient1")(5)
+  )
+
+qa_data <- highwater %>% st_drop_geometry() %>% mutate(checkRoadHt_HWI = if_else(`Road Surface US` < `HWI Stain US` | `Road Surface DS` < `HWI Stain DS`, true = "Yes", "NO")) %>% select(crossingID, checkRoadHt_HWI) %>% left_join(qa_data)
+
+```
+
+### QA All metrics
+
+```{r fig.width=22}
+
+gg_miss_var(LIculvertPrioritization)
+
+# 
+all_vars_heat <- LIculvertPrioritization %>%
+  st_drop_geometry() %>% 
+  select(crossingID, Score_MarshComplex, Score_marshAc, Score_dotr, Score_vegetation, Total_Eco, Score_riskSLR_inundation, Score_stormsuge, Score_rainfallRisk, Score_marshmigpotAc, Total_Resilience, Score_Rd_EvacRte, Score_Rd_Funclass, Total_Trans, Score_crossConditon, Score_partPrior, Score_highWaterClearance, Score_erosionconditionClass, Total_InfrastructureBen, Total_Prioritization) %>% 
+   mutate_all(.funs = as.numeric) %>% 
+  add_n_miss() %>% 
+  dplyr::arrange(Total_Prioritization) %>% 
+   column_to_rownames(var = 'crossingID')
+  
+  d3heatmap(all_vars_heat, height = 800, width = 1000, xaxis_height = 250, yaxis_width = 200, scale = "column", colors = tnc_pal("gradient1")(5), dendrogram = 'none', show_grid = T)
+
+
+```
+
+
+## References: 
+^[Resilient Tidal Crossings]: New Hampshire Department of Environmental Services. 2019. “Resilient Tidal Crossings:An Assessment and Prioritization to Address New Hampshire’s Tidal Crossing Infrastructure for Coastal Resilience”.  R-WD-19-20. Portsmouth, NH. Available online at: https://www.des.nh.gov/organization/divisions/water/wmb/coastal/resilient-tidal.htm
+
+^[SLAMM] Need reference:
+
+^[NYSDEC 1974 Tidal Wetlands] http://gis.ny.gov/gisdata/metadata/nysdec.tidal_wetlands_lower.html
