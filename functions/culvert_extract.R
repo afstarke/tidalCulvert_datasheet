@@ -22,9 +22,9 @@
 culvert_extract <- function(tidycells, sheetOI, celladdress){
   
   val <- tidycells %>% 
-    filter(sheet == sheetOI) %>% 
-    filter(address == celladdress) %>% 
-    pull(value) 
+    dplyr::filter(sheet == sheetOI) %>% 
+    dplyr::filter(address == celladdress) %>% 
+    dplyr::pull(value) 
 
   if(length(val) == 0){
     return(NA)

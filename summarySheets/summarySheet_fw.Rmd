@@ -6,7 +6,7 @@ output:
     self_contained: yes
 css: summary.css
 params:
-  crossingCode: xy4084275873227884
+  crossingCode: xy4075626072961637 
 ---
 
 ```{r setup, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
@@ -30,10 +30,11 @@ source(here::here("summarySheetSetup.R"))
 
 
 
-fw_data <- read_rds(here::here("data/fwaterPrioritizations.rds")) 
+fw_data <- read_rds(here::here("data/fwaterPrioritizations.rds"))
+# fw_data <- read_rds(here::here("data/fwaterPrioritizations_RERUNS.rds")) # need to rerun selected crossings to remove scores given to partially unassessed crossings.
 slrScenarios <- read_rds(here::here("data/slrScenariosLOOKUP.rds"))
-photoLookup <- read_csv(here::here("summarySheets/photos/match_table_021820.csv"))
-photoFolder <- "photos/"
+photoLookup <- read_csv(file = "D:/culvert_project/html_outputs/photos/matchTable.csv")
+photoFolder <- "D:/culvert_project/html_outputs/photos"
 # ccode <- "xy4081776773219572" # to be replaced by params$crossingCode
 ccode = params$crossingCode
 
@@ -43,6 +44,7 @@ ccode = params$crossingCode
 # 3rd step: For each chunk of the summary sheet, filter based on section and then make table using kable or gt or other.
 
 fw_doc_data <- fw_data %>% 
+  st_transform(crs = 4326) %>% 
   # Will need to handle duplicate crossingCodes due to multiple assessments.
   filter(CrosCode == ccode) %>% mutate(CrosCode_link = paste0("https://naacc.org/naacc_display_crossing.cfm?aqId=", SurveyID))
 
@@ -52,63 +54,65 @@ coords <- fw_doc_data %>% st_drop_geometry() %>%
 
 fw_table_data <- fw_doc_data %>% 
   mutate(Coordinates = paste(round(latitude, digits = 5), "N ", round(longitude, digits = 5), "W", sep = ""),
-         type_material = paste(fw_doc_data$Culvert_Material, fw_doc_data$CrosType, sep = " ")) %>% 
-  st_drop_geometry() %>% janitor::adorn_rounding(digits = 2) %>% 
+         type_material = if_else(condition =  str_detect(CrosType, pattern = "Inaccess"), 
+                                 true = as.character(CrosType), 
+                                 false = paste(Culvert_Material, CrosType, sep = " "))) %>% 
+  st_drop_geometry() %>% janitor::adorn_rounding(dat = ., digits = 2) %>% 
   mutate(Suffolk_2085_HIGHMED_Inund_Freq = recode(Suffolk_2085_HIGHMED_Inund_Freq, # How often is..inundated 2080s
                                                   `0` = "Open Water",
-                                                  `1` = "Inundated at least once every 30 days",
-                                                  `2` = "Inundated at least once every 60 days",
-                                                  `3` = "Inundated at least once every 90 days",
-                                                  `4` = "Inundated by the 10-year storm",
-                                                  `5` = "Inundated by the 100-year storm",
-                                                  `6` = "Never",
-                                                  `7` = "Below the 100-year storm but connected",
-                                                  `8` = "Protected by dikes",
-                                                  `-99` = "Never",
-                                                  .default = "Never",
-                                                  .missing = "Never"), # HACK: NA still being added to tables.Fixed below.
-         Suffolk_InitialCondition_Inund_Freq	= recode(Suffolk_InitialCondition_Inund_Freq, # present day storm freq
-                                                  `0` = "Open Water",
-                                                  `1` = "Inundated at least once every 30 days",
-                                                  `2` = "Inundated at least once every 60 days",
-                                                  `3` = "Inundated at least once every 90 days",
-                                                  `4` = "Inundated by the 10-year storm",
-                                                  `5` = "Inundated by the 100-year storm",
-                                                  `6` = "Beyond the 100-year storm",
-                                                  `7` = "Below the 100-year storm but connected",
-                                                  `8` = "Protected by dikes",
-                                                  `-99` = "Beyond the 100-year storm",
-                                                  .default = "Beyond the 100-year storm",
-                                                  .missing = "Beyond the 100-year storm"),
-          StrmName = if_else(StrmName == " ", # If not " " (blank) then use name.
-                             true = "Unidentified", 
-                             false = as.character(StrmName)),
-         Rd_EvacRte = if_else(Rd_EvacRte == 1, "Yes", "No"),
-         PtrPriorit = if_else(PtrPriorit == 1, "Yes", "No"),
-         Percent_Imperv_HUC12 = paste0(Percent_Imperv_HUC12 * 100, "%"),
-         Functional_Class = recode(Functional_Class,
-                                   `-99` = "Undefined",
-                                   `11` = "Principal Arterial - Interstate",
-                                   `12` = "Principal Arterial - Other Freeway/Expressway",
-                                   `14` = "Principal Arterial - Other", 
-                                   `16` = "Minor Arterial",
-                                   `17` = "Major Collector",
-                                   `18` = "Minor Collector",
-                                   `19` = "Local"),
-         CrosCode = paste0("[",CrosCode, "](", CrosCode_link, ")")) %>% 
-  tidyr::gather(key = "field_Name", value = "dataValue") %>% 
-  dplyr::right_join(fsdn) %>% 
-  replace_na(replace = list(value = "-", score = "-")) %>% 
-  mutate(score = ifelse(str_detect(string = field_Name, pattern = "Score*"), yes = TRUE, no = FALSE)) %>% 
-  dplyr::select(Description, dataValue, SummarySection, dataType)  %>% 
-  spread(dataType, dataValue) %>% 
-  dplyr::select(Description, SummarySection, value, score) %>% 
-  mutate(score = na_if(score, -99)) %>% # pesky -99's sneaking in.
-  replace_na(replace = list(value = "--", score = "--")) %>% 
-  mutate(value = recode(value, 
-                        `-99` = "--",
-                        .default = value))
-  
+                                                           `1` = "Inundated at least once every 30 days",
+                                                           `2` = "Inundated at least once every 60 days",
+                                                           `3` = "Inundated at least once every 90 days",
+                                                           `4` = "Inundated by the 10-year storm",
+                                                           `5` = "Inundated by the 100-year storm",
+                                                           `6` = "Never",
+                                                           `7` = "Below the 100-year storm but connected",
+                                                           `8` = "Protected by dikes",
+                                                           `-99` = "Never",
+                                                           .default = "Never",
+                                                           .missing = "Never"), # HACK: NA still being added to tables.Fixed below.
+                  Suffolk_InitialCondition_Inund_Freq	= recode(Suffolk_InitialCondition_Inund_Freq, # present day storm freq
+                                                               `0` = "Open Water",
+                                                               `1` = "Inundated at least once every 30 days",
+                                                               `2` = "Inundated at least once every 60 days",
+                                                               `3` = "Inundated at least once every 90 days",
+                                                               `4` = "Inundated by the 10-year storm",
+                                                               `5` = "Inundated by the 100-year storm",
+                                                               `6` = "Beyond the 100-year storm",
+                                                               `7` = "Below the 100-year storm but connected",
+                                                               `8` = "Protected by dikes",
+                                                               `-99` = "Beyond the 100-year storm",
+                                                               .default = "Beyond the 100-year storm",
+                                                               .missing = "Beyond the 100-year storm"),
+                  StrmName = if_else(StrmName == " ", # If not " " (blank) then use name.
+                                     true = "Unidentified", 
+                                     false = as.character(StrmName)),
+                  Rd_EvacRte = if_else(Rd_EvacRte == 1, "Yes", "No"),
+                  PtrPriorit = if_else(PtrPriorit == 1, "Yes", "No"),
+                  Percent_Imperv_HUC12 = paste0(Percent_Imperv_HUC12 * 100, "%"),
+                  Functional_Class = recode(Functional_Class,
+                                            `-99` = "Undefined",
+                                            `11` = "Principal Arterial - Interstate",
+                                            `12` = "Principal Arterial - Other Freeway/Expressway",
+                                            `14` = "Principal Arterial - Other", 
+                                            `16` = "Minor Arterial",
+                                            `17` = "Major Collector",
+                                            `18` = "Minor Collector",
+                                            `19` = "Local"),
+                  CrosCode = paste0("[",CrosCode, "](", CrosCode_link, ")")) %>% 
+           tidyr::gather(key = "field_Name", value = "dataValue") %>% 
+           dplyr::right_join(fsdn) %>% 
+           replace_na(replace = list(value = "-", score = "-")) %>% 
+           mutate(score = ifelse(str_detect(string = field_Name, pattern = "Score*"), yes = TRUE, no = FALSE)) %>% 
+           dplyr::select(Description, dataValue, SummarySection, dataType)  %>% 
+           spread(dataType, dataValue) %>% 
+           dplyr::select(Description, SummarySection, value, score) %>% 
+           mutate(score = na_if(score, -99)) %>% # pesky -99's sneaking in.
+           replace_na(replace = list(value = "--", score = "--")) %>% 
+           mutate(value = recode(value, 
+                                 `-99` = "--",
+                                 .default = value))
+         
 
 
 ords <- summaryNeeds %>% select(Description, tableOrder)
@@ -123,7 +127,12 @@ style <- function(.tab, pos = "center"){
     # column_spec(2, width = "10em") 
 }
 
-assesDate <- format(fw_doc_data$Date_Observed, format = "%B %d, %Y")
+# If Eval == missing data & CrossingCondition has a score & TotalBenefit == -99 then provide alternative text here
+#Assessed on <b>`r assesDate` </b>following the: 
+fw_doc_data <- fw_doc_data %>% mutate(assessmentText = if_else(condition = Eval == "no score - missing data" & Total_Benefit == -99 & Crossing_Condition %in% c("New", "OK", "Poor"), true = "<strong style='color:rgb(255, 99, 71); font-size: large;' >Not Fully Assessed</strong>", false = paste("Assessed on <b>", format(Date_Observed, format = "%B %d, %Y"), "</b>following the: ")))
+
+# assesDate <- format(fw_doc_data$Date_Observed, format = "%B %d, %Y")
+
 ```
 
 
@@ -142,7 +151,7 @@ General Crossing Information
 ================================================================================
 
 <center>
-Assessed on <b>`r assesDate` </b>following the:  
+`r fw_doc_data$assessmentText`  
 __NAACC Freshwater Protocol__
 </center>
 
@@ -167,15 +176,17 @@ Site Location
 
 ```{r siteMap, echo=FALSE, fig.align='center', fig.height=1.5, fig.width=2.5, message=FALSE, warning=FALSE, out.width='100%', paged.print=FALSE}
 
-towns <- st_read(here::here("data/basemap_data.gpkg"), layer =  'admin_LI_town_lines', quiet = TRUE)
-li <- st_read(here::here("data/basemap_data.gpkg"), layer = "admin_LI_shore_24k", quiet = TRUE)
-county <- st_read(here::here("data/basemap_data.gpkg"), layer = "admin_LI_County_line", quiet = TRUE)
+towns <- st_read(here::here("data/basemap_data.gpkg"), layer =  'admin_LI_town_lines', quiet = TRUE) %>% 
+  st_transform(crs = 4326)
+li <- st_read(here::here("data/basemap_data.gpkg"), layer = "admin_LI_shore_24k", quiet = TRUE) %>% 
+  st_transform(crs = 4326)
+county <- st_read(here::here("data/basemap_data.gpkg"), layer = "admin_LI_County_line", quiet = TRUE) %>% 
+  st_transform(crs = 4326)
+coast <- st_read(here::here("data/ne_10m_coastline.shp"), quiet = T) %>% 
+  st_transform(crs = 4326)
 
-coast <- st_read(here::here("data/ne_10m_coastline.shp"), quiet = T)
-# roads <- st_read(here::here("data/ne_10m_roads.shp"), quiet = T)
 
-# osmransport
-tm_shape(coast) + 
+tm_shape(coast) +
   tm_lines(lwd = 0.1) +
  tm_shape(li) +
   tm_polygons(col = "white",
@@ -190,8 +201,8 @@ tm_shape(coast) +
   tm_dots(col = "grey", size = .05, alpha = .3) +
  tm_shape(shp = fw_doc_data, is.master = TRUE) +
   tm_dots(col = "red", size = 0.13) +
-  tm_layout(outer.margins=c(.05,0,.05,0),  
-            inner.margins=c(0,0,.02,0), asp=0, 
+  tm_layout(outer.margins = c(.05,0,.05,0), title = NULL,  
+            inner.margins = c(0,0,.02,0), asp = 0, 
             frame = F)
             
 

@@ -1,12 +1,12 @@
 ---
-title: "Freshwater Crossing Score Summary <img id=\"tnc-logo.svg\" src=\"tnc-logo.svg\" />"
+title: "Tidal Crossing Score Summary <img id=\"tnc-logo.svg\" src=\"tnc-logo.svg\" />"
 date: "`r Sys.Date()`"
-output:
+output: 
   pagedown::poster_jacobs:
-    self_contained: yes
-css: summary.css
+  self_contained: no
+css: tidalsummary.css
 params:
-  crossingCode: 34
+  crossingCode: 397
 ---
 
 ```{r setup, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
@@ -20,7 +20,10 @@ knitr::opts_chunk$set(
 # insert 
 # <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
 
+
 ```
+
+
 
 ```{r dataload, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Add ->  knit: pagedown::chrome_print
@@ -28,92 +31,184 @@ knitr::opts_chunk$set(
 source(here::here("00_libraries.R"))
 source(here::here("summarySheetSetup.R"))
 
-
+ccode = params$crossingCode
+# TODO: Add in Town, crossing type, municipality, 
+# TODO: Move 'structure condition' to the proper section.
 
 # TODO: ADD THE RELEVENT TIDAL DATA HERE
-tidalPrioritization <- read_rds(here::here("data", "/LIculvertPrioritizations.rds")) # Prioritization data
+# Prioritization data
+tidalPrioritization <- read_rds(here::here("data", "/LIculvertPrioritizations.rds")) %>% filter(crossingID == ccode) 
+# Full Assessment data
+tidalAssessmentData <- read_rds(here::here("data", "/LIculvertAssessmentData.rds")) %>% filter(crossingID == ccode)
+# Profiles plots (created in rmdSetup.Rmd to shave time on rendering summary sheets.)
+profilePlot <- read_rds(here::here("data", "/LIculvertAssessments.rds")) %>% filter(crossingID == ccode) %>% pull(profilePlots)
+
+
+
+tsdn <- read_rds(here::here("data", "/tsdn.rds")) # crosswalk table for building out the summary sheet tables
+# TODO: Add in the info such as structure material etc. Determine if that should be done here or elsewhere in the line (perhaps in the tidalPrioritization call?)
 # Data that's needed for summary sheet but not in prioritization data.
 # - Plot data for longitudinal profiles.
 # - anxillary data such as number of local crossings inundated by SLR
 slrScenarios <- read_rds(here::here("data/slrScenariosLOOKUP.rds")) # for lookups below. 
 photoLookup <- read_xlsx(here::here("summarySheets/photomatchTable_tidal.xlsx")) # photos will likely need to be local to ensure they render in htmls.
-photoFolder <- "tidal_photos/"
-ccode = params$crossingCode
+photoFolder <- here::here("summarySheets", "tidal_photos")
+
 
 
 # IDEA: 1st step: filter, select the proper columns needed for the summary sheet, with column identifying the section that it will land. 
 # 2nd step: filter crossing of interest from larger dataset, transpose the data to be in long format and then join to above data frame. 
 # 3rd step: For each chunk of the summary sheet, filter based on section and then make table using kable or gt or other.
 
-tidal_doc_data <- tidalPrioritization %>% # TODO: Ensure tidalPrioritizations is an sf object.
+# filter crossing of interest
+tidal_doc_data <- tidalPrioritization %>% 
   filter(crossingID == ccode) 
 
-coords <- tidal_doc_data %>% st_drop_geometry() %>% 
-  mutate(Coordinates = paste(round(latitude, digits = 5), "N ", round(longitude, digits = 5), "W", sep = "")) %>%
-  select(Coordinates) %>% pull()
+# Pull coords for use in general summary section
+coords <- tidal_doc_data %>% st_coordinates() %>% 
+  as_tibble() %>% rename(longitude = X, latitude = Y)
 
-tidal_table_data <- tidal_doc_data %>% 
-  mutate(Coordinates = paste(round(latitude, digits = 5), "N ", round(longitude, digits = 5), "W", sep = ""),
-         type_material = paste(fw_doc_data$Culvert_Material, fw_doc_data$CrosType, sep = " ")) %>% 
-  st_drop_geometry() %>% janitor::adorn_rounding(digits = 2) %>% 
-  mutate(Suffolk_2085_HIGHMED_Inund_Freq = recode(Suffolk_2085_HIGHMED_Inund_Freq, # How often is..inundated 2080s
-                                                  `0` = "Open Water",
-                                                  `1` = "Inundated at least once every 30 days",
-                                                  `2` = "Inundated at least once every 60 days",
-                                                  `3` = "Inundated at least once every 90 days",
-                                                  `4` = "Inundated by the 10-year storm",
-                                                  `5` = "Inundated by the 100-year storm",
-                                                  `6` = "Never",
-                                                  `7` = "Below the 100-year storm but connected",
-                                                  `8` = "Protected by dikes",
-                                                  `-99` = "Never",
-                                                  .default = "Never",
-                                                  .missing = "Never"), # HACK: NA still being added to tables.Fixed below.
-         Suffolk_InitialCondition_Inund_Freq	= recode(Suffolk_InitialCondition_Inund_Freq, # present day storm freq
-                                                  `0` = "Open Water",
-                                                  `1` = "Inundated at least once every 30 days",
-                                                  `2` = "Inundated at least once every 60 days",
-                                                  `3` = "Inundated at least once every 90 days",
-                                                  `4` = "Inundated by the 10-year storm",
-                                                  `5` = "Inundated by the 100-year storm",
-                                                  `6` = "Beyond the 100-year storm",
-                                                  `7` = "Below the 100-year storm but connected",
-                                                  `8` = "Protected by dikes",
-                                                  `-99` = "Beyond the 100-year storm",
-                                                  .default = "Beyond the 100-year storm",
-                                                  .missing = "Beyond the 100-year storm"),
-          StrmName = if_else(StrmName == " ", # If not " " (blank) then use name.
-                             true = "Unidentified", 
-                             false = as.character(StrmName)),
-         Rd_EvacRte = if_else(Rd_EvacRte == 1, "Yes", "No"),
-         PtrPriorit = if_else(PtrPriorit == 1, "Yes", "No"),
-         Percent_Imperv_HUC12 = paste0(Percent_Imperv_HUC12 * 100, "%"),
-         Functional_Class = recode(Functional_Class,
-                                   `-99` = "Undefined",
-                                   `11` = "Principal Arterial - Interstate",
-                                   `12` = "Principal Arterial - Other Freeway/Expressway",
-                                   `14` = "Principal Arterial - Other", 
-                                   `16` = "Minor Arterial",
-                                   `17` = "Major Collector",
-                                   `18` = "Minor Collector",
-                                   `19` = "Local"),
-         CrosCode = paste0("[",CrosCode, "](", CrosCode_link, ")")) %>% 
-  tidyr::gather(key = "field_Name", value = "dataValue") %>% 
-  dplyr::right_join(tsdn) %>% # join in the tidal data that's of interest from 
-  replace_na(replace = list(value = "-", score = "-")) %>% 
-  mutate(score = ifelse(str_detect(string = field_Name, pattern = "Score*"), yes = TRUE, no = FALSE)) %>% 
-  dplyr::select(Description, dataValue, SummarySection, dataType)  %>% 
-  spread(dataType, dataValue) %>% 
-  dplyr::select(Description, SummarySection, value, score) %>% 
-  mutate(score = na_if(score, -99)) %>% # pesky -99's sneaking in.
-  replace_na(replace = list(value = "--", score = "--")) %>% 
-  mutate(value = recode(value, 
+
+
+tidal_doc_data <- tidal_doc_data %>% left_join({tidalAssessmentData %>% st_drop_geometry()})
+
+
+tidal_table_data <- tidal_doc_data %>%
+  mutate(
+    # make a character string of the coordinates for text section.
+    Coordinates = paste(
+      round(st_coordinates(.)[2], digits = 5),
+      "N ",
+      round(st_coordinates(.)[1], digits = 5),
+      "W",
+      sep = ""
+    ),
+    CrossingType = recode(
+      CrossingType,
+      `2` =                          "Round Culvert",
+      `3`  =                     "Elliptical Culvert",
+      `4`  =                      "Pipe Arch Culvert",
+      `5`  =                            "Box Culvert",
+      `6`  =                 "Embedded Round Culvert",
+      `7`  =           "Embedded Elliptical Culvert",
+      `8`  =           "Embedded Pipe Arch Culvert",
+      `9`  =                       "Open Bottom Arch",
+      `10`  =                            "Arch Bridge",
+      `11`  =                  "Bridge with Abutments",
+      `12`  =                "Bridge with Side Slopes",
+      `13`  =  "Bridge with side Slopes and Abutments",
+      `14`  =                                  "Other"
+    ),
+    StructureMaterial = recode(
+      StructureMaterial,
+      `2`	= 'Concrete',
+      `3`	= 'Plastic-Corrugated',
+      `4` =	'Plastic-Smooth',
+      `5`	= 'Stone',
+      `6` =	'Corrugated Steel',
+      `7`	= 'Smooth Steel',
+      `8`	= 'Corrugated Aluminum',
+      `9`	= 'Wood',
+      `10` = 'Other'
+    ),
+    StructureConditionOverall = recode(
+      StructureConditionOverall,
+      `2` =	'Good',
+      `3` = 'Fair',
+      `4` =	'Poor'
+    )
+  ) %>%
+  st_drop_geometry() %>% janitor::adorn_rounding(digits = 2) %>%
+  mutate(
+    Suffolk_2085_HIGHMED_Inund_Freq = recode(
+      ss_Suffolk_2085_HIGHMED_Inund_Freq,
+      # How often is..inundated 2080s
+      `0` = "Open Water",
+      `1` = "Inundated at least once every 30 days",
+      `2` = "Inundated at least once every 60 days",
+      `3` = "Inundated at least once every 90 days",
+      `4` = "Inundated by the 10-year storm",
+      `5` = "Inundated by the 100-year storm",
+      `6` = "Never",
+      `7` = "Below the 100-year storm but connected",
+      `8` = "Protected by dikes",
+      `-99` = "Never",
+      .default = "Never",
+      .missing = "Never"
+    ),
+    # HACK: NA still being added to tables.Fixed below.
+    Suffolk_InitialCondition_Inund_Freq	= recode(
+      ss_Suffolk_InitialCondition_Inund_Freq,
+      # present day storm freq
+      `0` = "Open Water",
+      `1` = "Inundated at least once every 30 days",
+      `2` = "Inundated at least once every 60 days",
+      `3` = "Inundated at least once every 90 days",
+      `4` = "Inundated by the 10-year storm",
+      `5` = "Inundated by the 100-year storm",
+      `6` = "Beyond the 100-year storm",
+      `7` = "Below the 100-year storm but connected",
+      `8` = "Protected by dikes",
+      `-99` = "Beyond the 100-year storm",
+      .default = "Beyond the 100-year storm",
+      .missing = "Beyond the 100-year storm"
+    ),
+    # StrmName = if_else(StrmName == " ", # If not " " (blank) then use name.
+    #                    true = "Unidentified",
+    #                    false = as.character(StrmName)),
+    Rd_EvacRte = if_else(ss_Rd_EvacRte == 1, "Yes", "No"),
+    partPrior = if_else(Score_partPrior == 1, "No", "Yes"),
+    da_catchmentLndCover_imperv = paste0(da_catchmentLndCover_imperv, " %"),
+    # Are out tidal crossings impervious the same metric as the fresh?
+    Functional_Class = recode(
+      ss_Functional_Class,
+      `-99` = "Undefined",
+      `11` = "Principal Arterial - Interstate",
+      `12` = "Principal Arterial - Other Freeway/Expressway",
+      `14` = "Principal Arterial - Other",
+      `16` = "Minor Arterial",
+      `17` = "Major Collector",
+      `18` = "Minor Collector",
+      `19` = "Local"
+    ),
+    #TODO: REcode the Vegscote to text
+    # Impact on vegetation community
+    Vegchoice = recode(Vegchoice,
+                      "1A" = "None", # 1, # native only, same both sides
+                      "2A" = "None", # invasives through out, same both sides
+                      "2B" = "Slight", #2, # invasives through out, up and down stream communtites are slightly different
+                      "1B" = "Moderate", #3, # native only, different species on either side but appear similar (high marsh - low marsh)
+                      "3A" = "Moderate", # 3, # invasives on one side, tidal marsh on both sides
+                      "2C" = "Severe",  #4, # invasives through out, up and down stream communities represent different marsh types
+                      "3B" = "Severe",  #4, # invasives on one side, similar species/marsh type on either side
+                      "3C" = "Very Severe",  #5 # invasices on one side, up and down stream different species
+                      "1C" = "Very Severe"),   #5, # native only, tidal species one side, fresh species the other.) 
+    marshComplex = recode(Score_MarshComplex,
+                          '1' = "No marsh", 
+                          '3' = " $\\lt 15$ acres", 
+                          '5'= "$\\geq 15$ acres"),
+    crossingID = as.character(crossingID)
+  ) %>%
+  tidyr::gather(key = "field_Name", value = "dataValue") %>%
+  dplyr::right_join(tsdn) %>% # join in the tidal data that's of interest from the lookup on Teams.
+  replace_na(replace = list(dataValue = "  ", score = "--")) %>%
+  mutate(score = ifelse(dataType == "score",
+                        yes = TRUE,
+                        no = FALSE)) %>%
+  dplyr::select(Description, dataValue, SummarySection, position, dataType)  %>%
+  spread(dataType, dataValue) %>%
+  dplyr::select(Description, SummarySection, position, value, score) %>%
+  mutate(score = na_if(score,-99)) %>% # pesky -99's sneaking in.
+  replace_na(replace = list(value = "--", score = "--")) %>%
+  mutate(value = recode(value,
                         `-99` = "--",
                         .default = value))
-  
 
-
-ords <- summaryNeeds %>% select(Description, tableOrder)
+# Control the order of the values in the tables.
+# Edit the summaryNeeds source document on Teams to adjust.
+ords <- summaryNeeds %>% 
+  filter(protocol == "Tidal", !is.na(Description), !is.na(tableOrder)) %>% 
+  select(Description, tableOrder)
 
 # Style for kable tables.
 style <- function(.tab, pos = "center"){
@@ -125,27 +220,27 @@ style <- function(.tab, pos = "center"){
     # column_spec(2, width = "10em") 
 }
 
-assesDate <- format(fw_doc_data$Date_Observed, format = "%B %d, %Y")
+assesDate <- format(tidalAssessmentData$dateAssessed, format = "%B %d, %Y") 
 ```
 
 
 Project Background 
 =========================================================================
 
-The Long Island Road-Stream and Tidal Crossing Improvement Project, led by The Nature Conservancy with input from state, county, municipal, and other partners, has identified and prioritized road-stream and tidal crossings in Suffolk County, NY for upgrade or replacement. The prioritization is based on social and ecological criteria. Road-stream crossings, which include culverts and bridges, are an essential element of our transportation network. They allow roads to pass over rivers, streams, tidal creeks and wetlands. Undersized, poorly designed, or failing infrastructure at these crossings restricts water flow and can lead to flooding, road closures, property damage, degraded natural systems and impaired water quality.
-
-This document provides location and prioritization scoring for the freshwater crossing described below. Freshwater crossings  were assessed using the methodology developed by the [North Atlantic Aquatic Connectivity Collaborative (NAACC)](https://streamcontinuity.org/naacc). With the information these assessments provide, communities can strategically plan capital investments, secure funding, and implement high priority improvement projects with partners. 
+The Long Island Road-Stream and Tidal Crossing Improvement Project, led by The Nature Conservancy with input from state, county, municipal, and other partners, has identified and prioritized road-stream and tidal crossings in Suffolk County, NY for upgrade or replacement. The prioritization is based on social and ecological criteria. Road-stream crossings, which include culverts and bridges, are an essential element of our transportation network. They allow roads to pass over rivers, streams, tidal creeks, and wetlands. Tidal crossings are those that experience two-way tidal flow. Tidal systems are what they are and do what they do because the tide comes in and the tide goes out. When we mute this signal, we mute or eliminate their functions. Undersized, poorly designed, or failing infrastructure at these crossings restricts water flow and can lead to flooding, road closures, property damage, degraded natural systems, impaired water quality, and inability for tidal habitats to keep pace with sea level rise and migrate landward to persist into the future.
+This document provides location and prioritization scoring for the tidal crossing described below. Tidal crossings were assessed using the field and desktop methodology developed by [The Nature Conservancy in NH, NH Department of Environmental Services, and the University of NH](https://www.des.nh.gov/organization/divisions/water/wmb/coastal/resilient-tidal.htm#:~:text=The%20Resilient%20Tidal%20Crossings%20NH,opportunities%20at%20tidal%20crossing%20sites) with modifications to make them suitable for NY. With this information, communities can strategically plan capital investments, secure funding, and implement high priority improvement projects with partners.
 
 
 #### _Prioritization Scoring_
-Crossings are prioritized based on four categories of benefits: ecological benefit, resilience benefit, transportation benefit, and infrastructure condition benefit . Within each category, individual metrics are scored on a scale of 1 to 5 . Higher scores indicate a greater benefit and therefore higher priority for upgrade or replacement. Within each benefit category, metrics are summed and then re-scaled to a 1 to 5 scale. Finally, all four benefit scores are summed to calculate the Total Prioritization Score, with a potential range of 4 to 20. A detailed explanation of all the metrics and scoring methods for this prioritization is provided in the *Prioritization Scoring Summary* document found at the [project resources site.](https://tnc.box.com/s/b8blt0go96hlsxu6cb06e9y952scpjfr) 
+Crossings are prioritized based on four categories of benefits: ecological benefit, resilience benefit, transportation benefit, and infrastructure condition benefit. Within each category, individual metrics are scored on a scale of 1 to 5. Higher scores indicate a greater benefit and therefore higher priority for upgrade or replacement. Within each benefit category, metrics are summed and then re-scaled to a 1 to 5 scale. Finally, all four benefit scores are summed to calculate the Total Prioritization Score, with a potential range of 4 to 20. A detailed explanation of all the metrics and scoring methods for this prioritization is provided in the Prioritization Scoring Summary document found at the [project resources site.](https://tnc.box.com/s/b8blt0go96hlsxu6cb06e9y952scpjfr) 
 
 General Crossing Information
 ================================================================================
 
 <center>
-Assessed on <b>`r assesDate` </b>following the:  
-__NAACC Freshwater Protocol__
+Assessed on <b>`r assesDate` </b>  
+following the:  
+__TNC Tidal Protocol__
 </center>
 
 
@@ -190,7 +285,7 @@ tm_shape(coast) +
   tmap_mode(mode = "plot") +
  tm_shape(shp = fw_data) +
   tm_dots(col = "grey", size = .05, alpha = .3) +
- tm_shape(shp = fw_doc_data, is.master = TRUE) +
+ tm_shape(shp = tidal_doc_data, is.master = TRUE) +
   tm_dots(col = "red", size = 0.13) +
   tm_layout(outer.margins=c(.05,0,.05,0),  
             inner.margins=c(0,0,.02,0), asp=0, 
@@ -198,7 +293,7 @@ tm_shape(coast) +
             
 
 ```
-This crossing is located within the `r if_else(is.na(fw_doc_data$Estuary_Name), "", paste0("<strong>", fw_doc_data$Estuary_Name, "</strong>", " in the"))` <strong>Town of  `r fw_doc_data$gTown` </strong> at the intersection of the `r str_to_lower(fw_doc_data$Road_Jurisdiction)` owned `r strong(fw_doc_data$Road)` and `r strong(fw_doc_data$StrmName)`.  
+This crossing is located within the `r if_else(is.na(tidal_doc_data$Estuary_Name), "", paste0("<strong>", tidal_doc_data$Estuary_Name, "</strong>", " in the"))` <strong>Town of  `r tidal_doc_data$Municipality` </strong> at the intersection of `r strong(tidal_doc_data$roadName)` and `r strong(if_else(is.na(tidalAssessmentData$streamName), "", tidalAssessmentData$streamName))`.  
 Coordinates: `r coords`
 
 Final Scoring
@@ -223,16 +318,38 @@ Ecological Benefit
 ================================================================================
  
 ```{r}
+# Style for kable tables.
+style_eco <- function(.tab, pos = "center"){
+  kable_styling(kable_input = .tab, 
+                bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = T, 
+                position = pos) #%>% 
+  # column_spec(1, width = "30em") %>%
+    # column_spec(2, width = "10em") 
+}
 
-tidal_table_data %>% 
-  filter(SummarySection == "Ecological Factors") %>% 
-  left_join(ords) %>% 
-  filter(!is.na(tableOrder)) %>% 
-  arrange(tableOrder) %>% 
-  select(Description, value, score) %>%
-  kable(col.names = c("", "", "Score"), align = 'lcc') %>% 
-  style() %>% 
-  # footnote(general = "In accordance with the protocols, Aquatic Organism Passage (AOP) was assessed during summer low water conditions. As such, aquatic organism passage may be better than assessed during higher water conditions such as spring.", general_title = "Note:", footnote_as_chunk = T, fixed_small_size = T) %>% 
+tidal_table_data %>%
+  filter(SummarySection == "Ecological Factors") %>%# mutate_at(.vars = vars(value, score), .funs = as.numeric) %>%
+  pivot_longer(cols = c(value, score)) %>%
+  unite(pos_score, position, name) %>%
+  filter(!is.na(value)) %>%
+  pivot_wider(names_from = pos_score) %>% 
+
+
+  # Need to drop '--' and ' ' from columns
+  
+  left_join(ords) %>%
+  # filter(!is.na(tableOrder)) %>%
+  arrange(tableOrder) %>%
+  select(Description, 
+         # upstream_value, 
+         # downstream_value, 
+         overall_value, 
+         overall_score) %>%
+  # replace_na(replace =  list(upstream_value = " ", downstream_value = " ", overall_value = "--", overall_score = "--")) %>% 
+  kable(col.names = c("", "", "Score"), align = 'lcc') %>%
+  # pack_rows("") %>% 
+  style_eco() %>%
   I()
 
 ```
@@ -245,7 +362,6 @@ Resilience Benefit
 tidal_table_data %>% 
   filter(SummarySection == "Resilience Factors") %>% 
   left_join(ords) %>% 
-  filter(!is.na(tableOrder)) %>% 
   arrange(tableOrder) %>% 
   select(Description, value, score) %>%
   kable(col.names = c("", "", "Score"), align = 'lcc') %>% 
@@ -261,7 +377,7 @@ Transportation Benefit
 tidal_table_data %>% 
   filter(SummarySection == "Transportation Factors") %>% 
   left_join(ords) %>% 
-  filter(!is.na(tableOrder)) %>%
+  # filter(!is.na(tableOrder)) %>%
   arrange(tableOrder) %>% 
   select(Description, value, score) %>%
   kable(col.names = c("", "", "Score"), align = 'lcc') %>% 
@@ -277,9 +393,9 @@ tidal_table_data %>%
 h2("Infrastructure Condition Benefit")
 
 tidal_table_data %>%
-  filter(SummarySection == "Condition Factors") %>% 
+  filter(SummarySection == "Infrastructure Condition") %>% 
   left_join(ords) %>% 
-  filter(!is.na(tableOrder)) %>%
+  # filter(!is.na(tableOrder)) %>%
   arrange(tableOrder) %>% 
   select(Description, value, score) %>%
   kable(col.names = c("", "", "Score"), align = 'lcc') %>% 
@@ -289,25 +405,25 @@ tidal_table_data %>%
 
 ```   
 
-<section style="break-inside: avoid-page;">
+
+<div style='page-break-after: always'></div>
 _Disclaimer_ 
 ============================================================================== 
 This document is a screening tool for prioritizing planning efforts and is not intended to replace a site visit for making engineering or management decisions.  Due diligence is required to ensure that all infrastructure and property owners, permitting agencies and project engineers are consulted in advance of project planning. Please note that different entities may own the roadway, crossing infrastructure, water management structures, and the surrounding land. Information presented here represents the best available at the time of the assessment.  
 
-</section>
 
 Site Photos   
 ================================================================================
 
 ```{r fig.show="hold", message=FALSE, warning=FALSE, out.width="48%", paged.print=FALSE}
 # upstream
-up <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "upstream", path = photoFolder) %>% # changed to relative path to see if it fixes the chrome_print
+up <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "upstream", path = photoFolder, tidal = TRUE) %>% # changed to relative path to see if it fixes the chrome_print
                   photo_check()
-inlet <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "inlet", path = photoFolder) %>% 
+inlet <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "inlet", path = photoFolder, tidal = TRUE) %>% 
                   photo_check()
-outlet <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "outlet", path = photoFolder) %>% 
+outlet <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "outlet", path = photoFolder, tidal = TRUE) %>% 
                   photo_check()
-down <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "downstream", path = photoFolder) %>% 
+down <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "downstream", path = photoFolder, tidal = TRUE) %>%
                   photo_check()
 
 
@@ -315,10 +431,9 @@ down <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "down
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, out.width="48%", paged.print=FALSE}
 
-
 tags$div(class = "polaroid ",
          tags$a(target = "_blank",
-                tags$img(src = up)),
+                tags$img(src = up, alt = "Upstream view from structure")),
          tags$div(class = "desc", "Upstream view"))
 ```
 
@@ -348,7 +463,17 @@ tags$div(class = "polaroid",
                 tags$img(src = down, alt = "Downstream view from structure")),
          tags$div(class = "desc", "Downstream view"))
 
+```    
+
+Longitudinal Profile   
+================================================================================
+
+```{r profilePlots, fig.height=5, fig.width=7, message=FALSE, warning=FALSE, paged.print=FALSE}
+profilePlot[[1]] + theme(text = element_text(size = 11))
+
+
 ```
+
 
 ***  
 #### _Additional Information_  

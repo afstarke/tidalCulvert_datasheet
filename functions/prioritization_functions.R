@@ -19,7 +19,6 @@
 #**********************************************
 # E1. Salt Marsh Complex Size ----
 
-#' #CHANGED:
 #' Scoring assigned by supervised classifciation of
 #' crossings based on proximity to marsh complexes. Crossings near large complexes
 #' (>~15 acres in size) scored 5, crossings adjacent to smaller complexes were
@@ -29,9 +28,11 @@
 #**********************************************
 # E2. Salt Marsh Size upstream (whole watershed)----
 
-#' #REVIEW: Confirm what field this is referencing from Karen's model outputs.
-#' likely to be da_WatershedLndCover_wetland
-#'
+#' Scores binned in tidalCrossing_Prioritization.Rmd
+#' Catchment deliniated around each crossing and acreage 
+#' extracted from SLAMM current conditions raster. 
+#' # TODO: Ask Karen for confirmation and write up of 
+#' methods (likely to be similar to FW)
 #'
 
 
@@ -44,19 +45,22 @@
 #'
 
 
-# Tidal Range Ratio ----
-#' E3(a)
+# E3(a) Tidal Range Ratio ----
+#' 
 
 #' tidal_range_ratio
 #'
-#' @param us_hwi_stain 
-#' @param ds_hwi_stain 
-#' @param us_low_tide_elevation 
-#' @param ds_low_tide_elevation 
+#' @param us_hwi_stain Upsream stain high water indicator (HWI)
+#' @param ds_hwi_stain Downstream stain high water indicator
+#' @param us_low_tide_elevation Upstream low tide elevation corrected to NAVD88 (ft)
+#' @param ds_low_tide_elevation Downstream low tide elevation corrected to NAVD88 (ft)
 #'
-#' @return
+#' @return numeric value 0-1
 #' @export
-#'
+#' @description Tidal range ratio is a measure of the ratio of the tidal range upstream to the tidal range downstream
+#' of the crossing. A ratio approaching 1 signifies that tides rise and fall equally on both sides, indicating that 
+#' the structure is not significantly impeding tidal flow. Small tidal range ratios indicate that there is a larger tidal range 
+#' downstream (tideward) of the structure than upstream (landward). 
 #' @examples
 #' 
 tidal_range_ratio <- function(us_hwi_stain,
@@ -79,18 +83,19 @@ tidal_range_ratio <- function(us_hwi_stain,
 #' 
 crit_tidal_range <- function(tide_r_ratio){
   val <- tide_r_ratio
-  dplyr::case_when(
+  sc <- dplyr::case_when(
     val >= 0.90 ~ 1L, 
     val >= 0.80 & val < 0.90 ~ 2L,
     val >= 0.70 & val < 0.80 ~ 3L,
     val >= 0.50 & val < 0.70 ~ 4L,
     val < 0.50 ~ 5L
   )
+  return(sc)
 }
 
 
-# Crossing Ratio ----
-#' 3(b)
+# 3(b) Crossing Ratio ----
+#' 
 #' Crossing Ratio 
 #'  calculate the raw upstream or downstream crossing ratio for use in evaluating score and criteria.
 #'
@@ -130,8 +135,8 @@ crit_crossing_ratio <- function(crossing.ratio){
 
 
 #*****************
-# Erosion Classification ----
-#' 3(c)
+# 3(c) Erosion Classification ----
+#' 
 #' erosion_class
 #'
 #' @param scour_pool 
@@ -185,13 +190,6 @@ crit_taop <- crit_tidal_range
 #' 
 degtidalrestr <- function(tidal_rng_score, crossing_ratio_score, erosion_class_score){
   scores <- c(tidal_rng_score, crossing_ratio_score, erosion_class_score)
-  # if(all(scores %in% 1:5)){
-  #   finalscore <- mean(scores, na.rm = TRUE) #REVIEW: Confirm that we would want to drop any NAs
-  #   return(finalscore)
-  # } else{
-  #   return("Scores not valid. Check individual components to ensure scores are between 1 and 5.")
-  # }
-  # 
   finalscore <- mean(scores, na.rm = TRUE) 
     return(finalscore)
 }
@@ -210,17 +208,6 @@ degtidalrestr <- function(tidal_rng_score, crossing_ratio_score, erosion_class_s
 
 vegetationScore <- function(vegMatChoice){
   score <- case_when(
-    vegMatChoice == "1A" ~ 1L,
-    vegMatChoice == "1B" ~ 3L,
-    vegMatChoice == "1C" ~ 5L,
-    vegMatChoice == "2A" ~ 0L,
-    vegMatChoice == "2B" ~ 0L,
-    vegMatChoice == "2C" ~ 0L,
-    vegMatChoice == "3A" ~ 3L,
-    vegMatChoice == "3B" ~ 4L,
-    vegMatChoice == "3C" ~ 5L
-  )
-  score2 <- case_when(
     vegMatChoice == "1A" ~ 1L, # native only, same both sides
     vegMatChoice == "1B" ~ 3L, # native only, different species on either side but appear similar (high marsh - low marsh)
     vegMatChoice == "1C" ~ 5L, # native only, tidal species one side, fresh species the other.
@@ -231,103 +218,9 @@ vegetationScore <- function(vegMatChoice){
     vegMatChoice == "3B" ~ 4L, # invasives on one side, similar species/marsh type on either side 
     vegMatChoice == "3C" ~ 5L # invasices on one side, up and down stream different species
   )
-  return(score2)
+  return(score)
 }
 
-#' # Current Crossing Condition ----
-#' 
-#' #**********************************************
-#' # C1.v1 Crossing Condition ----
-#' #' Replicating the NH protocol 
-#' #' [29 April 2020] Team confirmed no scour used in this metric. Captured in C4. Erosion class below.
-#' #' 
-#' #' TODO: agree on scoring method- 1-5; 1-3-5.
-#' #'
-#' #' 
-#' #' @param overallCond 
-#' #' @param hwall_upCond 
-#' #' @param wwall_upCond 
-#' #' @param hwall_dwnCond 
-#' #' @param wwall_dwnCond 
-#' #' @param scourUp 
-#' #' @param scourDwn 
-#' #' @param scourIn 
-#' 
-#' crossingConditionScore_v3 <- function(overallCond, 
-#'                                    hwall_upCond, 
-#'                                    wwall_upCond, 
-#'                                    hwall_dwnCond,
-#'                                    wwall_dwnCond,
-#'                                    scourUp, 
-#'                                    scourDwn, 
-#'                                    scourIn){
-#'   # scour tally for determining number of 'high' scour scores.
-#'   # 'High' scour is ranked a 5 in the workbooks, therefore sum of 5
-#'   highscours <- sum(scourUp == 5, scourDwn == 5, scourIn == 5, na.rm = TRUE) # get tally of 'high' scour scores.
-#'   poorConditions <- sum(hwall_upCond == 4, hwall_dwnCond == 4, wwall_dwnCond == 4, wwall_dwnCond == 4, overallCond == 4, na.rm = TRUE) # tally 'poor' conditions
-#'   combinedScores <- sum(highscours, poorConditions, na.rm = TRUE)
-#'   goods <- sum(hwall_upCond == 2, hwall_dwnCond == 2, wwall_dwnCond == 2, wwall_dwnCond == 2, overallCond == 2, na.rm = TRUE)
-#'   fairs <- sum(hwall_upCond == 3, hwall_dwnCond == 3, wwall_dwnCond == 3, wwall_dwnCond == 3, overallCond == 3, na.rm = TRUE)
-#'   goodfairDiff <- goods - fairs # from NH protocol: Difference between tallied number of good and fair condition scores (presumable across sturcture)
-#'   
-#'   # Scoring section
-#'   finalscore <- dplyr::case_when(
-#'     overallCond == 1 ~ NA_integer_, # 1 is coded as blank, or unassessed in workbook.
-#'     combinedScores >= 3 ~ 5L, # note 2 ways to score a 5. If there are 3 or more high scours and poor conditions
-#'     overallCond == 3 | hwall_upCond == 5 & wwall_upCond == 5 & hwall_dwnCond == 5 & wwall_dwnCond == 5 ~ 5L, # note 2 ways to score a 5. If overall a poor and there's no wingwalls or headwalls
-#'     combinedScores == 2 | overallCond == 4 ~ 4L,
-#'     poorConditions == 1 | highscours == 1 ~ 3L,
-#'     poorConditions == 0 & highscours == 0 & goodfairDiff < 1 ~ 2L,
-#'     poorConditions == 0 & highscours == 0 & goodfairDiff > 1 ~ 1L
-#'     
-#'   )
-#'  
-#'   return(finalscore)
-#' }
-#' 
-#' 
-#' #**********************************************
-#' # C1.v2 Crossing Condition V2----
-#' #'
-#' #' TODO: agree on scoring method .
-#' #' This method splits out just the scoring of condition, _does not include scouring scores_.
-#' #' From Teams:
-#' #' 4-5 good conditions  => 1 
-#' #' 'mostly fair' conditions (no poors, and more fairs than goods)  => 2
-#' #' one poor condition => 3
-#' #' 2 poor conditions => 4
-#' #' '> = ' 3 poor conditions  => 5 (NH also scores crossings with out wing and headwalls a 5 if the overall condition is poor)
-#' #' 
-#' #' @param overallCond 
-#' #' @param hwall_upCond 
-#' #' @param wwall_upCond 
-#' #' @param hwall_dwnCond 
-#' #' @param wwall_dwnCond 
-#' 
-#' crossingConditionScore_v2 <- function(overallCond, 
-#'                                       hwall_upCond, 
-#'                                       wwall_upCond, 
-#'                                       hwall_dwnCond,
-#'                                       wwall_dwnCond){
-#'   # tally the number of scores given across the 5 areas condition is assessed at.
-#'   goods <- sum(hwall_upCond == 2, hwall_dwnCond == 2, wwall_dwnCond == 2, wwall_dwnCond == 2, overallCond == 2, na.rm = TRUE) # tally of 'Good'
-#'   fairs <- sum(hwall_upCond == 3, hwall_dwnCond == 3, wwall_dwnCond == 3, wwall_dwnCond == 3, overallCond == 3, na.rm = TRUE) # tally of 'Fair'
-#'   poors <- sum(hwall_upCond == 4, hwall_dwnCond == 4, wwall_dwnCond == 4, wwall_dwnCond == 4, overallCond == 4, na.rm = TRUE) # tally 'poor' conditions
-#'   goodfairDiff <- goods - fairs # from NH protocol: Difference between tallied number of good and fair condition scores (presumable across sturcture)
-#'   
-#'   # Scoring section
-#'   finalscore <- dplyr::case_when(
-#'     overallCond == 1 ~ NA_integer_, # 1 is coded as blank, or unassessed in workbook.
-#'     overallCond == 3 | hwall_upCond == 5 & wwall_upCond == 5 & hwall_dwnCond == 5 & wwall_dwnCond == 5 ~ 5L, # note 2 ways to score a 5. If overall a poor and there's no wingwalls or headwalls
-#'     poors == 2 | overallCond == 4 ~ 4L,
-#'     poors == 1  ~ 3L,
-#'     poors == 0 & fairs > goods ~ 2L,
-#'     poors == 0 & goods >= 4 ~ 1L
-#'     
-#'   )
-#'   
-#'   return(finalscore)
-#' }
 
 # C1: Crossing Condition ----
 #' crossingConditionScore
@@ -375,34 +268,86 @@ crossingConditionScore <- function(overallCond,
 
 
 
-# C3: highwater_clearance_ratio ---------------------------------------------------------
-#' an attempt at scoring based on a ratio of elevations (high water and road) 
-#' to avoid issue with a static scoring method across different tidal 
-#' regime/heights. 
+# C3: highwater_risk_lack_of _clearance ---------------------------------------------------------
+#' 
 #' 
 #' See: https://streamcontinuity.org/sites/streamcontinuity.org/files/pdf-doc-ppt/Scoring%20System%20for%20Tidal%20Crossings%2003-19-19.pdf
 
-#' highwater_ratio
+#' highwater_clearance
 #'
-#' @param hwi High water indicator- one of either wrack line or stain on structure
-#' @param poi Road height as acquired by LIDAR via desktop assessment portion of assessment
+#'
+#' @param us_hwi_stain 
+#' @param ds_hwi_stain 
+#' @param us_ceiling 
+#' @param ds_ceiling 
+#' @param us_hwi_wrack 
+#' @param ds_hwi_wrack 
+#' @param us_road 
+#' @param ds_road 
 #'
 #' @return
 #' @export
 #'
 #' @examples
-highwater_ratio <- function(hwi, poi){
-  
-  highwaterRescale <- function(a,b){
-    minVal <- min(a,b, na.rm = T)
-    rescaleVal <- abs(minVal) + .00001 # Make it very small but above zero
-    return(rescaleVal)
+highwater_clearance <-
+  function(us_hwi_stain = `HWI Stain US`,
+           ds_hwi_stain =  `HWI Stain DS`,
+           us_ceiling = `Ceiling of Structure US`,
+           ds_ceiling = `Ceiling of Structure DS`,
+           us_hwi_wrack = `HWI Wrack US`,
+           ds_hwi_wrack = `HWI Wrack DS`,
+           us_road = `Road Surface US`,
+           ds_road = `Road Surface DS`) {
+    # risk of high water - upstream side
+    # wrack and road
+    # if wrack is below the stain than we want to use the stain to avoid unintended bias based on wrack left by an outgoing lower tide- 
+    
+    highwater_dif_US <-  us_road -  us_hwi_wrack
+    # scored
+    score_highwater_dif_US <-
+      as.numeric(
+        cut(x = highwater_dif_US, breaks = c(-Inf, 0, 1.5, 3, 6, Inf)),
+        labels = 5:1,
+        ordered_result = FALSE
+      )
+    # risk of high water - downstream side
+    highwater_dif_DS <-  ds_road - ds_hwi_wrack
+    # scored
+    score_highwater_dif_DS = as.numeric(
+      cut(x = highwater_dif_DS, breaks = c(-Inf, 0, 1.5, 3, 6, Inf)),
+      labels = 5:1,
+      ordered_result = FALSE
+    )
+    
+    # clearance - downstream side
+    clearance_dif_DS <- ds_ceiling - ds_hwi_stain
+    # scored
+    score_clearance_dif_DS <-  as.numeric(
+      cut(x = clearance_dif_DS, breaks = c(-Inf, 0, 1, 2, 3, Inf)),
+      labels = 5:1,
+      ordered_result = FALSE
+    )
+    # clearance - upstream side
+    clearance_dif_US <-  us_ceiling - us_hwi_stain
+    # scored
+    score_clearance_dif_US = as.numeric(
+      cut(x = clearance_dif_US, breaks = c(-Inf, 0, 1, 2, 3, Inf)),
+      labels = 5:1,
+      ordered_result = FALSE
+    )
+    # return max of clearances if they are available-
+    clearance_Sc <-  max(score_clearance_dif_DS,
+                         score_clearance_dif_US,
+                         na.rm = T)
+    highwater_Sc <- max(score_highwater_dif_DS,
+                        score_highwater_dif_US,
+                        na.rm = T)
+    if (is.na(clearance_Sc)) {
+      return(highwater_Sc)
+    } else {
+      return(clearance_Sc)
+    }
   }
-  
-   ratio <- (highwaterRescale(hwi, poi) + hwi) / (highwaterRescale(hwi, poi) + poi)
-  
-  return(ratio)
-}
 
 # Resilience Benefit ----
 #'
@@ -441,11 +386,16 @@ highwater_ratio <- function(hwi, poi){
 # else
 # RB = -99
 # end if
-benefit_score <- function(total.benefit.score, resilience.score = F){
+benefit_score <- function(total.benefit.score, resilience.score = F, transporation.score = F){
   if(resilience.score == F){
     score <- cut(x = total.benefit.score, breaks = c(-Inf, 4, 8, 12, 16, Inf), labels = c(1:5))
     score <- as.numeric(score)
-  }else{
+  }
+  if(transporation.score == T){
+    score <- cut(x = total.benefit.score, breaks = c(-Inf, 2, 4, 6, 8, Inf), labels = c(1:5))
+    score <- as.numeric(score)
+  }
+  else{
     score <- cut(x = total.benefit.score, breaks = c(-Inf, 3, 6, 9, 12, Inf), labels = c(1:5))
     score <- as.numeric(score)
   }
