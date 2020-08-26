@@ -1,3 +1,4 @@
+inst/doc
 .Rproj.user
 .Rhistory
 .RData
@@ -36,3 +37,9 @@ styletemplate.docx
 vegmatrix.PNG
 tidalRangeRatioTable.PNG
 gutchecks.R
+.Rbuildignore
+roadstreamCrossings.Rproj
+tidalPrioritizartion_graph.gv
+tidalCrossing_Prioritizations.pdf
+scratch2.R
+styles.css
