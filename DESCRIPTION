@@ -1,0 +1,17 @@
+Package: roadstreamCrossings
+Title: Long Island Road-Stream Crossing Prioritization project documentation
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Adam",
+           family = "Starke",
+           role = c("aut", "cre"),
+           email = "astarke@tnc.org")
+Description: Largely a package containing documentation of methods used in the prioritizations of road-stream crossings on Long Island. Fresh and tidal-influenced culverts.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.1
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr

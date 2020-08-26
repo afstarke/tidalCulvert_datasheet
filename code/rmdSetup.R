@@ -6,6 +6,7 @@
 source("00_libraries.R")
 source("functions/culvert_tidy.R")
 source("utilities/photoMatchTable.R")
+source('~/R/roadstreamCrossings/utilities/helpers.R')
 # Data Update:
 ## Update the Data?!
 dataUpdate <- 1
@@ -15,6 +16,8 @@ pivots <- 0
 # Keep false when running many times to avoid conflicts with Box
 
 writeOutputs = dataUpdate
+arcgisbinding::arc.check_product()
+arcgisbinding::arc.check_portal()
 
 
 ## Set up folders ----
@@ -67,110 +70,154 @@ crossingTrackerlist <- crossingTracker %>%
 # add a few attributes/fields for prioritization and tracking 'field assessment schedules'
 
 # Culvert Catchments ----
-if(spatialDataUpdate == 1){
-  catchments <- st_read("M:/Projects/LI/Culvert_Assessment/data/Tidal_Desktop_Assessment/Tidal_Catchments.gdb", layer = "MASTER_TidalCatchments_Latest")
-  catchments %>% write_rds(path = "data/LIculvert_Catchments.rds")
-}else{
-  catchments <- read_rds("data/LIculvert_Catchments.rds")  
-  }
+  # ALL DATA contained in these catchments that was relevant has been transferred to the tidal_desktop points themselves. If updates needed rerun this and rejoin missing values to hosted feature.
+# if(spatialDataUpdate == 1){
+  # catchments <- st_read("M:/Projects/LI/Culvert_Assessment/data/Tidal_Desktop_Assessment/Tidal_Catchments.gdb", layer = "MASTER_TidalCatchments_Latest")
+#   catchments %>% write_rds(path = "data/LIculvert_Catchments.rds")
+# }else{
+  # catchments <- read_rds("data/LIculvert_Catchments.rds")
+#   }
     
-# Culvert locations ----
-# Pull from AGOL directly. # NOTE: token needed to get access, refreshed token occaisionally. 
-tidalCrossings_desktop <- sf::st_read("https://services.arcgis.com/F7DSX1DSNSiWmOqh/arcgis/rest/services/TidalCrossing_desktopDataEntry/FeatureServer/0/query?where=fid+%3E+0&objectIds=&time=&geometry=&geometryType=esriGeometryPoint&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnHiddenFields=false&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pgeojson&token=aK__wCdXvhxvEXy7C0lazehgQuwjyubP-hO-h-6GMvC41SVS2F0ZTwcBji4qFe5g7lBN1zxzoWAMNCc-FhddVlLNXOnnkii17JqcCk_xXSY54bUC0hRM-HymLaPH9ZQkiLoYCPnMtHea45Ne8l__9F1Q2fdRAQGpBzLwGeJX63kJ77TmfQ2pHXWrV7c4zrFTwj0yq0TlJmcyd_a92z1azp-Ykn2ggUEH-I1MpRx8d3FsVYmeXa1O12oMBUGdCY7S", 
-                                      stringsAsFactors = F) #dont bring in as factors.
-culvertPOTpts <- tidalCrossings_desktop #%>% select(crossingID:Latitude) # trim desktop data?
-# remove to keep the workspace tidy.
-rm(tidalCrossings_desktop)
 
+  # Culvert locations ----
+  #' 
+  #' Complete list of culvert locations and desktop assessment data housed in ArcGIS Online TidalCrossing_desktopDataEntry hosted feature serice. 
+  #' ALL data additions, edits updates etc, for culvert locations and desktop assessment happens here.
+  #'  
 if(dataUpdate == 1){
-  LIculvert_GISpts <- culvertPOTpts %>% st_transform(4326) %>% 
+ 
+  # Pull from AGOL directly using credentials contained in the arcgisbindings arc.check_portal call
+  tidalCrossings_desktop <- arcgisbinding::arc.open("https://services.arcgis.com/F7DSX1DSNSiWmOqh/arcgis/rest/services/TidalCrossing_desktopDataEntry/FeatureServer/0") %>% 
+    arc.select() %>% 
+    arcgisbinding::arc.data2sf()
+    
+  # culvertPOTpts <- tidalCrossings_desktop #%>% select(crossingID:Latitude) # trim desktop data?
+  # # remove to keep the workspace tidy.
+  # rm(tidalCrossings_desktop)
+  LIculvert_GISpts <- tidalCrossings_desktop %>% st_transform(4326) %>% 
     st_zm(drop = TRUE) %>% 
-    mutate(PriorityScore = as.numeric(PtrPriorit) + as.numeric(TNCPriorit_1) + as.numeric(MarPriorit_1)) %>% # create a new 'priority score'
+    mutate(crossingID = CrossingID_, PriorityScore = as.numeric(PtrPriorit) + as.numeric(TNCPriorit_1) + as.numeric(MarPriorit_1)) %>% # create a new 'priority score'
     mutate(listedOnFieldSched = crossingID %in% crossings_TODO, Located = "Y",
            crossingID = as.numeric(crossingID)) 
   LIculvert_GISpts %>% write_rds(path = "data/LIculvert_GISpts.rds")
+  rm(tidalCrossings_desktop)
 } else{
   LIculvert_GISpts <- read_rds("data/LIculvert_GISpts.rds")
 }
-# remove to keep the workspace tidy.
-rm(culvertPOTpts)
-
-roadHts <- LIculvert_GISpts %>% select(crossingID, da_LiDarHt_CL) %>% st_drop_geometry() %>% 
+#' roadMeas- used below to add in road widths and height as columns in nested dataframe (to be then used in calculations) that 
+#' is needed for longitudinal profile plots.
+roadMeas <- LIculvert_GISpts %>% select(crossingID, da_LiDarHt_CL, da_RoadWidth) %>% st_drop_geometry() %>%
   mutate(crossingID = as.character(crossingID))
 
 ## @knitr culvertData  ----
-# Extract the field data from the workbooks and bring them in.
-# Key functions
-source("functions/culvert_tidy.R")
+  #' Extract the field data from the workbooks and bring them in as an tidy nested dataframe
+  #' Key functions for this are found in the functions folder.
+  #' This dataframe functions as the primary container for the field data currently housed in the many excel files on Box.
+source("functions/culvert_tidy.R") 
 source("functions/culvert_extract.R")    
-if(dataUpdate == 1){
+source(here::here("summarySheets", "tidal_longitudinalPlots.R"))
+if(dataUpdate == 1) {
   # Create a nested dataframe with filenames, file paths, and tidied cells from tidal assessment workbooks,
-  # columns include tidycells- raw cell content from each workbook; decoded- transformed raw values extracted from 
-  # workbooks using key as lookup; 
-  # This tibble should be the same length as the number of worksheets in the folder where the data is stored. 
+  # columns include tidycells- raw cell content from each workbook; decoded- transformed raw values extracted from
+  # workbooks using key as lookup;
+  # This tibble should be the same length as the number of worksheets in the folder where the data is stored.
   # TODO: Check that the fielddata column contains the same data as the LIculvertData object- if so remove the later from this script
-  LIculvertsAssessments <- culvert_tidy(tidalCulvert_datasheetsFolder) 
-  LIculvertsAssessments <- LIculvertsAssessments %>% 
-    mutate(crossingID = map_chr(.x = tidycells, ~culvert_extract(tidycells = .x, sheetOI = 'Data Sheet - SITE', celladdress = 'L7'))) %>% 
-    left_join(roadHts, by = "crossingID") %>% # join in the LIDAR road heights to incoprorate the desktop collected road heights for calculating longProfile.
-    mutate(decoded = map(.x = tidycells, .f = ~decodeSheet(.x, keysheet)), # this is where the sausage is made. 
-           fielddata = map(.x = decoded, .f = ~cleanField(.x)),
-           longProfile = pmap(.l = list(filePath, tidycells, da_LiDarHt_CL), .f = ~channelLongidinalProfile_extract(..1, ..2, ..3)), # longitudinal profile data
-           rawheights = pmap(.l = list(filePath, tidycells, da_LiDarHt_CL), .f = ~crossSection(..1, ..2, ..3)), # crossing sectional profile data # Added possibly() to function call in tidyCulvert.R
-           crossHeights = pmap(.l = list(tidycells, longProfile, rawheights), # TODO: Better build out the horizontal distance calcs.
-                               .f = possibly(calcHeights, otherwise = "Failed to calculate")))
-  LIculvertsAssessments %>% write_rds(path = "data/LIculvertsAssessments.rds")
-}else{
-  LIculvertsAssessments <- read_rds(path = "data/LIculvertsAssessments.rds")
-}
-
-  # Culvert Field Assessment Data ----
-if(dataUpdate == 1){
-  # unnest the tidyxl data to create a large tidy dataframe
-  LIculvertData <- LIculvertsAssessments %>% 
-    select(filenames, lastChanges, decoded) %>% 
-    unnest() %>% select(filenames, lastChanges, dataName, values) %>% 
-    spread(key = dataName, value = values) %>% 
-    select(filenames, crossingID, dateAssessed, observers, everything()) %>% # organize the order of the columns.
-    mutate(dateAssessed2 = lubridate::parse_date_time(dateAssessed, orders = 'ymd'),
-           AsmtStartTime = format(AsmtStartTime, format = "%H:%M:%S"),
-           AsmtEndTime = format(AsmtEndTime, format = "%H:%M:%S"),
-           crossingID = as.numeric(crossingID)) %>% 
-    mutate_if(is.character, list(~na_if(., "N/A"))) %>%   # Convert character columns with "N/A" to NA
-    mutate_at(numericVars, as.numeric) %>% 
-    mutate_at(logicalVars, as.logical)
-  # DONE: mutate outlet to Atlantic and outlet Subtidal to be one column each not 2 as in the datasheet.
-  # DONE: Add column in key sheet that will be used as data dictionary. Select and paste that info to sheet 2 of the culvert data output below.
-  
-  # Munge and add in the vegetation matrix selections
-  vegMats <- LIculvertData %>% 
-    select(crossingID, starts_with("veg")) %>% 
-    gather(-crossingID, key = 'key', value = "val") %>% 
-    separate(col = key, into = c("key", "Vegchoice")) %>% 
-    mutate(VegetMat_select = ifelse(val, yes = val, no = NA)) %>% 
-    filter(!is.na(VegetMat_select)) %>% select(crossingID, Vegchoice) 
-  LIculvertData <- LIculvertData %>% left_join(vegMats) %>% select(-starts_with("vegMat"))
-  
-  LIculvertData2 <- LIculvertsAssessments %>% select(fielddata) %>% unnest()
-  
-  LIculvertData %>% write_rds(path = "data/LIculvertData.rds")
-}else{
-  LIculvertData <- read_rds(path = "data/LIculvertData.rds")
-}
-
-# QA (con't) ----
-
-if (typeof(LIculvertData$crossingID) == typeof(LIculvert_GISpts$crossingID)) {
-  # Are the two columns the same datatype?
-  matchedLIculverts <-
-    LIculvertData %>% filter(crossingID %in% LIculvert_GISpts$crossingID) %>% 
-    select(filenames, crossingID) # Culvert datasheets that ARE IN GIS point dataset
-  missingLIculverts <-
-    LIculvertData %>% filter(!crossingID %in% LIculvert_GISpts$crossingID) %>% 
-    select(filenames, crossingID) # Culvert datasheets that ARE NOT IN GIS points.
+  LIculvertAssessments <-
+    culvert_tidy(tidalCulvert_datasheetsFolder)
+  # Build out dataframe to add crossings longitudinal profiles, cross sectional measures, 
+  LIculvertAssessments <- LIculvertAssessments %>%
+    mutate(crossingID = map_chr(
+      .x = tidycells,
+      ~ culvert_extract(
+        tidycells = .x,
+        sheetOI = 'Data Sheet - SITE',
+        celladdress = 'L7'
+      )
+    )) %>%
+    # join in the LIDAR road heights and road widths from the desktop collected data. That data stored in ArcGIS Online service feature
+    left_join(roadMeas, by = "crossingID") %>%
+    mutate(
+      # this is where the sausage is made. decodeSheet pulls needed cells from excel sheets, names the data appropriately, and addes it to dataframe stored in 'decoded'
+      decoded = map(.x = tidycells, .f = ~ decodeSheet(.x, keysheet)),
+      # Clean up some data formating etc.
+      fielddata = map(.x = decoded, .f = ~ cleanField(.x)),
+      # longitudinal profile data
+      longProfile = pmap(
+        .l = list(
+          filepath = filePath,
+          tidycells = tidycells,
+          lidarHt = da_LiDarHt_CL
+        ),
+        .f = ~ channelLongidinalProfile_extract(
+          filepath = ..1,
+          tidycells =  ..2,
+          lidarHts = ..3
+        )
+      ),
+      
+      crossSectionProfile = pmap(
+        .l = list(
+          filepath = filePath,
+          tidycells = tidycells,
+          lidarMeasure = da_LiDarHt_CL,
+          roadWidth = da_RoadWidth
+        ),
+        .f = ~ crossSection(
+          filepath = ..1,
+          tidycells = ..2,
+          lidarMeasure = ..3,
+          roadWidth = ..4
+        )
+      ),
+      
+      profilePlots = map2(
+        .x = longProfile,
+        .y = crossSectionProfile,
+        .f = ~ drawCrossing(longitudinal = .x, crossSectional = .y)
+      )
+      
+    )
+  LIculvertAssessments %>% write_rds(path = "data/LIculvertAssessments.rds") # LIculvertAssessments 
 } else{
-  stop("CrossingID not same data type (character vs numeric)")
+  LIculvertAssessments <-
+    read_rds(path = "data/LIculvertAssessments.rds")
 }
+
+#   # Culvert Field Assessment Data ----
+LIculvertData <- LIculvertAssessments %>% select(fielddata) %>% unnest(cols = c(fielddata))
+
+
+# if(dataUpdate == 1){
+#   # unnest the tidyxl data to create a large tidy dataframe
+#   LIculvertData <- LIculvertAssessments %>% 
+#     select(filenames, lastChanges, decoded) %>% 
+#     unnest() %>% select(filenames, lastChanges, dataName, values) %>% 
+#     spread(key = dataName, value = values) %>% 
+#     select(filenames, crossingID, dateAssessed, observers, everything()) %>% # organize the order of the columns.
+#     mutate(dateAssessed2 = lubridate::parse_date_time(dateAssessed, orders = 'ymd'),
+#            AsmtStartTime = format(AsmtStartTime, format = "%H:%M:%S"),
+#            AsmtEndTime = format(AsmtEndTime, format = "%H:%M:%S"),
+#            crossingID = as.numeric(crossingID)) %>% 
+#     mutate_if(is.character, list(~na_if(., "N/A"))) %>%   # Convert character columns with "N/A" to NA
+#     mutate_at(numericVars, as.numeric) %>% 
+#     mutate_at(logicalVars, as.logical)
+#   # DONE: mutate outlet to Atlantic and outlet Subtidal to be one column each not 2 as in the datasheet.
+#   # DONE: Add column in key sheet that will be used as data dictionary. Select and paste that info to sheet 2 of the culvert data output below.
+#   
+#   # Munge and add in the vegetation matrix selections
+#   vegMats <- LIculvertData %>% 
+#     select(crossingID, starts_with("veg")) %>% 
+#     gather(-crossingID, key = 'key', value = "val") %>% 
+#     separate(col = key, into = c("key", "Vegchoice")) %>% 
+#     mutate(VegetMat_select = ifelse(val, yes = val, no = NA)) %>% 
+#     filter(!is.na(VegetMat_select)) %>% select(crossingID, Vegchoice) 
+#   LIculvertData <- LIculvertData %>% left_join(vegMats) %>% select(-starts_with("vegMat"))
+#   
+#   
+#   LIculvertData %>% write_rds(path = "data/LIculvertData.rds")
+# }else{
+#   LIculvertData <- read_rds(path = "data/LIculvertData.rds")
+# }
 
 
 LIculvertData_location <- LIculvert_GISpts %>% 
@@ -181,7 +228,7 @@ LIculvertData_location <- LIculvert_GISpts %>%
 #' Mostly unused now as project transitions to prioritizations.
 
 if(dataUpdate == 1){
-  LIculvertDataStatus <- LIculvertsAssessments %>% 
+  LIculvertDataStatus <- LIculvertAssessments %>% 
     select(filenames, lastChanges, filePath, decoded) %>% 
     unnest(decoded, .drop = FALSE) %>% 
     select(filenames, lastChanges, filePath, dataName, values) %>%
@@ -247,22 +294,6 @@ if(writeOutputs == TRUE){
 }
 
 
-# Pivot tables ----
-## @knitr fieldAssessmentPivot
-# grouped by = FieldAssessmentComplete,listedOnFieldSched
-
-LIculvertDataStatus_location %>% st_drop_geometry() %>% 
-  group_by(FieldAssessmentComplete,listedOnFieldSched) %>%
-  rpivotTable::rpivotTable(rows = "FieldAssessmentComplete", cols = "listedOnFieldSched")
-
-
-if(pivots == 1){
-  # crossingTracker %>% select(crossingID, PtrPriorit:`TNC&PtnrSum`, `Revisit required?`, `Field Ass. Complete(Y/N)`) %>% 
-  # group_by(`Field Ass. Complete(Y/N)`, TNCPriorit) %>% tally() 
-  crossingTracker %>% 
-    select(crossingID, PtrPriorit:`TNC&PtnrSum`, `Revisit required?`, `Field Ass. Complete(Y/N)`) %>% 
-    rpivotTable()
-}
 
 # # GIS ouputs for Karen- M:\Projects\LI\Culvert_Assessment\data\Tidal Crossings
 # LIculvertDataStatus_location %>% select(crossingID, FieldAssessmentComplete) %>%

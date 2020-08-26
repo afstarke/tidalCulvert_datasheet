@@ -39,6 +39,7 @@ summaryNeeds <- read_xlsx(path = here::here("../../../The Nature Conservancy/Lon
 # TODO: Add tidal to the obect name to distinguish
 tidalPrioritization <- read_rds(here::here("data", "/LIculvertPrioritizations.rds"))
 # load the assessment data which contains some additional metrics and info used in the summary sheets.
+# This data created in 
 LIculvertAssessmentData <- read_rds(here::here("data", "/LIculvertAssessmentData.rds"))
 
 # Pull in sheet with meta info and field headings needed
@@ -46,7 +47,7 @@ LIculvertAssessmentData <- read_rds(here::here("data", "/LIculvertAssessmentData
 tsdn <- summaryNeeds %>% 
   filter(protocol == "Tidal") %>% 
   filter(needed == "Y") %>% 
-  select(field_Name, Description, SummarySection, dataType, tableOrder)
+  select(field_Name, Description, SummarySection, dataType, position, tableOrder)
 
 write_rds(tsdn, here::here("data/tsdn.rds"))
 # IDEA: 1st step: filter, select the proper columns needed for the summary sheet, with column identifying the section that it will land. 
@@ -67,7 +68,7 @@ write_rds(tsdn, here::here("data/tsdn.rds"))
 # [2/18 7:23 PM] Stephen Lloyd
 # Photos are here: \\nyspatial.tnc.org\gisdata\Projects\LI\Culvert_Assessment\photos and the match table I created is in there called: match_table_021820.csv
 # 
-# fw_data <- st_read("M://Projects/LI/Culvert_Assessment/data/FreshwaterPrioritization/FreshwaterPrioritization_for_webtool.gdb", stringsAsFactors = F, layer = "TNC_NAACC_FreshwaterPrioritization_032720") %>%
+# fw_data <- st_read("M:/Projects/LI/Culvert_Assessment/web/FreshwaterPrioritization_for_webtool.gdb", stringsAsFactors = F, layer = "TNC_NAACC_FreshwaterPrioritization_032720") %>%
 # st_transform(crs = 4326)
 # fw_data %>% write_rds(here::here("data/fwaterPrioritizations.rds"))
 # ## @knitr freshDataRead
@@ -98,17 +99,19 @@ slrScenarios <- tibble::tribble(
   )
 write_rds(slrScenarios, here::here("data/slrScenariosLOOKUP.rds"))
 
-## Photos
 
+# ##%######################################################%##
+#                                                          #
+####                       Photos                        ####
+#                                                          #
+##%######################################################%##
 # Build match table
-
-
 
 photo_check <- function(path){
   if(!file.exists(path)){
     return(knitr::include_graphics(path = "256px-No_image_available.png", dpi = 72))
   }else{
-   pic <-  knitr::include_graphics(path = path, auto_pdf = TRUE, dpi = 72)
+   pic <-  knitr::include_graphics(path = path, auto_pdf = FALSE, dpi = 72)
    return(pic)
   }
 }
@@ -116,7 +119,7 @@ photo_check <- function(path){
 #' photo_link
 #'
 #' @param crossingID 
-#' @param matchTable 
+#' @param matchTable table with columns of photo names (containing the subject of the photo) and crossing IDs
 #' @param subject of the photo, options being "inlet", "outlet", "upstream", "downstream", "other"
 #' @param path path to master photo directory, not crossing specific subfolder.
 #'
@@ -124,18 +127,22 @@ photo_check <- function(path){
 #' @export
 #'
 #' @examples
-photo_link <- function(crossingID, matchTable, subject, path){
+photo_link <- function(crossingID, matchTable, subject, path, tidal = FALSE){
  
   imgs <- matchTable %>% filter(ID == crossingID) %>% select(ImageName) %>% as_vector()
+  tidalID <- paste0("Crossing ID _",crossingID)
   switch(subject,
-         inlet = {imgs %>% str_detect("nlet") -> imgname}, # make a more robust str_detect statemement.
-         outlet = {imgs %>% str_detect("utlet") -> imgname},
-         upstream = {imgs %>% str_detect("pstream") -> imgname},
-         downstream = {imgs %>% str_detect("ownstream") -> imgname},
+         inlet = {imgs %>% str_detect("nlet|US toward") -> imgname}, # make a more robust str_detect statemement.
+         outlet = {imgs %>% str_detect("utlet|DS toward") -> imgname},
+         upstream = {imgs %>% str_detect("pstream|US above") -> imgname},
+         downstream = {imgs %>% str_detect("ownstream|DS above") -> imgname},
          # other = {imgs %>% str_detect("")} Doesn't seem to be any 'others' as of now.
          stop("Missing subject argument.") # Return a message indicating missing argument.
          )
   selectimg <- imgs[imgname] # subset the vector that is TRUE
+  if(tidal == TRUE){
+    crossingID <- tidalID # if this is a tidal site then the naming convention is not the same as FW- replace character string to build the picpath path.
+  }
   picpath <- paste0(path, "/", crossingID, "/", selectimg) # construct the path
   if(length(picpath) == 1){ # catch duplicate paths 
     return(picpath)
