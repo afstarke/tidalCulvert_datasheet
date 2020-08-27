@@ -85,7 +85,7 @@ LIculvertAssessments %>% filter(crossingID != 71) %>% # FIXME: this crossing is 
   spread(key = FP, value = adjustedHt) -> heights # heights are needed for some of the calculations. Perhaps a better method would be to use SQL-like queries referencing multiple tables as needed. 
 
 LIculvertAssessmentData <- LIculvertData_location %>% left_join(heights) # makes for a very wide dataset
-LIculvertAssessmentData %>% write_rds("data/LIculvertAssessmentData.rds") # Data are updated each run. This 
+LIculvertAssessmentData %>% write_rds("data/LIculvertAssessmentData.rds") # Data are updated each run.
 ```
 
 *** 
@@ -1539,6 +1539,8 @@ all_vars_heat <- LIculvertPrioritization %>%
 
 ```
 
+## Data Management
+As this project matured there was a need to develop a more stringent data management system for managing data and provide QA controls as well as ease the transition into map products. A relational database was constructed for this purpose and was largely modelled after the NH SADES database (link). At the time of writing the prioritization scoring methods are all conducted within R. For the sake of reproducibility the prioritization scoring will remain in the R environment and will be scripted in a way to update/overwrite the proritization data as needed (following data additions or new methodology). As time allows these prioritizations can be migrated into ArcGIS tool kits or other scripted calculators (Arcade language perhaps)
 
 ## References: 
 ^[Resilient Tidal Crossings]: New Hampshire Department of Environmental Services. 2019. “Resilient Tidal Crossings:An Assessment and Prioritization to Address New Hampshire’s Tidal Crossing Infrastructure for Coastal Resilience”.  R-WD-19-20. Portsmouth, NH. Available online at: https://www.des.nh.gov/organization/divisions/water/wmb/coastal/resilient-tidal.htm

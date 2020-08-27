@@ -122,8 +122,7 @@ if(dataUpdate == 1) {
   # workbooks using key as lookup;
   # This tibble should be the same length as the number of worksheets in the folder where the data is stored.
   # TODO: Check that the fielddata column contains the same data as the LIculvertData object- if so remove the later from this script
-  LIculvertAssessments <-
-    culvert_tidy(tidalCulvert_datasheetsFolder)
+  LIculvertAssessments <- culvert_tidy(tidalCulvert_datasheetsFolder)
   # Build out dataframe to add crossings longitudinal profiles, cross sectional measures, 
   LIculvertAssessments <- LIculvertAssessments %>%
     mutate(crossingID = map_chr(

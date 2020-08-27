@@ -94,18 +94,21 @@ cleanField <- function(decodedcolumn) {
       dateAssessed = lubridate::as_date(dateAssessed, "%M-%D-%Y"),
       AsmtStartTime = lubridate::ymd_hms(paste0(dateAssessed, AsmtStartTime %>% str_sub(start = 12, end = 20)), tz = 'EST'),
       AsmtEndTime = lubridate::ymd_hms(paste0(dateAssessed, AsmtEndTime %>% str_sub(start = 12, end = 20)), tz = 'EST'),
-      crossingID = as.numeric(crossingID)
+      crossingID = as.numeric(crossingID),
+      TidePredictTimeHigh = lubridate::ymd_hms(paste0(dateAssessed, TidePredictTimeHigh %>% str_sub(start = 12, end = 20)), tz = 'EST'),
+      TidePredictTimeLow = lubridate::ymd_hms(paste0(dateAssessed, TidePredictTimeLow %>% str_sub(start = 12, end = 20)), tz = 'EST')
     ) %>%
     mutate_if(is.character, list( ~ na_if(., "N/A"))) %>%   # Convert character columns with "N/A" to NA
     mutate_at(numericVars, as.numeric) %>%
     mutate_at(logicalVars, as.logical)
-  
+  # munge the vegetation matrix into a selection list within one column.
   tmp2 <- tmp %>%
     select(crossingID, starts_with("veg")) %>%
     gather(-crossingID, key = 'key', value = "val") %>%
     separate(col = key, into = c("key", "Vegchoice")) %>%
     mutate(VegetMat_select = ifelse(val, yes = val, no = NA)) %>%
     filter(!is.na(VegetMat_select)) %>% select(crossingID, Vegchoice)
+ 
   tmp %>% left_join(tmp2) %>% select(-starts_with("vegMat"))
   
 }
@@ -117,7 +120,8 @@ cleanField <- function(decodedcolumn) {
 #' with a laser level/rod/transit configuration and corrects it to NAVD88 datum
 #' referenced from LIDAR (lidar-derived DEM). Important note is that all values
 #' are referenced from road center height so accuracy of supplied road elevation
-#' is critical for accurate measures. This also assumes that LIDAR
+#' is critical for accurate measures. This also assumes that LIDAR values are 
+#' accuratly sampled from the same location as taken in the field.
 #'
 #' @param rawHeight height as recorded in field.
 #' @param shotCode control point code, R, U, D, X
@@ -180,7 +184,7 @@ channelLongidinalProfile_extract <-
     # # DEBUGGING
     # filepath <- wtf$filePath[[1]]
     # tidycells <- wtf$tidycells[[1]]
-    # lidarHt <- wtf$da_LiDarHt_CL[[1]]
+    # lidarHts <- wtf$da_LiDarHt_CL[[1]]
     #
     crossingID <-
       culvert_extract(tidycells = tidycells,
