@@ -1,7 +1,7 @@
 
 # Longitudinal profile work: ----
 # Use crossing #115 as a test dummy. SEe Teams post regarding the issue found in the datasheet.
-testData <- LIculvertsAssessments %>% filter(crossingID == 115)
+testData <- LIculvertsAssessments_debug %>% filter(crossingID == 115)
 filepath <-  "C:\\Users\\astarke\\Box Sync\\Culvert Assessment\\Tidal Assessments\\TidalAssessmentWorkbooks_QAvers\\Culvert115.xlsm"
 # filepath <- testData$filePath
 
@@ -33,32 +33,6 @@ View(crossdata)
 CompletedTidal <- LIculvertDataStatus %>% filter(FieldAssessmentComplete == "Y") %>% 
   pull(crossingID)
 
-# TESTING FOR BUGS IN DISTANCE CALCULATIONS >----
-# COMMENT OUT WHEN NOT IN USE!
-# filepath <- testData$filePath
-# tidycells <- testData$tidycells
-
-test2longitudinalProfile <- LIculvertsAssessments %>% filter(crossingID == 115) %>% select(longProfile) %>% unnest()
-View(test2longitudinalProfile)
-test2crossHeight <- LIculvertsAssessments %>% filter(crossingID == 115) %>% select(crossHeights) %>% unnest()
-View(test2crossHeight)
-
-test2longitudinalProfile %>% 
-  ggplot(aes(x = Distance, y = adjustedHt, shape = `Feature Code`)) + 
-  # geom_smooth(se = FALSE, span = 0.4) + 
-  geom_point(size = 2) + 
-  #geom_line(aes(color = Subsrate), size = 1, linetype = 1) +
-  geom_line(aes(), size = 1) +
-  geom_hline(aes(yintercept = 0)) +
-  labs(x = "Distance from Upstream Hydraulic Control (feet)",
-       y = "NAVD88 (feet)") + theme_ipsum_rc() + 
-  geom_segment(data = test2crossHeight, mapping = aes(x = Distance, 
-                                               y = adjustedHt, 
-                                               xend = Distance + 5, 
-                                               yend = adjustedHt, 
-                                               color = Feature), size = 2) 
-
-
 
  # 
 # # purrr using safely to catch errors.
@@ -76,26 +50,6 @@ test2longitudinalProfile %>%
 #   group_by(crossingID, Feature) %>% 
 #   summarize(heightUS = mean(adjustedHtUS, na.rm = T), heightDS = mean(adjustedHtDS, na.rm = T))
 
-
-# make ggplot which includes the longitudinal profile and the crossing sectional 
-# TODO: need to figure out how to layout data for the different types of info for plots.
-
-
-plot <- longdata %>% ggplot(aes(x = Distance, y = adjustedHt)) + 
-  # geom_smooth(se = FALSE, span = 0.4) + 
-  geom_point(aes(shape = `Feature Code`), size = 2) + 
-  #geom_line(aes(color = Subsrate), size = 1, linetype = 1) +
-  geom_line(aes(), size = 1) +
-  geom_hline(aes(yintercept = 0)) +
-  labs(x = "Distance from Upstream Hydraulic Control (feet)",
-       y = "NAVD88 (feet)") + theme_ipsum_rc() + 
-  geom_segment(data = crossdata, mapping = aes(x = Distance,
-                                               y = adjustedHt,
-                                               xend = Distance + 5,
-                                               yend = adjustedHt,
-                                               color = Feature), size = 2) +
-  NULL
- direct.label(plot, "first.bumpup")
 
 
   
@@ -131,39 +85,8 @@ plot <- longdata %>% ggplot(aes(x = Distance, y = adjustedHt)) +
 profilePlots %>% filter(crossingID == 70) %>% pull(profPlots)
 
 
-channelLongidinalProfile_extract <- function(filepath, tidycells){
-  # Set up variables for adjusting to NAVD88 with surveyHtCorrection()
-  crossingID <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'L7') %>% as.numeric()
-  Lidarht <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SUMMARY', celladdress = 'J54') %>% as.numeric()
-  roadCentHt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'J107') %>% as.numeric()
-  
-  TPforsight_upSt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'Y110') %>% as.numeric()
-  TPbacksight_upSt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'Y111') %>% as.numeric()
-  TPforsight_dwSt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'AD110') %>% as.numeric()
-  TPbacksight_dwSt <- culvert_extract(tidycells = tidycells, sheetOI = 'Data Sheet - SITE', celladdress = 'AD111') %>% as.numeric()
-  
-  profile <- read_xlsx(path = filepath, sheet = 2, range = "A122:M140")
-  profile <- profile %>% filter(!is.na(Distance)) %>%
-    select(-starts_with("..")) %>%
-    rename(Subsrate = `Sub-\r\nstrate`,
-           shotCode = `Shot From (R/U/D)`,
-           rawHeight = Height) %>%
-    mutate(crossingID = crossingID,
-           adjustedHt = surveyHtCorrection(rawHeight = rawHeight, 
-                                           shotCode = shotCode, 
-                                           Lidarht = Lidarht, 
-                                           roadCentHt = roadCentHt,
-                                           TPforsight_upSt = TPforsight_upSt, 
-                                           TPbacksight_upSt = TPbacksight_upSt,
-                                           TPforsight_dwSt = TPforsight_dwSt, 
-                                           TPbacksight_dwSt = TPbacksight_dwSt))
-  
-  
-  profile
-}
-  
 # determine the missing HWI's 
-LIculvertsAssessments %>% select(crossingID, heights) %>%  
+LIculvertsAssessments_debug %>% select(crossingID, heights) %>%  
   unnest() %>% mutate(hasHt = !is.na(Height)) -> hwi_qunat
 
 
@@ -177,4 +100,18 @@ LIculvertDataStatus_location %>% select(crossingID, FieldAssessmentComplete) %>%
   group_by(AssessmentStatus) %>% tally
 
 
+  
+  LIculvertAssessmentData %>% st_drop_geometry() %>% 
+    left_join(tidalPrioritization) %>% 
+    mutate(relElevation = `Ceiling of Structure US` - `HWI Stain US`) %>% 
+    ggplot(aes(y = relElevation, x = as.factor(crossingID))) + 
+    geom_hline(yintercept = 39/12, size = 2, color = tnc_color("Sandstone")) +
+    geom_point(aes(color = Total_Prioritization), size = 2) +
+    geom_hline(yintercept = 0, size = 1, color = "grey70") +
+    geom_text(aes(x = 300, y = 39/12, label = "39 in of sea level rise", vjust = -1)) +
+    theme_tnc_base() +
+    scale_color_tnc("gradient1", discrete = F, reverse = F) + 
+    theme(axis.text.x = element_blank()) +
+    labs(y = "Ceiling ht relative to high tide indicator (NAVD88)", x = NULL)
+  
                                                                                   

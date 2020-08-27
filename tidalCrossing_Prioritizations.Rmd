@@ -76,7 +76,7 @@ As mentioned all the spatial and desktop assessment data are stored on ArcGIS On
 LIculvertAssessments <- readRDS("data/LIculvertAssessments.rds") # tidal assessment workbooks, with varying degrees of completness. This is the bulk of the data collected, but does not include complete desktop assessments. Those data are recorded and managed in the AGOL-hosted feature _desktopData_. 
 LIculvertData_location <- read_rds("data/LIculvertData_location.rds") # tidal assessment data joined to locations of crossings identified in assessments. 
 
-LIculvertAssessments %>% filter(crossingID != 71) %>% # FIXME: this crossing is a PIA needs review and fixing.
+LIculvertAssessments %>% #filter(crossingID != 71) %>% # FIXME: this crossing is a PIA needs review and fixing.
   select(crossingID, crossSectionProfile) %>% 
   unnest() %>% 
   unite(Feature, Position, col = "FP", sep = " ") %>% 
