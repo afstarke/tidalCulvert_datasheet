@@ -6,7 +6,7 @@ output:
   self_contained: no
 css: tidalsummary.css
 params:
-  crossingCode: 397
+  crossingCode: 109
 ---
 
 ```{r setup, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
@@ -83,6 +83,7 @@ tidal_table_data <- tidal_doc_data %>%
       "W",
       sep = ""
     ),
+    # lots of recoding values into human readable text. Most of which is used in the tables within the summary sheet.
     CrossingType = recode(
       CrossingType,
       `2` =                          "Round Culvert",
@@ -171,18 +172,19 @@ tidal_table_data <- tidal_doc_data %>%
       `18` = "Minor Collector",
       `19` = "Local"
     ),
-    #TODO: REcode the Vegscote to text
+    #TODO: Add in formerly connected 
     # Impact on vegetation community
-    Vegchoice = recode(Vegchoice,
-                      "1A" = "None", # 1, # native only, same both sides
-                      "2A" = "None", # invasives through out, same both sides
-                      "2B" = "Slight", #2, # invasives through out, up and down stream communtites are slightly different
-                      "1B" = "Moderate", #3, # native only, different species on either side but appear similar (high marsh - low marsh)
-                      "3A" = "Moderate", # 3, # invasives on one side, tidal marsh on both sides
-                      "2C" = "Severe",  #4, # invasives through out, up and down stream communities represent different marsh types
-                      "3B" = "Severe",  #4, # invasives on one side, similar species/marsh type on either side
-                      "3C" = "Very Severe",  #5 # invasices on one side, up and down stream different species
-                      "1C" = "Very Severe"),   #5, # native only, tidal species one side, fresh species the other.) 
+    Vegchoice = case_when(
+      formerlyConnected == 1 ~ "Formerly connected/Severe", # First up test if it's a formerly connected...Then proceed with the vegchoice.
+                      Vegchoice == "1A" ~ "None", # 1, # native only, same both sides
+                      Vegchoice == "2A" ~ "None", # invasives through out, same both sides
+                      Vegchoice == "2B" ~ "Slight", #2, # invasives through out, up and down stream communtites are slightly different
+                      Vegchoice == "1B" ~ "Moderate", #3, # native only, different species on either side but appear similar (high marsh - low marsh)
+                      Vegchoice == "3A" ~ "Moderate", # 3, # invasives on one side, tidal marsh on both sides
+                      Vegchoice == "2C" ~ "Severe",  #4, # invasives through out, up and down stream communities represent different marsh types
+                      Vegchoice == "3B" ~ "Severe",  #4, # invasives on one side, similar species/marsh type on either side
+                      Vegchoice == "3C" ~ "Very Severe",  #5 # invasices on one side, up and down stream different species
+                      Vegchoice == "1C" ~ "Very Severe"),   #5, # native only, tidal species one side, fresh species the other.) 
     marshComplex = recode(Score_MarshComplex,
                           '1' = "No marsh", 
                           '3' = " $\\lt 15$ acres", 
@@ -227,7 +229,7 @@ assesDate <- format(tidalAssessmentData$dateAssessed, format = "%B %d, %Y")
 Project Background 
 =========================================================================
 
-The Long Island Road-Stream and Tidal Crossing Improvement Project, led by The Nature Conservancy with input from state, county, municipal, and other partners, has identified and prioritized road-stream and tidal crossings in Suffolk County, NY for upgrade or replacement. The prioritization is based on social and ecological criteria. Road-stream crossings, which include culverts and bridges, are an essential element of our transportation network. They allow roads to pass over rivers, streams, tidal creeks, and wetlands. Tidal crossings are those that experience two-way tidal flow. Tidal systems are what they are and do what they do because the tide comes in and the tide goes out. When we mute this signal, we mute or eliminate their functions. Undersized, poorly designed, or failing infrastructure at these crossings restricts water flow and can lead to flooding, road closures, property damage, degraded natural systems, impaired water quality, and inability for tidal habitats to keep pace with sea level rise and migrate landward to persist into the future.
+The Long Island Road-Stream and Tidal Crossing Improvement Project, led by The Nature Conservancy with input from state, county, municipal, and other partners, has identified and prioritized road-stream and tidal crossings in Suffolk County, NY for upgrade or replacement. The prioritization is based on social and ecological criteria of road-stream crossings, which include culverts and bridges, are an essential element of our transportation network. They allow roads to pass over rivers, streams, tidal creeks, and wetlands. Undersized, poorly designed, or failing infrastructure at these crossings restricts water flow and can lead to road flooding, property damage, degraded natural systems and impaired water quality. Tidal systems need to experience the full tidal signal both to function today and to respond to sea level rise.
 This document provides location and prioritization scoring for the tidal crossing described below. Tidal crossings were assessed using the field and desktop methodology developed by [The Nature Conservancy in NH, NH Department of Environmental Services, and the University of NH](https://www.des.nh.gov/organization/divisions/water/wmb/coastal/resilient-tidal.htm#:~:text=The%20Resilient%20Tidal%20Crossings%20NH,opportunities%20at%20tidal%20crossing%20sites) with modifications to make them suitable for NY. With this information, communities can strategically plan capital investments, secure funding, and implement high priority improvement projects with partners.
 
 
@@ -305,7 +307,8 @@ tidal_table_data %>% dplyr::select(-value) %>% arrange(desc(Description)) %>%
   filter(SummarySection == "Scoring") %>% 
   left_join(ords) %>% 
   arrange(tableOrder) %>% 
-  select(Description, score) %>% kable(col.names = NULL) %>% 
+  select(Description, score) %>% 
+  kable(col.names = NULL) %>% 
   # style() %>% 
   # kable_styling(bootstrap_options = "striped", full_width = F)
   style()
@@ -405,12 +408,16 @@ tidal_table_data %>%
 
 ```   
 
-
-<div style='page-break-after: always'></div>
 _Disclaimer_ 
 ============================================================================== 
 This document is a screening tool for prioritizing planning efforts and is not intended to replace a site visit for making engineering or management decisions.  Due diligence is required to ensure that all infrastructure and property owners, permitting agencies and project engineers are consulted in advance of project planning. Please note that different entities may own the roadway, crossing infrastructure, water management structures, and the surrounding land. Information presented here represents the best available at the time of the assessment.  
 
+```{r}
+htmltools::HTML('<div class="page-break-clear"></div>
+<div class="page-break">&nbsp;</div>')
+```
+
+\newpage
 
 Site Photos   
 ================================================================================
@@ -465,18 +472,77 @@ tags$div(class = "polaroid",
 
 ```    
 
-Longitudinal Profile   
+```{r}
+htmltools::HTML('<div class="page-break-clear"></div>
+<div class="page-break">&nbsp;</div>')
+```
+    
+\newpage
+
+Cross Sectional Profile  
 ================================================================================
 
-```{r profilePlots, fig.height=5, fig.width=7, message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r profilePlots, fig.height=4, fig.width=6, message=FALSE, warning=FALSE, paged.print=FALSE}
+
 profilePlot[[1]] + theme(text = element_text(size = 11))
 
 
 ```
 
+## Additional Crossing Structure Information
+Add in Formerly connected text- 
+```{r}
+# tidal_table_data %>%
+#   filter(SummarySection == "Additional") %>%# mutate_at(.vars = vars(value, score), .funs = as.numeric) %>%
+#   pivot_longer(cols = c(value, score)) %>%
+#   unite(pos_score, position, name) %>%
+#   filter(!is.na(value)) %>%
+#   pivot_wider(names_from = pos_score) %>%
+# 
+#   left_join(ords) %>%
+#   # filter(!is.na(tableOrder)) %>%
+#   arrange(tableOrder) %>%
+#   select(Description,
+#          upstream_value,
+#          downstream_value,
+#          overall_value,
+#          overall_score) %>%
+#   replace_na(replace =  list(upstream_value = " ", downstream_value = " ", overall_value = "--", overall_score = "--")) %>%
+#   kable(col.names = c("", "upstream", "downstream", "", "Score"), align = 'lcc') %>%
+#   # pack_rows("") %>%
+#   style_eco() %>%
+#   kable_styling(position = "float_left") %>%
+#   I()
 
-***  
-#### _Additional Information_  
+
+profileTbl <- tidal_table_data %>%
+  filter(SummarySection == "Profile Details") %>%# mutate_at(.vars = vars(value, score), .funs = as.numeric) %>%
+  pivot_longer(cols = c(value, score)) %>%
+  unite(pos_score, position, name) %>%
+  filter(!is.na(value)) %>%
+  pivot_wider(names_from = pos_score) %>% 
+  
+  left_join(ords) %>%
+  # filter(!is.na(tableOrder)) %>%
+  arrange(tableOrder) %>%
+  select(Description, 
+         upstream_value,
+         downstream_value) %>%
+  replace_na(replace =  list(upstream_value = " -- ", downstream_value = " -_ ")) %>%
+  kable(col.names = c("", "upstream", "downstream"), align = 'lcc') %>%
+  # pack_rows("") %>% 
+  style_eco() %>%
+  # kable_styling(position = "float_left") %>%
+  I()
+
+
+
+  
+```
+  
+  
+***   
+### _Data Access_  
  
 - Download the all data associated with this crossing by accessing the projects webservices site.(link)
 

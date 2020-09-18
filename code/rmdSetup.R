@@ -17,7 +17,7 @@ pivots <- 0
 
 writeOutputs = dataUpdate
 arcgisbinding::arc.check_product()
-arcgisbinding::arc.check_portal()
+# arcgisbinding::arc.check_portal()
 
 
 ## Set up folders ----

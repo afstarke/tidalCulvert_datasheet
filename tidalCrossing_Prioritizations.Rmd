@@ -23,7 +23,7 @@ editor_options:
 ---  
 
 ```{r setup, message=FALSE, warning=FALSE, include=FALSE}
-
+# To knit both HTML and Word doc use render("tidalCrossing_Prioritizations.Rmd", format = "all") in console.
 knitr::opts_chunk$set(
 	echo = TRUE,
 	fig.height = 3,
@@ -44,7 +44,7 @@ This document is meant to outline and document the workflow of the data processi
 source("functions/prioritization_functions.R")
 source("00_libraries.R") # libraries used elsewhere and stored here for convienence
 source("utilities/helpers.R") # mostly for QA there are a few helpers that can be used- openDS/openPics/openField
-source("code/rmdSetup.R") # Enable to update data as needed. This script extracts data from AGOL and all the datasheets.
+# source("code/rmdSetup.R") # Enable to update data as needed. This script extracts data from AGOL and all the datasheets.
 library(GGally)
 library(naniar)
 # library(plotly)
@@ -61,6 +61,7 @@ theme_set(theme_tnc_base() +
 options(digits = 2, scipen = 999)
 # knitr::opts_chunk$set(out.width = "100%")
 
+
 ```
 
 ## Data sources  
@@ -76,7 +77,7 @@ As mentioned all the spatial and desktop assessment data are stored on ArcGIS On
 LIculvertAssessments <- readRDS("data/LIculvertAssessments.rds") # tidal assessment workbooks, with varying degrees of completness. This is the bulk of the data collected, but does not include complete desktop assessments. Those data are recorded and managed in the AGOL-hosted feature _desktopData_. 
 LIculvertData_location <- read_rds("data/LIculvertData_location.rds") # tidal assessment data joined to locations of crossings identified in assessments. 
 
-LIculvertAssessments %>% #filter(crossingID != 71) %>% # FIXME: this crossing is a PIA needs review and fixing.
+LIculvertAssessments %>% 
   select(crossingID, crossSectionProfile) %>% 
   unnest() %>% 
   unite(Feature, Position, col = "FP", sep = " ") %>% 
@@ -280,7 +281,7 @@ The crossing ratio is a proxy for the degree in which the structure restricts th
 
 cr <- LIculvertAssessmentData %>% 
   # Calculate the up and down stream crossing ratios
-  mutate(crossingRatio_upStrm = crossing_ratio(channelWidth = da_ChannelWidth_upStream, # TODO: QA data in desktop
+  mutate(crossingRatio_upStrm = crossing_ratio(channelWidth = da_ChannelWidth_upStream,
                                                dimA = CrosDim_upA, 
                                                dimC = crossDim_upC),
     crossingRatio_dwStrm = crossing_ratio(channelWidth = da_ChannelWidth_dwnStream, 
@@ -471,7 +472,7 @@ The Vegetation score metric is largely based on the NH ^[Resilient Tidal Crossin
 ```{r vegetationScore, message=FALSE, warning=FALSE, paged.print=TRUE}
 # 150 with scores- 185 missing.
 vegsc <- LIculvertAssessmentData %>% 
-  select(crossingID, Vegchoice) %>% mutate(Score_vegetation = vegetationScore(Vegchoice))
+  select(crossingID, Vegchoice, formerlyConnected) %>% mutate(Score_vegetation = vegetationScore(Vegchoice, formerlyConnected))
 
 # Made Unassessed a -2 score for display in plots. .
 vegsc %>% select(Score_vegetation) %>% 
@@ -930,7 +931,8 @@ crscond <- LIculvertAssessmentData %>% st_drop_geometry() %>%
 
 crscond %>% 
   ggplot(aes(x = Score_crossConditon, fill = as.factor(Score_crossConditon))) + 
-  geom_bar() + geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
+  geom_bar() + 
+  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
   scale_fill_tnc("gradient1") + 
   labs(title = "C1. Crossing condition", 
        subtitle = "Distribution of scores", x = NULL) +
@@ -979,9 +981,7 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 
 ## C3. High water risk & Lack of clearance
 
-
-Not all crossings have sufficient data to calculate this metrc. In those cases, crossings are scored a NA and are not included in the averaging of the Infrastructure Condition benefit scores. What that means is that if a value is missing that crossing is DROPPED from the scoring of the Total Infrastructure Score (and ) 
-__THIS SHOULD BE CONFIRMED AS DESIRED METHOD BY TEAM__
+For a crossing to be scored there needs to be either a cross sectional profile surveyed or the crossing needs to be identified as submerged at low tide. Essentially the crossing would need to be visited and some level of assessment would be needed.
 
 
 ```{r highwater, message=FALSE, warning=FALSE, paged.print=TRUE}
@@ -993,13 +993,15 @@ __THIS SHOULD BE CONFIRMED AS DESIRED METHOD BY TEAM__
 
 highwater <- LIculvertAssessmentData %>%
   select(
-    crossingID,
+    crossingID, 
+    AssessmentStatusCode, # if assessed as submerged then score a 5. 
     starts_with("HWI"),
     starts_with("Road "),
     `Ceiling of Structure DS`,
     `Ceiling of Structure US`
   ) %>%
   mutate(
+    submerged = if_else(AssessmentStatusCode == 7, true = 5, false = NA_real_), # if submerged give a value of 5 and pass this value to the final score function
     # risk of high water - upstream side
     # Team decided that the higher of the two HWI marks should be used in the scoring
     # pmax() will pass along the greater of the two elevations- 
@@ -1039,7 +1041,8 @@ highwater <- LIculvertAssessmentData %>%
       score_highwater_dif_US,
       score_clearance_dif_DS,
       score_highwater_dif_DS,
-      score_clearance_dif_US
+      score_clearance_dif_US,
+      submerged # this will be 5 if classified as submerged otherwise a 1. 
     ))
       
 
@@ -1067,7 +1070,7 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 
 ## C4. Erosion classification  
  
-The ratio of scour pool width to channel width for both up and down stream sections. A large ratio indicates a larger scour pool. Score is based on the larger of the 2 ratios. This metric aims to identify crossings that have potential erosion issues that are impacting the condition of the structure. 
+The ratio of scour pool width to channel width for both up and down stream sections. A large ratio indicates a larger scour pool. Score is based on the larger of the 2 ratios. This metric aims to identify crossings that have potential erosion issues that are impacting the condition of the structure. This ratio is reliant on data collected using the desktop assessments protocol.
 
 ```{r erosionClass2, fig.height=5, fig.width=6, message=FALSE, warning=FALSE, paged.print=TRUE}
 # erosion classification is also scored in the ecological benefits.
@@ -1180,6 +1183,7 @@ LIculvertPrioritization %>%
   scale_fill_tnc("gradient1") +
   geom_bar() + 
   geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5)) +
+  scale_x_continuous(breaks = c(7:20)) + 
   labs(subtitle = "Distribution of scores", title = "Total Benefit Scores", x = NULL ) +
   theme(legend.position = "none")
 
@@ -1188,18 +1192,27 @@ LIculvertPrioritization %>%
 LIculvertPrioritization <- crossingLocations %>% left_join(LIculvertPrioritization)
 write_rds(LIculvertPrioritization, path = "data/LIculvertPrioritizations.rds")
 
-```
-#### Completed assessments
+```  
+
+#### All assessments  
+
 As the map shows there are quite a few crossings that have been marked as complete that lack the data needed for a score. QA may fix some of these. 
 
 
 ```{r totalScoreMap, echo=FALSE, fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
 # tmap::tmap_mode("plot")
-tmap_options(limits = c(facets.view = 7))
+tmap_options(limits = c(facets.view = 7), basemaps = "Esri.WorldImagery")
 tmap::tmap_mode("view")
 LIculvertPrioritization %>% 
+  left_join({LIculvertAssessmentData %>% st_drop_geometry()}) %>% 
+  # filter(Total_Prioritization == 16) %>%
+# LIculvertPrioritization %>% 
   # filter(AssessmentStatus == "Complete") %>%
-  tm_shape() + tm_dots(title = "Total Prioritization Score", 
+  # tm_basemap("Esri.WorldImagery") +
+  tm_shape() + 
+  tm_text(text = "Total_Prioritization", size = 1) +
+  # tm_facets(by = "Rd_Owner") + 
+  tm_dots(title = "Total Prioritization Score", 
   size = .1,
   col = "Total_Prioritization",
   colorNA = "grey40",
@@ -1515,7 +1528,9 @@ highwater %>% st_drop_geometry() %>% remove_rownames() %>%
     colors = tnc_pal("gradient1")(5)
   )
 
-qa_data <- highwater %>% st_drop_geometry() %>% mutate(checkRoadHt_HWI = if_else(`Road Surface US` < `HWI Stain US` | `Road Surface DS` < `HWI Stain DS`, true = "Yes", "NO")) %>% select(crossingID, checkRoadHt_HWI) %>% left_join(qa_data)
+qa_data <- highwater %>% st_drop_geometry() %>% 
+  mutate(checkRoadHt_HWI = if_else(`Road Surface US` < `HWI Stain US` | `Road Surface DS` < `HWI Stain DS`, true = "Yes", "NO")) %>% 
+  select(crossingID, checkRoadHt_HWI) %>% left_join(qa_data)
 
 ```
 

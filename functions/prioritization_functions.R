@@ -206,8 +206,9 @@ degtidalrestr <- function(tidal_rng_score, crossing_ratio_score, erosion_class_s
 #' @param vegMatChoice 
 #' 
 
-vegetationScore <- function(vegMatChoice){
+vegetationScore <- function(vegMatChoice, formerlyConnected){
   score <- case_when(
+    formerlyConnected == 1 ~ 5L, # If formerly connected score a 5, else get result of field assessment.
     vegMatChoice == "1A" ~ 1L, # native only, same both sides
     vegMatChoice == "1B" ~ 3L, # native only, different species on either side but appear similar (high marsh - low marsh)
     vegMatChoice == "1C" ~ 5L, # native only, tidal species one side, fresh species the other.
