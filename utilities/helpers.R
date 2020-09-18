@@ -47,3 +47,23 @@ fieldData_view <- function(crossing) {
     )
 }
 
+crossGlimpse <- function(crossing){
+  LIculvertAssessmentData %>% filter(crossingID == crossing) %>% glimpse()
+}
+
+crossVisit <- function(crossing) {
+  visitDate <-
+    LIculvertAssessmentData %>% filter(crossingID == crossing) %>% pull(dateAssessed)
+  
+  if (length(visitDate) == 0) {
+   print("Not Visited")
+   openDS(crossing)
+  } else{
+    if(is.na(visitDate)){
+      openDS(crossing)
+    }else{
+      visitDate
+    }
+    
+  }
+}
