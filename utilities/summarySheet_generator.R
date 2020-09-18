@@ -18,7 +18,7 @@ htmlOutputFolder <- "D:/culvert_project/tidalCrossings/html_outputs/"
 # generating summary sheet for all crossings that have a valid score.
 #' Tidal 
 #' to start there's a lot of crossing that are missing bits that prohibit a final score from being calculated. Start with those.
-tidalsites <- tidalPrioritization %>% filter(!is.na(Total_Prioritization)) %>% pull(crossingID)
+tidalsites <- LIculvertPrioritization %>% filter(!is.na(Total_Prioritization)) %>% pull(crossingID)
 
 
 #' Freshwater
