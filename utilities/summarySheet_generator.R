@@ -18,7 +18,9 @@ htmlOutputFolder <- "D:/culvert_project/tidalCrossings/html_outputs/"
 # generating summary sheet for all crossings that have a valid score.
 #' Tidal 
 #' to start there's a lot of crossing that are missing bits that prohibit a final score from being calculated. Start with those.
-tidalsites <- LIculvertPrioritization %>% filter(!is.na(Total_Prioritization)) %>% pull(crossingID)
+tidalsites <- tidalPrioritization %>% filter(!is.na(Total_Prioritization)) %>% pull(crossingID)
+
+
 
 
 #' Freshwater
@@ -52,7 +54,7 @@ makeDocs <- function(crossings) {
   # purrr::walk(
   #   .x = todos,
   #   .f = ~ rmarkdown::render(
-  #     "summarySheets/summarySheet_tidal.Rmd.Rmd",
+  #     "summarySheets/summarySheet_tidal.Rmd",
   #     poster_jacobs(css = "summary.css"),
   #     params = list(crossingCode = .x),
   #     output_file = paste0(.x, ".html"),
@@ -65,7 +67,7 @@ makeDocs <- function(crossings) {
     .x = todos,
     .f = ~ rmarkdown::render(
       "summarySheets/summarySheet_tidal.Rmd",
-      poster_jacobs(css = "tidalsummary.css"),
+      poster_jacobs(css = "summary_v2.css"),
       params = list(crossingCode = .x),
       output_file = paste0(.x, ".html"),
       output_dir = "D:/culvert_project/tidalCrossings/html_outputs/",
@@ -76,6 +78,7 @@ makeDocs <- function(crossings) {
 
 # Run makeDocs to render HTMLs to the output folder
 makeDocs(tidalsites)
+
 
 
 
@@ -132,13 +135,36 @@ get_to_work <- function(){
   # statuscheck()
   filestoconvert <- allhtmls[!allhtmls %in% pdfs_completed] # Create a list of crossings that need to be converted from HTML to PDF
  filestoconvert %>% paste0("file://", htmlOutputFolder, ., ".html") %>% 
-    sample(20, replace = F) %>%
-   walk(.x = ., ~browseURL(.x)) # Walk through each file and open in browser
+    # sample(20, replace = F) %>%
+   walk(.x = ., ~chrome_print(.x)) # Walk through and print each one.
   
 }
 
 
 get_to_work()
+
+
+## UPDATE Nov 2020
+# try at chrome_print interations
+
+# Automating the opening of remaining documents.
+let_them_work <- function(){
+  allhtmls <- list.files(path = htmlOutputFolder,
+                         pattern = ".html",
+                         full.names = F) %>% str_remove(".html")
+  pdfs_completed <- pdfcheck() # check which pdf's have been created
+  # statuscheck()
+  filestoconvert <- allhtmls[!allhtmls %in% pdfs_completed] # Create a list of crossings that need to be converted from HTML to PDF
+  filestoconvert %>% paste0("file://", htmlOutputFolder, ., ".html") %>% 
+    sample(20, replace = F) %>%
+    walk(.x = ., ~browseURL(.x)) # Walk through each file and open in browser
+  
+}
+
+
+let_them_work()
+
+
 
 
 # PDF file crosswalk table
