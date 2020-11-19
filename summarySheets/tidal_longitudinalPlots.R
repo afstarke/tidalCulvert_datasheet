@@ -30,7 +30,10 @@ library(ggforce)
 
 
 drawCrossing <- function(longitudinal, crossSectional) {
-  # longitudinal <-  {a %>% filter(crossingID == 10) %>% pull(longProfile)}[[1]]
+  
+  longitudinal <-  {a %>% filter(crossingID == 10) %>% pull(longProfile)}[[1]]
+  crossSectional <- {a %>% filter(crossingID == 10) %>% pull(crossSectionProfile)}[[1]]
+  
   ccode <- longitudinal$crossingID[1]
   lon <- longitudinal
   cross <- crossSectional 
@@ -53,10 +56,10 @@ drawCrossing <- function(longitudinal, crossSectional) {
     "Road Center" = "grey50" # Grey 50
   )
   
-  
+  # culvert pipe
   culvert <- height %>%
     filter(Feature == "Ceiling of Structure") %>%
-    select(Feature, Position, adjustedHt, Distance, imagepath) %>%
+    select(Feature, Position, adjustedHt, Distance) %>%
     bind_rows({
       lon %>%
         filter(`Feature Code` == "I" |
@@ -72,38 +75,29 @@ drawCrossing <- function(longitudinal, crossSectional) {
     # fill between road and culvert
     geom_polygon(data = {
       height %>% filter(Feature == "Ceiling of Structure" |
-                          Feature == "Road Surface") %>% arrange(Distance)
+                          Feature == "Road Surface" | 
+                          Feature == "Road Center") %>% arrange(Distance)
     },
     aes(x = Distance, y = adjustedHt),
     fill = tnc_color("Canyon")) +
     
     # stream bed
-    geom_ribbon(
-      data = lon,
-      aes(
-        ymax = adjustedHt,
-        ymin = min(adjustedHt) - .5 ,
-        x = Distance
-      ),
+    geom_ribbon(data = lon, aes(ymax = adjustedHt, ymin = min(adjustedHt) - .5 , x = Distance),
       linetype = 3,
       fill = "black",
-      alpha = 0.9
-    ) +
+      alpha = 0.9) +
+    
     # culvert
     # NOTE: We could use geom_ribbon_pattern from ggpattern package to give it some pizazz.
-    geom_shape(
-      data = culvert,
-      aes(y = adjustedHt, x = Distance),
+    geom_shape(data = culvert, aes(y = adjustedHt, x = Distance),
       fill = "grey40",
-      alpha = 0.7
-    ) +
-    annotate(label = "Culvert structure",
+      alpha = 0.7) +
+    annotate(label = "Culvert Structure",
              geom = "text",
-             x = min(culvert$Distance) - max(culvert$Distance),
-             y = min(culvert$adjustedHt) - max(culvert$adjustedHt)) +
+             x = (max(culvert$Distance) - min(culvert$Distance))/3 + min(culvert$Distance),
+             y = (max(culvert$adjustedHt) - min(culvert$adjustedHt))/2 + min(culvert$adjustedHt)) +
     
     # Water indicators
-    
     geom_point(
       data = {
         height %>% filter(
@@ -118,53 +112,30 @@ drawCrossing <- function(longitudinal, crossSectional) {
     ) + 
     scale_color_manual(values = crossColors) + 
     
-   
-   
-    # cars
-   
-    # cowplot::draw_image(
-    #   image = car_front,
-    #   # the min would be starting from the xmax minus the average width of a car (7ft)
-    #   x = car_position_x - 20,
-    #   # the max X for the upstream/front side would be the middle - 1 ft. + an addtional 7.5 feet for the width of the car
-    #   y = car_position_y,
-    #   width = 27,
-    #   height = 3,
-    #   scale = 1,
-    #   interpolate = F
-    # ) +
-    # cowplot::draw_image(
-    #   image = car_back,
-    #   # the min would be starting from the xmax minus the average width of a car (7ft)
-    #   x = car_position_x,
-    #   # the max X for the upstream/front side would be the middle - 1 ft. + an addtional 7.5 feet for the width of the car
-    #   y = car_position_y,
-    #   width = 27,
-    #   height = 3,
-    #   scale = 1,
-    #   interpolate = F
-    # ) +
     # Road surface
     geom_line(
       data = {
         height %>% dplyr::filter(str_detect("Road", string = Feature)) %>% arrange(Distance)
       },
       aes(x = Distance, y = adjustedHt),
-      size = 4,
+      size = 3,
       color = "black"
     ) +
     # scale_color_manual(values = c(tnc_color("Spring Green"), tnc_color("Crimson"), tnc_color("Lake"))) +
     # Arrow showing stream flow. #TODO: Fix- mapping not working properly.
     annotate(
       geom = "segment",
-      data = lon,
+      data = culvert,
       x = 0,
-      xend = (max(lon$Distance)) / 3,
-      y = (min(height$adjustedHt) * 1.1) - (max(height$adjustedHt) * 1.1),
-      yend = (min(height$adjustedHt) * 1.1) - (max(height$adjustedHt) * 1.1),
-      size = 3,
-      alpha = 0.9,
-      arrow = arrow()
+      y = (max(height$adjustedHt) * 1.1),
+      # y = 3,
+      xend = (max(height$Distance)) / 2,
+      # xend = 50,
+      yend = (max(height$adjustedHt) * 1.1),
+      # yend = 3,
+      size = 1,
+      alpha = 1,
+      arrow = arrow(length = unit(0.3, "inches"))
     ) +
     scale_x_continuous(limits = c(0, max(lon$Distance)), expand = expansion(0)) +
     scale_y_continuous(limits = c(min(height$adjustedHt) * 1.1, max(height$adjustedHt) * 3), expand = expansion(c(0, .3))) +
