@@ -3,10 +3,10 @@ title: "Tidal Crossing Score Summary <img id=\"tnc-logo.svg\" src=\"tnc-logo.svg
 date: "`r Sys.Date()`"
 output: 
   pagedown::poster_jacobs:
-  self_contained: no
-css: tidalsummary.css
+  self_contained: false
+css: summary_v2.css
 params:
-  crossingCode: 109
+  crossingCode: 50
 ---
 
 ```{r setup, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
@@ -18,12 +18,12 @@ knitr::opts_chunk$set(
 # TODO: make sure to insert references and cite r packages
 # htmltools::includeScript(path = here::here("script.js"))
 # insert 
-# <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
+# insert- knit: pagedown::chrome_print in the yml above to print direct to pdf
 
 
 ```
 
-
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
 
 ```{r dataload, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Add ->  knit: pagedown::chrome_print
@@ -41,8 +41,11 @@ tidalPrioritization <- read_rds(here::here("data", "/LIculvertPrioritizations.rd
 # Full Assessment data
 tidalAssessmentData <- read_rds(here::here("data", "/LIculvertAssessmentData.rds")) %>% filter(crossingID == ccode)
 # Profiles plots (created in rmdSetup.Rmd to shave time on rendering summary sheets.)
-profilePlot <- read_rds(here::here("data", "/LIculvertAssessments.rds")) %>% filter(crossingID == ccode) %>% pull(profilePlots)
-
+profilePlot <- read_rds(here::here("data", "/LIculvertAssessments.rds")) %>% 
+  filter(crossingID == ccode) %>% pull(profilePlots)
+profilePlot_default <-
+  read_rds(here::here("data", "/LIculvertAssessments.rds")) %>%
+  filter(crossingID == 113) %>% pull(profilePlots) 
 
 
 tsdn <- read_rds(here::here("data", "/tsdn.rds")) # crosswalk table for building out the summary sheet tables
@@ -66,7 +69,8 @@ tidal_doc_data <- tidalPrioritization %>%
 
 # Pull coords for use in general summary section
 coords <- tidal_doc_data %>% st_coordinates() %>% 
-  as_tibble() %>% rename(longitude = X, latitude = Y)
+  as_tibble() %>% rename(longitude = X, latitude = Y) %>% mutate(latitude = paste0("N ", as.character(round(latitude, digits = 3))), 
+                                                                 longitude = paste0("W ", as.character(round(longitude, digits = 3))))
 
 
 
@@ -186,10 +190,16 @@ tidal_table_data <- tidal_doc_data %>%
                       Vegchoice == "3C" ~ "Very Severe",  #5 # invasices on one side, up and down stream different species
                       Vegchoice == "1C" ~ "Very Severe"),   #5, # native only, tidal species one side, fresh species the other.) 
     marshComplex = recode(Score_MarshComplex,
-                          '1' = "No marsh", 
+                          '1' = "No marsh", # TODO: Better term needed
                           '3' = " $\\lt 15$ acres", 
-                          '5'= "$\\geq 15$ acres"),
-    crossingID = as.character(crossingID)
+                          '5' = "$\\geq 15$ acres"),
+    crossingID = as.character(crossingID),
+    aopDesc = recode(Score_dotr, 
+                     `1` = "None",
+                     `2` = "Slight",
+                     `3` = "Moderate", 
+                     `4` = "Severe",
+                     `5` = "Very Severe")
   ) %>%
   tidyr::gather(key = "field_Name", value = "dataValue") %>%
   dplyr::right_join(tsdn) %>% # join in the tidal data that's of interest from the lookup on Teams.
@@ -229,12 +239,13 @@ assesDate <- format(tidalAssessmentData$dateAssessed, format = "%B %d, %Y")
 Project Background 
 =========================================================================
 
-The Long Island Road-Stream and Tidal Crossing Improvement Project, led by The Nature Conservancy with input from state, county, municipal, and other partners, has identified and prioritized road-stream and tidal crossings in Suffolk County, NY for upgrade or replacement. The prioritization is based on social and ecological criteria of road-stream crossings, which include culverts and bridges, are an essential element of our transportation network. They allow roads to pass over rivers, streams, tidal creeks, and wetlands. Undersized, poorly designed, or failing infrastructure at these crossings restricts water flow and can lead to road flooding, property damage, degraded natural systems and impaired water quality. Tidal systems need to experience the full tidal signal both to function today and to respond to sea level rise.
-This document provides location and prioritization scoring for the tidal crossing described below. Tidal crossings were assessed using the field and desktop methodology developed by [The Nature Conservancy in NH, NH Department of Environmental Services, and the University of NH](https://www.des.nh.gov/organization/divisions/water/wmb/coastal/resilient-tidal.htm#:~:text=The%20Resilient%20Tidal%20Crossings%20NH,opportunities%20at%20tidal%20crossing%20sites) with modifications to make them suitable for NY. With this information, communities can strategically plan capital investments, secure funding, and implement high priority improvement projects with partners.
+The Long Island Road-Stream and Tidal Crossing Improvement Project, led by The Nature Conservancy with input from state, county, municipal, and other partners, has identified and prioritized road-stream and tidal crossings in Suffolk County, NY for upgrade or replacement. The prioritization is based on social and ecological criteria of road-stream crossings, including culverts and bridges, which are an essential element of our transportation network. These crossings allow roads to pass over rivers, streams, tidal creeks, and wetlands. Undersized, poorly designed, or failing infrastructure at these crossings restricts water flow and can lead to road flooding, property damage, degraded natural systems and impaired water quality. Tidal systems need to experience the full tidal signal both to function today and to respond to sea level rise.
+This document provides prioritization scoring for the tidal crossing described below. Tidal crossings were assessed using the field and desktop methodology developed by [The Nature Conservancy in NH, NH Department of Environmental Services, and the University of NH](https://www.des.nh.gov/organization/divisions/water/wmb/coastal/resilient-tidal.htm#:~:text=The%20Resilient%20Tidal%20Crossings%20NH,opportunities%20at%20tidal%20crossing%20sites) with modifications to make them suitable for NY. With this information, communities can strategically plan capital investments, secure funding, and implement high priority improvement projects with partners.
 
 
 #### _Prioritization Scoring_
 Crossings are prioritized based on four categories of benefits: ecological benefit, resilience benefit, transportation benefit, and infrastructure condition benefit. Within each category, individual metrics are scored on a scale of 1 to 5. Higher scores indicate a greater benefit and therefore higher priority for upgrade or replacement. Within each benefit category, metrics are summed and then re-scaled to a 1 to 5 scale. Finally, all four benefit scores are summed to calculate the Total Prioritization Score, with a potential range of 4 to 20. A detailed explanation of all the metrics and scoring methods for this prioritization is provided in the Prioritization Scoring Summary document found at the [project resources site.](https://tnc.box.com/s/b8blt0go96hlsxu6cb06e9y952scpjfr) 
+
 
 General Crossing Information
 ================================================================================
@@ -320,7 +331,7 @@ tidal_table_data %>% dplyr::select(-value) %>% arrange(desc(Description)) %>%
 Ecological Benefit
 ================================================================================
  
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 # Style for kable tables.
 style_eco <- function(.tab, pos = "center"){
   kable_styling(kable_input = .tab, 
@@ -407,22 +418,12 @@ tidal_table_data %>%
 
 
 ```   
-
-_Disclaimer_ 
-============================================================================== 
-This document is a screening tool for prioritizing planning efforts and is not intended to replace a site visit for making engineering or management decisions.  Due diligence is required to ensure that all infrastructure and property owners, permitting agencies and project engineers are consulted in advance of project planning. Please note that different entities may own the roadway, crossing infrastructure, water management structures, and the surrounding land. Information presented here represents the best available at the time of the assessment.  
-
-```{r}
-htmltools::HTML('<div class="page-break-clear"></div>
-<div class="page-break">&nbsp;</div>')
-```
-
-\newpage
+ 
+ \newpage
 
 Site Photos   
 ================================================================================
-
-```{r fig.show="hold", message=FALSE, warning=FALSE, out.width="48%", paged.print=FALSE}
+```{r fig.align='center', fig.height=3, fig.show="hold", fig.width=3, message=FALSE, warning=FALSE, out.width="48%", paged.print=FALSE}
 # upstream
 up <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "upstream", path = photoFolder, tidal = TRUE) %>% # changed to relative path to see if it fixes the chrome_print
                   photo_check()
@@ -434,92 +435,122 @@ down <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "down
                   photo_check()
 
 
+pic <- function(img, caption){htmltools::HTML(glue::glue("<div class='image'>
+  <img src= '{img}' />
+  <p class='caption'>{caption}</p>
+</div>"))}
+
+
 ```
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, out.width="48%", paged.print=FALSE}
+Upstream view from structure
+================================================================================
+```{r fig.show="hold", message=FALSE, warning=FALSE, out.width="48%", paged.print=FALSE, fig.align='center'}
+# 
+# htmltools::div(class = "pic",
+#                div(
+#                  class = "imagecolumn",
+#                  pic(up, caption = "Upstream view from structure"),
+#                  pic(down, "Downstream view from structure"))
+#                )
 
-tags$div(class = "polaroid ",
-         tags$a(target = "_blank",
-                tags$img(src = up, alt = "Upstream view from structure")),
-         tags$div(class = "desc", "Upstream view"))
+ up
+
+
 ```
 
-
-```{r echo=FALSE, message=FALSE, out.width="48%", warning=FALSE, paged.print=FALSE}
-
-tags$div(class = "polaroid",
-         tags$a(target = "_blank", 
-                tags$img(src = inlet, alt = "Downstream view toward structure")),
-         tags$div(class = "desc", "Inlet"))
+Downstream view from structure
+================================================================================
+```{r fig.show="hold", message=FALSE, warning=FALSE, out.width="48%", paged.print=FALSE, fig.align='center'}
+down
 ```
 
+Downstream view toward structure
+================================================================================
+```{r fig.show="hold", message=FALSE, warning=FALSE, out.width="48%", paged.print=FALSE, fig.align='center'}
+# 
+# htmltools::div(class = "pic",
+#                div(
+#                  class = "imagecolumn",
+#                  pic(inlet, caption = "Downstream view toward structure"),
+#                  pic(outlet, "Upstream view toward structure"))
+#                )
+# inlet
+# h3("Downstream view toward structure")
+# outlet
+# h3("Upstream view toward structure")
 
-```{r echo=FALSE, message=FALSE, out.width="48%", warning=FALSE, paged.print=FALSE}
-
-tags$div(class = "polaroid",
-         tags$a(target = "_blank",
-                tags$img(src = outlet, alt = "Upstream view toward structure")),
-         tags$div(class = "desc", "Outlet"))
+inlet
 ```
 
+Upstream view toward structure
+================================================================================
+```{r fig.show="hold", message=FALSE, warning=FALSE, out.width="48%", paged.print=FALSE, fig.align='center'}
 
-```{r echo=FALSE, message=FALSE, out.width="48%", warning=FALSE, paged.print=FALSE}
-
-tags$div(class = "polaroid",
-         tags$a(target = "_blank",
-                tags$img(src = down, alt = "Downstream view from structure")),
-         tags$div(class = "desc", "Downstream view"))
-
-```    
-
-```{r}
-htmltools::HTML('<div class="page-break-clear"></div>
-<div class="page-break">&nbsp;</div>')
+outlet
 ```
-    
-\newpage
 
+ 
+ \newpage
+ 
 Cross Sectional Profile  
 ================================================================================
 
-```{r profilePlots, fig.height=4, fig.width=6, message=FALSE, warning=FALSE, paged.print=FALSE}
 
-profilePlot[[1]] + theme(text = element_text(size = 11))
+```{r profilePlots, fig.height=6, fig.width=7, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+
+pplot <-
+  profilePlot[[1]]$result
+
+
+if (!is.null(pplot)) {
+  pplot + theme(
+    axis.line = element_blank(),
+    axis.text.x = element_blank(),
+    # axis.text.y = element_blank(),
+    axis.ticks = element_blank()
+    # axis.title.x = element_blank(),
+    # axis.title.y = element_blank(),
+    # panel.background = element_blank(),
+    # panel.border = element_blank(),
+    # panel.grid.major = element_blank(),
+    # panel.grid.minor = element_blank(),
+    # plot.background = element_blank()
+  )
+} else{
+  profilePlot_default[[1]]$result +
+  theme(
+    axis.line = element_blank(),
+    axis.text.x = element_blank(),
+    # axis.text.y = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title.x = element_blank(),
+    # axis.title.y = element_blank(),
+    # panel.background = element_blank(),
+    # panel.border = element_blank(),
+    # panel.grid.major = element_blank(),
+    # panel.grid.minor = element_blank(),
+    # plot.background = element_blank()
+  ) + labs(title = "Mock crossing",
+           subtitle = glue::glue("Crossing #: {ccode}"))
+}
 
 
 ```
+ 
+ 
 
-## Additional Crossing Structure Information
-Add in Formerly connected text- 
-```{r}
-# tidal_table_data %>%
-#   filter(SummarySection == "Additional") %>%# mutate_at(.vars = vars(value, score), .funs = as.numeric) %>%
-#   pivot_longer(cols = c(value, score)) %>%
-#   unite(pos_score, position, name) %>%
-#   filter(!is.na(value)) %>%
-#   pivot_wider(names_from = pos_score) %>%
-# 
-#   left_join(ords) %>%
-#   # filter(!is.na(tableOrder)) %>%
-#   arrange(tableOrder) %>%
-#   select(Description,
-#          upstream_value,
-#          downstream_value,
-#          overall_value,
-#          overall_score) %>%
-#   replace_na(replace =  list(upstream_value = " ", downstream_value = " ", overall_value = "--", overall_score = "--")) %>%
-#   kable(col.names = c("", "upstream", "downstream", "", "Score"), align = 'lcc') %>%
-#   # pack_rows("") %>%
-#   style_eco() %>%
-#   kable_styling(position = "float_left") %>%
-#   I()
+ Crossing Structure Profile Measurements
+================================================================================
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
-
-profileTbl <- tidal_table_data %>%
+tidal_table_data %>%
   filter(SummarySection == "Profile Details") %>%# mutate_at(.vars = vars(value, score), .funs = as.numeric) %>%
   pivot_longer(cols = c(value, score)) %>%
   unite(pos_score, position, name) %>%
-  filter(!is.na(value)) %>%
+  mutate(value = as.numeric(value)) %>% 
+  # filter(!is.na(value)) %>%
   pivot_wider(names_from = pos_score) %>% 
   
   left_join(ords) %>%
@@ -528,21 +559,51 @@ profileTbl <- tidal_table_data %>%
   select(Description, 
          upstream_value,
          downstream_value) %>%
-  replace_na(replace =  list(upstream_value = " -- ", downstream_value = " -_ ")) %>%
+  replace_na(replace =  list(upstream_value = " -- ", downstream_value = " -- ")) %>%
   kable(col.names = c("", "upstream", "downstream"), align = 'lcc') %>%
   # pack_rows("") %>% 
   style_eco() %>%
-  # kable_styling(position = "float_left") %>%
+  kable_styling(position = "float_left") %>%
+  I()
+
+```
+  
+Local Area Land Stats
+================================================================================
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+tidal_table_data %>%
+  filter(SummarySection == "AdditionalInfo") %>%# mutate_at(.vars = vars(value, score), .funs = as.numeric) %>%
+  pivot_longer(cols = c(value, score)) %>%
+  unite(pos_score, position, name) %>%
+  filter(!is.na(value)) %>%
+  pivot_wider(names_from = pos_score) %>%
+
+  left_join(ords) %>%
+  # filter(!is.na(tableOrder)) %>%
+  arrange(tableOrder) %>%
+  select(Description,
+         overall_value) %>%
+  replace_na(replace =  list(verall_value = "--")) %>%
+  kable(col.names = c("", ""), align = 'lc') %>%
+  # pack_rows("") %>%
+  style_eco() %>%
+  kable_styling(position = "float_right") %>%
   I()
 
 
 
-  
 ```
   
-  
-***   
-### _Data Access_  
- 
+
+ _Data Access_  
+================================================================================
+
 - Download the all data associated with this crossing by accessing the projects webservices site.(link)
 
+
+_Disclaimer_ 
+============================================================================== 
+This document is a screening tool for prioritizing planning efforts and is not intended to replace a site visit for making engineering or management decisions.  Due diligence is required to ensure that all infrastructure and property owners, permitting agencies and project engineers are consulted in advance of project planning. Please note that different entities may own the roadway, crossing infrastructure, water management structures, and the surrounding land. Information presented here represents the best available at the time of the assessment.  
+
+</div>
