@@ -27,7 +27,9 @@ tidal_crossings <-
     Name,
     Municipality,
     Ownership,
+    PtrPriorit,
     streamName,
+    Road,
     Rd_Owner,
     Functional_Class,
     FunctionalClass_supervised,
@@ -37,7 +39,7 @@ tidal_crossings <-
     AssessmentStatusCode
   )
 
-####### FIELD ASSESSMENTS ########## many (potentially)
+####### FIELD ASSESSMENTS ########## many assessments (potentially)
 # Data associated with the field visit
 # CrossingID, date, observers, times, tides, ecological observations, (NH included the HWI, marsh plain etc, which I was calling the crossSectionalProfile data)
 
@@ -94,26 +96,68 @@ structure_assessmenst <-
 desktop_assessment <- LIculvertAssessmentData %>% 
   st_drop_geometry() %>% 
   select(crossingID, 
-         starts_with("da"), formerlyConnected)
+         starts_with("da"), formerlyConnected, MarshComplex_Scoring)
 
 
 ######## SURVEY / ELEVATION DATA #####
+# TODO: Empty tibbles in nested column causing grief. Also, a new error message arose relating to a character issue.
 #' Data related to the longitudinal profile and cross sectional profile. 
 #' These data are tricky in that they aren't structured in a consistent manner and need
 #' to be organized in a vertical table orientation, not a tidy single row as the other data are.
 #' 
-LIculvertAssessments %>% select(crossingID, longProfile) %>% filter(crossingID == 71)
+longitudinalSurvey <- LIculvertAssessments %>% 
+  select(longProfile) %>% 
+  filter(!is.null(longProfile)) %>% unnest(longProfile) %>% 
+  select(crossingID, everything())
 
+crossSectionalFieldSurvey <- LIculvertAssessments %>% 
+  select(crossingID, crossSectionProfile) %>% 
+  filter(!is.null(crossSectionProfile)) %>% unnest(crossSectionProfile) %>% 
+  filter(is.na(crossSectionProfile)) %>% 
+  select(-crossSectionProfile)
 
+crossSectional_corrected <- LIculvertAssessmentData %>% 
+  select(crossingID, HeightOfRoadCenter:HtofControlPt_X, LowTideWaterElev_dwnStream:LowTideWaterElev_upStreamCode, roadWidth, `Ceiling of Structure DS`:`Marsh Plain Shot US`, `Road Center NA`:`Road Surface US`, crossSection_hts_coms )
 
-
-
+prioritizations_tidal <- LIculvertPrioritization %>% st_drop_geometry()
 
 ## Check that all attributes have been captured. 
-includedAttributes <- c(names(tidal_crossings), names(field_assessments), names(structure_assessmenst), names(desktop_assessment))
+includedAttributes <-
+  c(
+    names(tidal_crossings),
+    names(field_assessments),
+    names(structure_assessmenst),
+    names(desktop_assessment),
+    names(longitudinalSurvey),
+    names(crossSectionalFieldSurvey),
+    names(crossSectional_corrected)
+  )
 
 # Create a not in function
 `%notin%` <- Negate(`%in%`)
 # List out what attributes/columns aren't found in the datasets created above.
 names(LIculvertAssessmentData)[names(LIculvertAssessmentData) %notin% includedAttributes]
+
+
+## Generate the geoDB from the tibbles above.
+arcgisbinding::arc.check_product()
+# C:\Users\astarke\Documents\ArcGIS\Projects\Culverts_LongIsland\tidal_Crossings_beta.gdb
+gdbpath <- "C:/Users/astarke/Documents/ArcGIS/Projects/Culverts_LongIsland/tidal_Crossings_beta.gdb"
+# Write the feature class that is the crossing locations
+arc.write(path = file.path(gdbpath, "tidalCrossings"), data = tidal_crossings, overwrite = T)
+
+# write Tables for joining. ----
+# Prioritizations  prioritizations_tidal
+arc.write(path = file.path(gdbpath, "tidalPrioritizations"), data = prioritizations_tidal, overwrite = T)
+# Field data - field_assessments
+arc.write(path = file.path(gdbpath, "fieldAssessments"), data = field_assessments, overwrite = T)
+# Desktop assessments  desktop_assessment
+arc.write(path = file.path(gdbpath, "desktopAssessment"), data = desktop_assessment, overwrite = T)
+
+
+
+
+
+
+
 
