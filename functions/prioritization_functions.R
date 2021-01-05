@@ -14,7 +14,7 @@
 #'  criteria for additional assessment of sensitivity. 
 #' 
 #'
-# TODO: Revise and update documentation 
+# TODO: Revise and update documentation for final report
 
 #**********************************************
 # E1. Salt Marsh Complex Size ----
@@ -306,35 +306,35 @@ highwater_clearance <-
     highwater_dif_US <-  us_road -  us_hwi_wrack
     # scored
     score_highwater_dif_US <-
-      as.numeric(
+      as.numeric(as.character(
         cut(x = highwater_dif_US, breaks = c(-Inf, 0, 1.5, 3, 6, Inf)),
         labels = 5:1,
-        ordered_result = FALSE
+        ordered_result = FALSE)
       )
     # risk of high water - downstream side
     highwater_dif_DS <-  ds_road - ds_hwi_wrack
     # scored
-    score_highwater_dif_DS = as.numeric(
+    score_highwater_dif_DS = as.numeric(as.character(
       cut(x = highwater_dif_DS, breaks = c(-Inf, 0, 1.5, 3, 6, Inf)),
       labels = 5:1,
-      ordered_result = FALSE
+      ordered_result = FALSE)
     )
     
     # clearance - downstream side
     clearance_dif_DS <- ds_ceiling - ds_hwi_stain
     # scored
-    score_clearance_dif_DS <-  as.numeric(
+    score_clearance_dif_DS <-  as.numeric(as.character(
       cut(x = clearance_dif_DS, breaks = c(-Inf, 0, 1, 2, 3, Inf)),
       labels = 5:1,
-      ordered_result = FALSE
+      ordered_result = FALSE)
     )
     # clearance - upstream side
     clearance_dif_US <-  us_ceiling - us_hwi_stain
     # scored
-    score_clearance_dif_US = as.numeric(
+    score_clearance_dif_US = as.numeric(as.character(
       cut(x = clearance_dif_US, breaks = c(-Inf, 0, 1, 2, 3, Inf)),
       labels = 5:1,
-      ordered_result = FALSE
+      ordered_result = FALSE)
     )
     # return max of clearances if they are available-
     clearance_Sc <-  max(score_clearance_dif_DS,
@@ -387,19 +387,24 @@ highwater_clearance <-
 # else
 # RB = -99
 # end if
-benefit_score <- function(total.benefit.score, resilience.score = F, transporation.score = F){
-  if(resilience.score == F){
-    score <- cut(x = total.benefit.score, breaks = c(-Inf, 4, 8, 12, 16, Inf), labels = c(1:5))
-    score <- as.numeric(score)
-  }
-  if(transporation.score == T){
+benefit_score <- function(total.benefit.score, no.metrics){
+  
+  if(no.metrics == 2){
     score <- cut(x = total.benefit.score, breaks = c(-Inf, 2, 4, 6, 8, Inf), labels = c(1:5))
-    score <- as.numeric(score)
+    score <- as.integer(score)
   }
-  else{
+  
+  if(no.metrics == 3){ # if only 3 metrics are used then score using the below breaks
+    # Possible scores would be 3 to 15
     score <- cut(x = total.benefit.score, breaks = c(-Inf, 3, 6, 9, 12, Inf), labels = c(1:5))
-    score <- as.numeric(score)
+    score <- as.integer(score)
   }
+  
+  if(no.metrics == 4){
+    score <- cut(x = total.benefit.score, breaks = c(-Inf, 4, 8, 12, 16, Inf), labels = c(1:5))
+    score <- as.integer(score)
+  }
+  
   return(score)
 }
 

@@ -7,10 +7,11 @@ source("00_libraries.R")
 source("functions/culvert_tidy.R")
 source("utilities/photoMatchTable.R")
 source('~/R/roadstreamCrossings/utilities/helpers.R')
+
 # Data Update:
 ## Update the Data?!
 dataUpdate <- 1
-spatialDataUpdate <- 1
+spatialDataUpdate <- 0
 pivots <- 0
 # Write outputs to folders option- Change to allow writes to be made- 
 # Keep false when running many times to avoid conflicts with Box
@@ -85,7 +86,8 @@ crossingTrackerlist <- crossingTracker %>%
   #' ALL data additions, edits updates etc, for culvert locations and desktop assessment happens here.
   #'  
 if(dataUpdate == 1){
- 
+  towns <- st_read("https://cumulus.tnc.org/arcgis/rest/services/LongIsland/RoadStream_Crossings_Baselayers_040120/MapServer/0/query?where=OBJECTID+%3E0&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson")
+  towns <- towns %>% rename(town_name = NAME)
   # Pull from AGOL directly using credentials contained in the arcgisbindings arc.check_portal call
   tidalCrossings_desktop <- arcgisbinding::arc.open("https://services.arcgis.com/F7DSX1DSNSiWmOqh/arcgis/rest/services/TidalCrossing_desktopDataEntry/FeatureServer/0") %>% 
     arc.select() %>% 
@@ -99,6 +101,7 @@ if(dataUpdate == 1){
     mutate(crossingID = CrossingID_, PriorityScore = as.numeric(PtrPriorit) + as.numeric(TNCPriorit_1) + as.numeric(MarPriorit_1)) %>% # create a new 'priority score'
     mutate(listedOnFieldSched = crossingID %in% crossings_TODO, Located = "Y",
            crossingID = as.numeric(crossingID)) 
+  LIculvert_GISpts <- LIculvert_GISpts %>% st_join(towns)
   LIculvert_GISpts %>% write_rds(path = "data/LIculvert_GISpts.rds")
   rm(tidalCrossings_desktop)
 } else{
@@ -121,7 +124,6 @@ if(dataUpdate == 1) {
   # columns include tidycells- raw cell content from each workbook; decoded- transformed raw values extracted from
   # workbooks using key as lookup;
   # This tibble should be the same length as the number of worksheets in the folder where the data is stored.
-  # TODO: Check that the fielddata column contains the same data as the LIculvertData object- if so remove the later from this script
   LIculvertAssessments <- culvert_tidy(tidalCulvert_datasheetsFolder)
   # Build out dataframe to add crossings longitudinal profiles, cross sectional measures, 
   LIculvertAssessments <- LIculvertAssessments %>%
