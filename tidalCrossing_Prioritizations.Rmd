@@ -1184,24 +1184,17 @@ The final prioritization scoring is total sum of all the benefit scores (4 - 20)
 
 ```{r finalScore, message=FALSE, warning=FALSE, paged.print=FALSE}
 # There's a need to push out data from the assessments as well for the summary sheets, 
-# TODO: Determine if the join should happen here or in a setup script elsewhere (ie. summarySheetSetup.R)
-# TODO: Confirm how we want to roll up the prioritizations in cases where some crossings are incomplete. Currently: Drop any incompletes.
+
+#
 LIculvertPrioritization <- LIculvertPrioritization %>% rowwise() %>%
   mutate(
-    Total_Prioritization_va = as.integer(sum( ## TODO: Remove this split once decision is made.
+    Total_Prioritization = as.integer(sum(  
       Total_Eco,
       Total_InfrastructureBen_va,
       Total_Resilience,
       Total_Trans,
       na.rm = F
-    )), 
-    Total_Prioritization_vb = as.integer(sum( ## TODO: Remove this split once decision is made.
-      Total_Eco,
-      Total_InfrastructureBen_vb,
-      Total_Resilience,
-      Total_Trans,
-      na.rm = F)),
-    Total_Prioritization = Total_Prioritization_va # TODO: Remove after diagnosis. Same as the total infr bene score above.
+    ))
   ) %>% ungroup()
 
 LIculvertPrioritization %>%  
