@@ -6,9 +6,9 @@ outputpath <- "C:/Users/astarke/The Nature Conservancy/Long Island Road-Water Cu
 render(input = "tidalCrossing_Prioritizations.Rmd", output_dir = outputpath, output_file = "Prioitization_calcs.html")
 
 
-
-# Render summary document for a given crossing #
-
-summarySheets <- function(crossingNu){
-  rmarkdown::render("SummarySheet_tidal.Rmd", params = list(id = crossingNu), output_dir = "summarySheets/", output_file = paste0("priorizartionReport_", crossingNu))
-}
+# 
+# # Render summary document for a given crossing #
+# 
+# summarySheets <- function(crossingNu){
+#   rmarkdown::render("SummarySheet_tidal.Rmd", params = list(id = crossingNu), output_dir = "summarySheets/", output_file = paste0("priorizartionReport_", crossingNu))
+# }

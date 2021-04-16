@@ -2,6 +2,7 @@
 # Source this code when needing an update. 
 
 source(here::here("00_libraries.R"))
+source(here::here("utilities/photoMatchTable.R"))
 ##%######################################################%##
 #                                                          #
 ####                Summary Sheet Info                  ####
@@ -132,10 +133,10 @@ photo_link <- function(crossingID, matchTable, subject, path, tidal = FALSE){
   imgs <- matchTable %>% filter(ID == crossingID) %>% select(ImageName) %>% as_vector()
   tidalID <- paste0("Crossing ID _",crossingID)
   switch(subject,
-         inlet = {imgs %>% str_detect("nlet|US toward") -> imgname}, # make a more robust str_detect statemement.
-         outlet = {imgs %>% str_detect("utlet|DS toward") -> imgname},
-         upstream = {imgs %>% str_detect("pstream|US above") -> imgname},
-         downstream = {imgs %>% str_detect("ownstream|DS above") -> imgname},
+         inlet = {imgs %>% str_detect(regex("inlet|US toward|upstream toward|US view toward", ignore_case = T)) -> imgname}, # make a more robust str_detect statemement.
+         outlet = {imgs %>% str_detect(regex("outlet|Downstream toward|DS toward|DS above structure|DS view toward", ignore_case = T)) -> imgname},
+         upstream = {imgs %>% str_detect(regex("US above|US away|US view from above|upstream above|US view above", ignore_case = T)) -> imgname},
+         downstream = {imgs %>% str_detect(regex("DS above|DS away|Downstream above|DS view from above", ignore_case = T)) -> imgname},
          # other = {imgs %>% str_detect("")} Doesn't seem to be any 'others' as of now.
          stop("Missing subject argument.") # Return a message indicating missing argument.
          )

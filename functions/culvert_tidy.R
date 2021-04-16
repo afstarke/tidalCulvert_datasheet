@@ -147,9 +147,9 @@ surveyHtCorrection <-
            TPforsight_dwSt,
            TPbacksight_dwSt) {
     case_when(
-      shotCode == "R" ~ as.numeric(sum(Lidarht, roadCentHt, na.rm = T)) +-as.numeric(rawHeight),
-      shotCode == "U" ~ as.numeric(sum(Lidarht, roadCentHt, na.rm = T)) +-as.numeric(TPforsight_upSt) + as.numeric(TPbacksight_upSt) +-as.numeric(rawHeight),
-      shotCode == "D" ~ as.numeric(sum(Lidarht, roadCentHt, na.rm = T)) +-as.numeric(TPforsight_dwSt) + as.numeric(TPbacksight_dwSt) +-as.numeric(rawHeight),
+      shotCode == "R" ~ as.numeric(sum(Lidarht, roadCentHt, na.rm = F)) +-as.numeric(rawHeight), # Ran into bug when road center height was not collected in the field- returned uncorrected values.
+      shotCode == "U" ~ as.numeric(sum(Lidarht, roadCentHt, na.rm = F)) +-as.numeric(TPforsight_upSt) + as.numeric(TPbacksight_upSt) +-as.numeric(rawHeight),
+      shotCode == "D" ~ as.numeric(sum(Lidarht, roadCentHt, na.rm = F)) +-as.numeric(TPforsight_dwSt) + as.numeric(TPbacksight_dwSt) +-as.numeric(rawHeight),
       shotCode == "X" ~ as.numeric(NA),
       # missing data value for the 'X' code that I don't know how to deal with yet.
       is.na(shotCode) ~ as.numeric(NA)
@@ -252,7 +252,7 @@ channelLongidinalProfile_extract <-
 # Extract and calculate culvert cross-section height data  ------------------------------------------
 #' crossSection
 #' Extract cross sectional data of road and culvert structure from
-#' field data sheet. The cross section is focused on the structre,
+#' field data sheet. The cross section is focused on the structure,
 #' low tide elevation, hwi stain and wrack, ceiling of structure and road heights.
 #' Currently this function returns only the field elevations and the adjusted NAVD88 heights.
 #' Used with purrr::map functions to extract data into nested tibble
@@ -432,31 +432,32 @@ crossSection <- function(filepath, tidycells, lidarMeasure, roadWidth) {
     # if(missing(position)){
     #   position = NA
     # }
-    code <- paste(feature, position, sep = "_")
+    
+    codedval <- paste(feature, position, sep = "_")
     case_when(
-      code == "Ceiling of Structure_US" ~  as.numeric(USInvdist),
-      code == "Ceiling of Structure_DS" ~ as.numeric(DSInvdist),
-      code == "HWI Stain_US" ~ as.numeric(USInvdist),
-      code == "HWI Stain_DS" ~ as.numeric(DSInvdist),
-      code == "HWI Wrack_US" ~ as.numeric(USInvdist),
-      code == "HWI Wrack_DS" ~ as.numeric(DSInvdist),
-      code == "Low Tide Water Elevation_US" ~ as.numeric(USInvdist),
-      code ==  "Low Tide Water Elevation_DS" ~ as.numeric(DSInvdist),
-      code ==  "Marsh Plain Shot_US" ~ as.numeric(USInvdist),
-      code ==  "Marsh Plain Shot_DS" ~ as.numeric(DSInvdist),
-      code ==  "Road Surface_US" ~ as.numeric(roadCentDist - (roadwidth /
+      codedval == "Ceiling of Structure_US" ~  as.numeric(USInvdist),
+      codedval == "Ceiling of Structure_DS" ~ as.numeric(DSInvdist),
+      codedval == "HWI Stain_US" ~ as.numeric(USInvdist),
+      codedval == "HWI Stain_DS" ~ as.numeric(DSInvdist),
+      codedval == "HWI Wrack_US" ~ as.numeric(USInvdist),
+      codedval == "HWI Wrack_DS" ~ as.numeric(DSInvdist),
+      codedval == "Low Tide Water Elevation_US" ~ as.numeric(USInvdist),
+      codedval ==  "Low Tide Water Elevation_DS" ~ as.numeric(DSInvdist),
+      codedval ==  "Marsh Plain Shot_US" ~ as.numeric(USInvdist),
+      codedval ==  "Marsh Plain Shot_DS" ~ as.numeric(DSInvdist),
+      codedval ==  "Road Surface_US" ~ as.numeric(roadCentDist - (roadwidth /
                                                                 2)),
-      code ==  "Road Surface_DS" ~ as.numeric(roadCentDist + (roadwidth /
+      codedval ==  "Road Surface_DS" ~ as.numeric(roadCentDist + (roadwidth /
                                                                 2)),
-      code ==  "Road Center_NA" ~ as.numeric(roadCentDist),
+      codedval ==  "Road Center_NA" ~ as.numeric(roadCentDist),
       # not in an up or downstream position.
-      is.null(code) ~ 999,
-      is.na(code) ~ 9999,
-      code == "NA_NA" ~ 99999
+      is.null(codedval) ~ 999,
+      is.na(codedval) ~ 9999,
+      codedval == "NA_NA" ~ 99999
     )
     
   }
-  # distCalc <- safely(distCalc)
+  distCalc <- possibly(distCalc, otherwise = NA)
   
   # return a sf with distances added in.
   crossSec %>% mutate(

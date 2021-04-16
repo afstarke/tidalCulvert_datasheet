@@ -13,18 +13,8 @@ htmlOutputFolder <- "D:/culvert_project/tidalCrossings/html_outputs/"
 #' trigger a replacement to be made on the next run of this code.
 #' 
 
-
-# Filter out the crossings where we don't want a summary sheet. 
-# generating summary sheet for all crossings that have a valid score.
-#' Tidal 
-#' to start there's a lot of crossing that are missing bits that prohibit a final score from being calculated. Start with those.
-tidalsites <- tidalPrioritization %>% filter(!is.na(Total_Prioritization)) %>% pull(crossingID)
-
-
-
-
 #' Freshwater
-#' fw_data <- read_rds(here::here("data/fwaterPrioritizations_RERUNS.rds"))
+# fw_data <- read_rds(here::here("data/fwaterPrioritizations_RERUNS.rds"))
 #' crossing_list <- fw_data %>% #filter(Total_Benefit != -99) %>%
 #'  pull(CrosCode)
 # individualReruns <- c("xy4075626072961637", "xy4076273672931253", "xy4083121472708051", "xy4079287373028281", "xy4081809272636601")
@@ -77,11 +67,31 @@ makeDocs <- function(crossings) {
 }
 
 # Run makeDocs to render HTMLs to the output folder
+# 
+
+# Filter out the crossings where we don't want a summary sheet. 
+# generating summary sheet for all crossings that have a valid score.
+#' Tidal 
+#' to start there's a lot of crossing that are missing bits that prohibit a final score from being calculated. Start with those.
+#' All the tidal sites
+tidalsites <- tidalPrioritization %>% filter(!is.na(Total_Benefit)) %>% pull(crossingID) 
+#' Priority (top 10 sites)
+priorityCrossings <- LIculvertPrioritization %>% filter(priorityCrossing) %>% pull(crossingID)
+#' Mattituck Creek project area
+mattituckCrossings <- c(108:110, 426, 427)
+#' Accabonac Area
+accabonacCrossings <- c(115, 118)
+#'
+both <- c(mattituckCrossings, accabonacCrossings)
+## 
+# All the tidal crossings
+# makeDocs(tidalsites)
+
+# makeDocs(118)
+
+makeDocs(priorityCrossings)
+# makeDocs(c(415, 444, 35, 36, 37, 40))
 makeDocs(tidalsites)
-
-
-
-
 
 # As of May 2020 automating chrome_print was throwing errors to work around is to open and print to pdf individually.
 
@@ -100,7 +110,7 @@ pdfcheck <- function()
 { # returns a pep talk and the list of crossings that are in the pdf output folder.
   pdfs_completed <-
     list.files(
-      "M:/Projects/LI/Culvert_Assessment/summarysheets" # Similar to above remove pdf versions that are UNWANTED. i.e. page breaks wrong etc. 
+      "D:/culvert_project/tidalCrossings/pdf_outputs/" # Similar to above remove pdf versions that are UNWANTED. i.e. page breaks wrong etc. 
     ) %>%
     str_remove(pattern = ".pdf")
   print(paste0(
@@ -126,35 +136,36 @@ statuscheck <- function()
   )}
 statuscheck()
 
-# Automating the opening of remaining documents.
-get_to_work <- function(){
-  allhtmls <- list.files(path = htmlOutputFolder,
-                         pattern = ".html",
-                         full.names = F) %>% str_remove(".html")
-  pdfs_completed <- pdfcheck() # check which pdf's have been created
-  # statuscheck()
-  filestoconvert <- allhtmls[!allhtmls %in% pdfs_completed] # Create a list of crossings that need to be converted from HTML to PDF
- filestoconvert %>% paste0("file://", htmlOutputFolder, ., ".html") %>% 
-    # sample(20, replace = F) %>%
-   walk(.x = ., ~chrome_print(.x)) # Walk through and print each one.
-  
-}
+# # Automating the opening of remaining documents.
+# get_to_work <- function(){
+#   allhtmls <- list.files(path = htmlOutputFolder,
+#                          pattern = ".html",
+#                          full.names = F) %>% str_remove(".html")
+#   pdfs_completed <- pdfcheck() # check which pdf's have been created
+#   # statuscheck()
+#   filestoconvert <- allhtmls[!allhtmls %in% pdfs_completed] # Create a list of crossings that need to be converted from HTML to PDF
+#  filestoconvert %>% paste0("file://", htmlOutputFolder, ., ".html") %>% 
+#     # sample(20, replace = F) %>%
+#    walk(.x = ., ~chrome_print(.x)) # Walk through and print each one.
+#   
+# }
 
 
-get_to_work()
+# get_to_work()
 
 
 ## UPDATE Nov 2020
 # try at chrome_print interations
 
 # Automating the opening of remaining documents.
-let_them_work <- function(){
+let_me_work <- function(){
   allhtmls <- list.files(path = htmlOutputFolder,
                          pattern = ".html",
                          full.names = F) %>% str_remove(".html")
   pdfs_completed <- pdfcheck() # check which pdf's have been created
   # statuscheck()
   filestoconvert <- allhtmls[!allhtmls %in% pdfs_completed] # Create a list of crossings that need to be converted from HTML to PDF
+  
   filestoconvert %>% paste0("file://", htmlOutputFolder, ., ".html") %>% 
     sample(20, replace = F) %>%
     walk(.x = ., ~browseURL(.x)) # Walk through each file and open in browser
@@ -162,20 +173,25 @@ let_them_work <- function(){
 }
 
 
-let_them_work()
+let_me_work()
 
 
-
-
-# PDF file crosswalk table
-xwalk <- tibble(paths = list.files("M:/Projects/LI/Culvert_Assessment/summarysheets", pattern = "*.pdf", full.names = T), 
-                crosCode = str_remove(paths, pattern = "M:/Projects/LI/Culvert_Assessment/summarysheets/") %>% str_remove(".pdf")) %>% 
-  mutate(paths = str_replace(paths, pattern = "M:/", replacement = "D:/gisdata/"))
-
-xwalk %>% write_xlsx(path = "M:/Projects/LI/Culvert_Assessment/summarysheets/crosswalkTable.xlsx")
-
-individualReruns %>% paste0("file://D:/culvert_project/html_outputs/", ., ".html") %>% 
-  # sample(20, replace = F) %>%
-  walk(.x = ., ~browseURL(.x))
-
+ # 
+# 
+# # PDF file crosswalk table
+# xwalk <- tibble(paths = list.files("M:/Projects/LI/Culvert_Assessment/summarysheets", pattern = "*.pdf", full.names = T), 
+#                 crosCode = str_remove(paths, pattern = "M:/Projects/LI/Culvert_Assessment/summarysheets/") %>% str_remove(".pdf")) %>% 
+#   mutate(paths = str_replace(paths, pattern = "M:/", replacement = "D:/gisdata/"))
+# 
+# xwalk %>% write_xlsx(path = "M:/Projects/LI/Culvert_Assessment/summarysheets/tidalcrosswalkTable.xlsx")
+# 
+# individualReruns %>% paste0("file://D:/culvert_project/html_outputs/", ., ".html") %>% 
+#   # sample(20, replace = F) %>%
+#   walk(.x = ., ~browseURL(.x))
+# 
+#
+# TODO: Check cross profile data for crossings:
+#   112
+#   34 <-- there is no 'road' measures.
+#   
 

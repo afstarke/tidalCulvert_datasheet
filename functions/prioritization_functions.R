@@ -29,7 +29,7 @@
 # E2. Salt Marsh Size upstream (whole watershed)----
 
 #' Scores binned in tidalCrossing_Prioritization.Rmd
-#' Catchment deliniated around each crossing and acreage 
+#' Catchment delineated around each crossing and acreage 
 #' extracted from SLAMM current conditions raster. 
 #' # TODO: Ask Karen for confirmation and write up of 
 #' methods (likely to be similar to FW)
@@ -106,6 +106,9 @@ crit_tidal_range <- function(tide_r_ratio){
 #' @description Must be referring to consistent position within stream, UP or DOWN.
 #' 
 crossing_ratio <- function(channelWidth, dimA, dimC){
+  dimA <- round(as.numeric(dimA), 2)
+  dimC <- round(as.numeric(dimC), 2)
+  channelWidth <- round(as.numeric(channelWidth), 2)
   cr <- channelWidth/mean(dimA, dimC, na.rm = TRUE, trim = 0)
   
   return(cr)
@@ -237,7 +240,8 @@ vegetationScore <- function(vegMatChoice, formerlyConnected){
 #' @details had run the crossing conditon using NH methods, 
 #' NH methods with scour pulled out and TNC method. 
 #' TNC method resulted in the best distribution for scoring. 
-#' 
+#' Method involves 'scoring' each condition (overall, headwalls, wingwalls and road, both up and downstream), 
+#' calculating the mean of those scores, and then rounding to the nearest integer.(1-5)
 #' @examples
 crossingConditionScore <- function(overallCond, 
                                       hwall_upCond, 
@@ -256,13 +260,13 @@ crossingConditionScore <- function(overallCond,
     return(val)
   }
   
-  finalscore <- mean(rescore(overallCond), 
+  finalscore <- round(mean(c(rescore(overallCond), 
                      rescore(hwall_upCond), 
                      rescore(hwall_dwnCond), 
                      rescore(wwall_dwnCond), 
                      rescore(wwall_upCond), 
-                     rescore(roadCond),
-                     na.rm = TRUE, trim = 0)
+                     rescore(roadCond)),
+                     na.rm = TRUE, trim = 0),digits = 0)
   
   return(finalscore)
 }

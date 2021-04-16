@@ -11,7 +11,7 @@ source('~/R/roadstreamCrossings/utilities/helpers.R')
 # Data Update:
 ## Update the Data?!
 dataUpdate <- 1
-spatialDataUpdate <- 0
+spatialDataUpdate <- 1 # data containing the desktop assessment poriton of the assesments.
 pivots <- 0
 # Write outputs to folders option- Change to allow writes to be made- 
 # Keep false when running many times to avoid conflicts with Box
@@ -25,15 +25,15 @@ arcgisbinding::arc.check_product()
 # for pulling data and storing outputs.
 # Folder and file INPUTS
 # Master document that was used for tracking data needs etc.
-tidalCulvert_Checklist <- "../../../Box Sync/Culvert Assessment/Tidal Assessments/MASTERCrossingSpreadsheetChecklistEdit.xlsx"
+tidalCulvert_Checklist <- "../../../Box/Culvert Assessment/Tidal Assessments/MASTERCrossingSpreadsheetChecklistEdit.xlsx"
 # key sheet- for decoding the values extracted from the workbooks. Add cells of interest and what to call the data upon it's exctraction here.
-keysheet <- read_excel("../../../Box Sync/Culvert Assessment/Tidal Assessments/key.xlsx")
+keysheet <- read_excel("../../../Box/Culvert Assessment/Tidal Assessments/key.xlsx")
 #DONE: cull out the desktop data being extracted from the workbooks as we move towards managed data in AGOL or other system.
 keysheet <- keysheet %>% filter(AssessmentType != "Desktop")
 # Folder where workiung copies of assessment workbooks live
-# tidalCulvert_datasheetsFolder <- "../../../Box Sync/Culvert Assessment/Tidal Assessments/Tidal Culvert DataSheets_WORKINGvers/"
+# tidalCulvert_datasheetsFolder <- "../../../Box/Culvert Assessment/Tidal Assessments/Tidal Culvert DataSheets_WORKINGvers/"
 # Began QA process on these files and moved files into new QAed folder
-tidalCulvert_datasheetsFolder <- "../../../Box Sync/Culvert Assessment/Tidal Assessments/TidalAssessmentWorkbooks_QAvers/"
+tidalCulvert_datasheetsFolder <- "../../../Box/Culvert Assessment/Tidal Assessments/TidalAssessmentWorkbooks_QAvers/"
 
 # Field schedule from Teams.----
 crossingTracker <- read_excel("../../../The Nature Conservancy/Long Island Road-Water Culvert Assessments - General/Culvert_Field_Visit_Schedule.xlsx", sheet = "Tidal Priorities") 
@@ -41,7 +41,7 @@ crossingTracker <- read_excel("../../../The Nature Conservancy/Long Island Road-
 # Teams folder
 # Mapped locally using the PIA method of browsing to Teams link in Internet Explorer, then mapping drive link to Z: in my PC
 # Box folder for outputs
-tidalCulvert_outputs <- "../../../Box Sync/Culvert Assessment/Tidal Assessments"
+tidalCulvert_outputs <- "../../../Box/Culvert Assessment/Tidal Assessments"
 
 # pivots <- menu(c("Create pivot tables?", "Proceed without?"), title = "Generate a pivot summary for reviewing field assessment schedule?")
 
@@ -92,7 +92,7 @@ if(dataUpdate == 1){
   tidalCrossings_desktop <- arcgisbinding::arc.open("https://services.arcgis.com/F7DSX1DSNSiWmOqh/arcgis/rest/services/TidalCrossing_desktopDataEntry/FeatureServer/0") %>% 
     arc.select() %>% 
     arcgisbinding::arc.data2sf()
-    
+    F
   # culvertPOTpts <- tidalCrossings_desktop #%>% select(crossingID:Latitude) # trim desktop data?
   # # remove to keep the workspace tidy.
   # rm(tidalCrossings_desktop)
@@ -125,7 +125,7 @@ if(dataUpdate == 1) {
   # workbooks using key as lookup;
   # This tibble should be the same length as the number of worksheets in the folder where the data is stored.
   LIculvertAssessments <- culvert_tidy(tidalCulvert_datasheetsFolder)
-  # Build out dataframe to add crossings longitudinal profiles, cross sectional measures, 
+  # Build out dataframe to add crossings longitudinal profiles, cross sectional measures, etc.
   LIculvertAssessments <- LIculvertAssessments %>%
     mutate(crossingID = map_chr(
       .x = tidycells,
@@ -188,41 +188,37 @@ if(dataUpdate == 1) {
 LIculvertData <- LIculvertAssessments %>% select(fielddata) %>% unnest(cols = c(fielddata))
 
 
-# if(dataUpdate == 1){
-#   # unnest the tidyxl data to create a large tidy dataframe
-#   LIculvertData <- LIculvertAssessments %>% 
-#     select(filenames, lastChanges, decoded) %>% 
-#     unnest() %>% select(filenames, lastChanges, dataName, values) %>% 
-#     spread(key = dataName, value = values) %>% 
-#     select(filenames, crossingID, dateAssessed, observers, everything()) %>% # organize the order of the columns.
-#     mutate(dateAssessed2 = lubridate::parse_date_time(dateAssessed, orders = 'ymd'),
-#            AsmtStartTime = format(AsmtStartTime, format = "%H:%M:%S"),
-#            AsmtEndTime = format(AsmtEndTime, format = "%H:%M:%S"),
-#            crossingID = as.numeric(crossingID)) %>% 
-#     mutate_if(is.character, list(~na_if(., "N/A"))) %>%   # Convert character columns with "N/A" to NA
-#     mutate_at(numericVars, as.numeric) %>% 
-#     mutate_at(logicalVars, as.logical)
-#   # DONE: mutate outlet to Atlantic and outlet Subtidal to be one column each not 2 as in the datasheet.
-#   # DONE: Add column in key sheet that will be used as data dictionary. Select and paste that info to sheet 2 of the culvert data output below.
-#   
-#   # Munge and add in the vegetation matrix selections
-#   vegMats <- LIculvertData %>% 
-#     select(crossingID, starts_with("veg")) %>% 
-#     gather(-crossingID, key = 'key', value = "val") %>% 
-#     separate(col = key, into = c("key", "Vegchoice")) %>% 
-#     mutate(VegetMat_select = ifelse(val, yes = val, no = NA)) %>% 
-#     filter(!is.na(VegetMat_select)) %>% select(crossingID, Vegchoice) 
-#   LIculvertData <- LIculvertData %>% left_join(vegMats) %>% select(-starts_with("vegMat"))
-#   
-#   
-#   LIculvertData %>% write_rds(path = "data/LIculvertData.rds")
-# }else{
-#   LIculvertData <- read_rds(path = "data/LIculvertData.rds")
-# }
+
 
 
 LIculvertData_location <- LIculvert_GISpts %>% 
-  left_join(LIculvertData, by = "crossingID")  # this object is picking up 2 extra joins- perhaps dupicate CrossingIDs? YUP> 2007 is duplicated in GIS file.
+  left_join(LIculvertData, by = "crossingID")  %>%
+  # fixing data type issues here. ArcMap reads in integers as Long and numerics as double.
+  mutate(InvasiveSppsPresent_upStream = as.integer(InvasiveSppsPresent_upStream),
+         InvasiveSppsPresent_dwnStream = as.integer(InvasiveSppsPresent_dwnStream),
+         MarshCondition_upStream = as.integer(MarshCondition_upStream),
+         MarshCondition_dwnStream = as.integer(MarshCondition_dwnStream),
+         CrossingType = as.integer(CrossingType),
+         StructureConditionOverall  = as.integer(StructureConditionOverall),
+         StructureMaterial = as.integer(StructureMaterial),
+         HeadwallCondition_dwnStream = as.integer(HeadwallCondition_dwnStream),
+         HeadwallCondition_upStream = as.integer(HeadwallCondition_upStream),
+         HeadwallMaterial_dwnStream = as.integer(HeadwallMaterial_dwnStream),
+         HeadwallMaterial_upStream = as.integer(HeadwallMaterial_upStream),
+         WingwallCondition_dwnStream = as.integer(WingwallCondition_dwnStream),
+         WingwallCondition_upStream = as.integer(WingwallCondition_upStream),
+         WingwallMaterials_dwnStream = as.integer(WingwallMaterials_dwnStream),
+         WingwallMaterials_upStream = as.integer(WingwallMaterials_upStream),
+         RoadSurfaceCondition = as.integer(RoadSurfaceCondition),
+         Scour_inStructure = as.integer(Scour_inStructure),
+         ScourSeverity_dwnStream = as.integer(ScourSeverity_dwnStream),
+         ScourSeverity_upStream = as.integer(ScourSeverity_upStream),
+         ScourStructure_dwnStream = as.integer(ScourStructure_dwnStream),
+         ScourStructure_upStream = as.integer(ScourStructure_upStream),
+         ScourSeverity_inStructure = as.integer(ScourSeverity_inStructure),
+         NatCommClassification_upStream = as.integer(NatCommClassification_upStream),
+         NatCommClassification_dwnStream = as.integer(NatCommClassification_dwnStream)
+         )
   
 # Culvert Data Status ----
 #' summaries for general project guidance

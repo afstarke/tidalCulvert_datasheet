@@ -26,7 +26,7 @@ openDS <- function(crossing) {
 }
 
 openPics <- function(crossing){
-  paths <- list.files(path = glue::glue("C:/Users/astarke/Box Sync/Culvert Assessment/Tidal Assessments/Photos/Crossing ID #{crossing}"), full.names = T)
+  paths <- list.files(path = glue::glue("C:/Users/astarke.TNC/Box/Culvert Assessment/Tidal Assessments/Photos/Crossing ID #{crossing}"), full.names = T)
   paths %>% walk(.x = ., .f = ~browseURL(url = .x, browser = NULL))
 }
 
@@ -36,15 +36,10 @@ openField <- function(crossing){
 }
 
 fieldData_view <- function(crossing) {
-  LIculvertsAssessments %>% filter(crossingID == crossing) %>%
+  LIculvertAssessments %>% filter(crossingID == 96) %>%
     pull(fielddata) %>%
     pluck(1) %>%
-    pivot_longer(
-      cols = everything(),
-      names_to = "metric",
-      values_to = "values",
-      values_ptypes = list(values = 'character', metric = 'character')
-    )
+    t() %>% view()
 }
 
 crossGlimpse <- function(crossing){
@@ -66,4 +61,14 @@ crossVisit <- function(crossing) {
     }
     
   }
+}
+
+crossPlot <- function(crossing){
+  LIculvertAssessments %>% filter(crossingID == crossing) %>%
+    pull(profilePlots)
+}
+
+mapCross <- function(crossing){
+  cross <- LIculvertAssessmentData %>% filter(crossingID == crossing)
+  mapview(cross)
 }

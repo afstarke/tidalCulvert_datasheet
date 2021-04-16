@@ -113,7 +113,7 @@ htmlfilesToRemove <- paste0("D:/culvert_project/html_outputs/", fw_drops, ".html
 file.exists(htmlfilesToRemove)
 purrr::walk(htmlfilesToRemove, browseURL)
 
-pdffilesToRemove <- paste0("C:/Users/astarke/Box Sync/LI_Road_Stream_Tidal_Crossing_Project_Resources/Documents/SummarySheets/", fw_drops, ".pdf")
+pdffilesToRemove <- paste0("C:/Users/astarke/Box/LI_Road_Stream_Tidal_Crossing_Project_Resources/Documents/SummarySheets/", fw_drops, ".pdf")
 file.exists(pdffilesToRemove)
 file.remove(pdffilesToRemove)
 purrr::walk(pdffilesToRemove, ~system(paste0('open ', .x)))
