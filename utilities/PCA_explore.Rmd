@@ -1,0 +1,109 @@
+---
+title: "Exploring PCA on prioritization inputs"
+output: tint::tintHtml
+---
+
+```{r setup, include=FALSE}
+library(tint)
+# invalidate cache when the package version changes
+knitr::opts_chunk$set(tidy = FALSE, cache.extra = packageVersion('tint'))
+options(htmltools.dir.version = FALSE)
+```
+
+
+```{r message = FALSE}
+library(hrbrthemes)
+library(ggplot2)
+library(Cairo)
+library(extrafont)
+library(tidymodels)
+
+extrafont::loadfonts()
+```
+
+# Data
+
+```{r}
+prioritizations <- LIculvertPrioritization %>% st_drop_geometry() %>% 
+  select(-crossingID, -partPrior, -starts_with("Total"), Total_Prioritization) %>% select_if(.predicate = is.numeric) %>% 
+  filter(complete.cases(.))
+  
+  
+  
+
+```
+
+# PCA using tidymodels
+
+ 
+```{r}
+
+pca_rec <- recipe(~ . , data = prioritizations) %>% 
+  update_role(Total_Prioritization, new_role = "id") %>% 
+  step_normalize(all_predictors()) %>% 
+  step_pca(all_predictors())
+  
+pca_prep <- prep(pca_rec)
+# pca_prep
+
+
+```
+
+```{r}
+library(tidytext)
+
+
+tidied_pca <- tidy(pca_prep,2 )
+tidied_pca %>% 
+  filter(component %in% paste0("PC", 1:3)) %>% 
+  mutate(component = fct_inorder(component)) %>% 
+  ggplot(aes(value, terms, fill = terms)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~component, nrow = 1) + 
+  labs(y = NULL)
+
+
+tidied_pca %>% 
+  filter(component %in% paste0("PC", 1:4)) %>% 
+  group_by(component) %>% 
+  top_n(8, abs(value)) %>% 
+  ungroup() %>% 
+  mutate(terms = reorder_within(terms, abs(value), component)) %>% 
+  ggplot(aes(abs(value), terms, fill = value > 0)) +
+  geom_col() +
+  facet_wrap(~component, scales = "free_y") + 
+  labs(y = NULL, fill = "Positive??")
+
+```
+
+```{r}
+juice(pca_prep) %>% 
+  ggplot(aes(PC1, PC2)) + 
+  geom_point(aes(color = as.factor(Total_Prioritization)), alpha = 0.7, size = 5)
+
+```
+
+# UMAP
+
+
+```{r}
+library(embed)
+
+umap_rec <- recipe(~ . , data = prioritizations) %>% 
+  update_role(Total_Prioritization, new_role = "id") %>% 
+  step_normalize(all_predictors()) %>% 
+  step_umap(all_predictors())
+  
+umap_prep <- prep(umap_rec)
+
+umap_prep
+
+juice(umap_prep) %>% 
+  ggplot(aes(umap_1, umap_2)) + 
+  geom_point(aes(color = as.factor(Total_Prioritization)), alpha = 0.7, size = 5)
+
+
+```
+
+
+

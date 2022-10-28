@@ -17,7 +17,8 @@ matchTable_tidal <- tibble(
                      all.files = TRUE, include.dirs = F, recursive = T),
   ImageName = list.files(full.names = F, path = here::here("summarySheets/tidal_photos/"), 
                          all.files = TRUE, include.dirs = F, recursive = T)) %>% 
-  dplyr::mutate(ID = as.numeric(sub(x = sub(x = paths, pattern = ".*_", replacement = ""), pattern = "/.*", replacement = "")),
+  dplyr::mutate(ID = as.numeric(sub(x = sub(x = paths, pattern = ".*_", replacement = ""), 
+                                    pattern = "/.*", replacement = "")),
          ImageName = sub(x = ImageName, pattern = ".*/", replacement = "")) # odd bug that popped up. 19Nov2020
   # mutate(ImageName = sub(x = ImageName, pattern = ".*/", replacement = ""))
 
@@ -47,12 +48,12 @@ matchTable_tidal %>% write_xlsx(path = here::here("summarySheets",  'photomatchT
 # # matchTable_tidal %>% datatable()
 
 # 
-# # Freshwater NAACC photo match table maker-
-# 
-# matchTable_fresh <- tibble(
-#   paths = list.files(full.names = F, path = "D:/culvert_project/html_outputs/photos", 
-#                      all.files = TRUE, include.dirs = F, recursive = T, pattern = ".jpg", ignore.case = TRUE)) %>% 
-#   mutate(ImageName = sub(x = paths, pattern = ".*/", replacement = ""),
-#          ID = (sub(x = sub(x = paths, pattern = ".*#", replacement = ""), pattern = "/.*", replacement = ""))) 
-# 
-# matchTable_fresh %>% write_csv(path = "D:/culvert_project/html_outputs/photos/matchTable.csv")
+# Freshwater NAACC photo match table maker-
+
+matchTable_fresh <- tibble(
+  paths = list.files(full.names = F, path = "D:/culvert_project/html_outputs/photos",
+                     all.files = TRUE, include.dirs = F, recursive = T, pattern = ".jpg", ignore.case = TRUE)) %>%
+  mutate(ImageName = sub(x = paths, pattern = ".*/", replacement = ""),
+         ID = (sub(x = sub(x = paths, pattern = ".*#", replacement = ""), pattern = "/.*", replacement = "")))
+
+matchTable_fresh %>% write_csv(path = "D:/culvert_project/html_outputs/photos/matchTable.csv")

@@ -6,7 +6,7 @@ output:
     self_contained: yes
 css: summary.css
 params:
-  crossingCode: xy4075626072961637 
+  crossingCode: xy4068868573353758 
 ---
 
 ```{r setup, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
@@ -19,6 +19,12 @@ knitr::opts_chunk$set(
 # htmltools::includeScript(path = here::here("script.js"))
 # insert 
 # <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
+
+# Updating the output of this summarysheet requires a few steps-
+# Photos: Place the new/missing photos in the D:\culvert_project\html_outputs\photos\ folder in the appropriate crossing folder
+#   Run the 'photoMatchTable.R' code to update the match table.
+#   
+
 
 ```
 
@@ -88,7 +94,7 @@ fw_table_data <- fw_doc_data %>%
                                      true = "Unidentified", 
                                      false = as.character(StrmName)),
                   Rd_EvacRte = if_else(Rd_EvacRte == 1, "Yes", "No"),
-                  PtrPriorit = if_else(PtrPriorit == 1, "Yes", "No"),
+                  PtrPriorit = if_else(PartnerPriority == 1, "Yes", "No"),
                   Percent_Imperv_HUC12 = paste0(Percent_Imperv_HUC12 * 100, "%"),
                   Functional_Class = recode(Functional_Class,
                                             `-99` = "Undefined",
@@ -115,7 +121,7 @@ fw_table_data <- fw_doc_data %>%
          
 
 
-ords <- summaryNeeds %>% select(Description, tableOrder)
+ords <- summaryNeeds %>% select(protocol, Description, tableOrder) %>% filter(protocol == "Freshwater") %>% select(-protocol)
 
 # Style for kable tables.
 style <- function(.tab, pos = "center"){
@@ -310,13 +316,13 @@ Site Photos
 
 ```{r fig.show="hold", message=FALSE, warning=FALSE, out.width="48%", paged.print=FALSE}
 # upstream
-up <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "upstream", path = photoFolder) %>% # changed to relative path to see if it fixes the chrome_print
+up <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "upstream", path = photoFolder, tidal = FALSE) %>% # changed to relative path to see if it fixes the chrome_print
                   photo_check()
-inlet <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "inlet", path = photoFolder) %>% 
+inlet <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "inlet", path = photoFolder, tidal = FALSE) %>% 
                   photo_check()
-outlet <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "outlet", path = photoFolder) %>% 
+outlet <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "outlet", path = photoFolder, tidal = FALSE) %>% 
                   photo_check()
-down <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "downstream", path = photoFolder) %>% 
+down <- photo_link(crossingID = ccode, matchTable = photoLookup, subject = "downstream", path = photoFolder, tidal = FALSE) %>% 
                   photo_check()
 
 

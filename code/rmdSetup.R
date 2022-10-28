@@ -10,8 +10,8 @@ source('~/R/roadstreamCrossings/utilities/helpers.R')
 
 # Data Update:
 ## Update the Data?!
-dataUpdate <- 1
-spatialDataUpdate <- 1 # data containing the desktop assessment poriton of the assesments.
+dataUpdate <- TRUE
+spatialDataUpdate <- TRUE # data containing the desktop assessment poriton of the assesments.
 pivots <- 0
 # Write outputs to folders option- Change to allow writes to be made- 
 # Keep false when running many times to avoid conflicts with Box
@@ -72,7 +72,7 @@ crossingTrackerlist <- crossingTracker %>%
 
 # Culvert Catchments ----
   # ALL DATA contained in these catchments that was relevant has been transferred to the tidal_desktop points themselves. If updates needed rerun this and rejoin missing values to hosted feature.
-# if(spatialDataUpdate == 1){
+# if(spatialDataUpdate){
   # catchments <- st_read("M:/Projects/LI/Culvert_Assessment/data/Tidal_Desktop_Assessment/Tidal_Catchments.gdb", layer = "MASTER_TidalCatchments_Latest")
 #   catchments %>% write_rds(path = "data/LIculvert_Catchments.rds")
 # }else{
@@ -85,14 +85,13 @@ crossingTrackerlist <- crossingTracker %>%
   #' Complete list of culvert locations and desktop assessment data housed in ArcGIS Online TidalCrossing_desktopDataEntry hosted feature serice. 
   #' ALL data additions, edits updates etc, for culvert locations and desktop assessment happens here.
   #'  
-if(dataUpdate == 1){
+if(dataUpdate){
   towns <- st_read("https://cumulus.tnc.org/arcgis/rest/services/LongIsland/RoadStream_Crossings_Baselayers_040120/MapServer/0/query?where=OBJECTID+%3E0&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson")
   towns <- towns %>% rename(town_name = NAME)
   # Pull from AGOL directly using credentials contained in the arcgisbindings arc.check_portal call
   tidalCrossings_desktop <- arcgisbinding::arc.open("https://services.arcgis.com/F7DSX1DSNSiWmOqh/arcgis/rest/services/TidalCrossing_desktopDataEntry/FeatureServer/0") %>% 
     arc.select() %>% 
     arcgisbinding::arc.data2sf()
-    F
   # culvertPOTpts <- tidalCrossings_desktop #%>% select(crossingID:Latitude) # trim desktop data?
   # # remove to keep the workspace tidy.
   # rm(tidalCrossings_desktop)
@@ -119,7 +118,7 @@ roadMeas <- LIculvert_GISpts %>% select(crossingID, da_LiDarHt_CL, da_RoadWidth)
 source("functions/culvert_tidy.R") 
 source("functions/culvert_extract.R")    
 source(here::here("summarySheets", "tidal_longitudinalPlots.R"))
-if(dataUpdate == 1) {
+if(dataUpdate) {
   # Create a nested dataframe with filenames, file paths, and tidied cells from tidal assessment workbooks,
   # columns include tidycells- raw cell content from each workbook; decoded- transformed raw values extracted from
   # workbooks using key as lookup;
@@ -224,7 +223,7 @@ LIculvertData_location <- LIculvert_GISpts %>%
 #' summaries for general project guidance
 #' Mostly unused now as project transitions to prioritizations.
 
-if(dataUpdate == 1){
+if(dataUpdate){
   LIculvertDataStatus <- LIculvertAssessments %>% 
     select(filenames, lastChanges, filePath, decoded) %>% 
     unnest(decoded, .drop = FALSE) %>% 
@@ -246,7 +245,7 @@ if(dataUpdate == 1){
   LIculvertDataStatus <- read_rds(path = "data/LIculvertDataStatus.rds")
 }
 
-if(dataUpdate == 1){
+if(dataUpdate){
   LIculvertDataStatus_location <- LIculvert_GISpts %>%
     left_join(LIculvertDataStatus, by = "crossingID") %>%
     mutate(missingWorkbook = is.na(filenames)) %>%

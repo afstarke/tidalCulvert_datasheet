@@ -18,7 +18,10 @@ drawCrossing <- function(longitudinal, crossSectional) {
    # 
    # Add in logicals to catch missing data that leads to terrible plots.
    # 
-  if (sum(str_detect(string = lon$`Feature Code`, pattern = "I")) < 2) {
+  crosscheck <- cross %>% filter(!is.na(Height)) 
+  loncheck <- lon %>% filter(!is.na(rawHeight ))
+  if (sum(str_detect(string = loncheck$`Feature Code`, pattern = "I")) < 2 |
+      sum(str_detect(string = crosscheck$Feature, pattern = "Ceiling")) < 2 ) {
     stop("Crossing lacks sufficient data to present a longitudinal plot")
   }
   
@@ -250,56 +253,45 @@ waterIndicators <- cross %>%
 # drawCrossing <- purrr::safely(drawCrossing, otherwise = "Insufficient Data") # Add in default plot here.
 drawCrossing <- purrr::possibly(drawCrossing, otherwise = glue::glue("Crossing lacks sufficient data to present a longitudinal plot"))
 # # Test out plots and inspect.
-# # ## Run single crossing through function (quicker)
-# # ## Best plot for longitudinals so far... ----
-# test2longitudinalProfile <- LIculvertAssessments %>% filter(crossingID == 441) %>% select(longProfile) %>% unnest(cols = longProfile)
-# # View(test2longitudinalProfile)
-# # test2crossHeight <- LIculvertAssessments %>% filter(crossingID == 441) %>% select(crossSectionProfile) %>% unnest(cols = crossSectionProfile)
-# # View(test2crossHeight)
 # 
-# # drawCrossing(longitudinal = test2longitudinalProfile, crossSectional = test2crossHeight)
+#   plotter <-
+#     function(crosscode) {
+#       test2longitudinalProfile <-
+#         LIculvertAssessments %>% filter(crossingID == crosscode) %>% select(longProfile) %>% unnest(cols = longProfile)
+#       # View(test2longitudinalProfile)
+#       test2crossHeight <-
+#         LIculvertAssessments %>% filter(crossingID == crosscode) %>% select(crossSectionProfile) %>% unnest(cols = crossSectionProfile)
+#       # View(test2crossHeight)
+#       drawCrossing(longitudinal = test2longitudinalProfile, crossSectional = test2crossHeight)
+#     }
 # 
-# # troubleshooter = TRUE # turn this on/off for troubleshooter mode.
-# # # # 
-# # # # # if(troubleshooter == TRUE){
-# # # # # #   source("00_libraries.R")
-  plotter <-
-    function(crosscode) {
-      test2longitudinalProfile <-
-        LIculvertAssessments %>% filter(crossingID == crosscode) %>% select(longProfile) %>% unnest(cols = longProfile)
-      # View(test2longitudinalProfile)
-      test2crossHeight <-
-        LIculvertAssessments %>% filter(crossingID == crosscode) %>% select(crossSectionProfile) %>% unnest(cols = crossSectionProfile)
-      # View(test2crossHeight)
-      drawCrossing(longitudinal = test2longitudinalProfile, crossSectional = test2crossHeight)
-    }
-
-
-  plotter_data <-
-    function(crosscode) {
-      test2longitudinalProfile <-
-        LIculvertAssessments %>% filter(crossingID == crosscode) %>% select(longProfile) %>% unnest(cols = longProfile)
-      # View(test2longitudinalProfile)
-      test2crossHeight <-
-        LIculvertAssessments %>% filter(crossingID == crosscode) %>% select(crossSectionProfile) %>% unnest(cols = crossSectionProfile)
-      # View(test2crossHeight)
-      df <- list(test2longitudinalProfile, test2crossHeight)
-      df #%>% purrr::walk(View)
-      # df %>% purrr::map(View)
-    }
-# # # # # # # 
-# # # # # # # # # # }
+# 
+#   plotter_data <-
+#     function(crosscode) {
+#       test2longitudinalProfile <-
+#         LIculvertAssessments %>% filter(crossingID == crosscode) %>% select(longProfile) %>% unnest(cols = longProfile)
+#       # View(test2longitudinalProfile)
+#       test2crossHeight <-
+#         LIculvertAssessments %>% filter(crossingID == crosscode) %>% select(crossSectionProfile) %>% unnest(cols = crossSectionProfile)
+#       # View(test2crossHeight)
+#       df <- list(test2longitudinalProfile, test2crossHeight)
+#       df #%>% purrr::walk(View)
+#       # df %>% purrr::map(View)
+#     }
 # # # # # # # # # #
-# # c(96, 110, 9999, 441, 105, 49) %>% map(plotter)
-# # # # # # # # # # #
-# # # # # # plotter(9999)
-# # # plotter(528)
-# plotter(441)
-# plotter_data(441)
-# # # plotter_data(507)
-# # # # # # # plotter(427)
-# # # # plotter(105)
-# plotter(140)
+# # # # # # # # # # # # # # }
+# # # # # # # # # # # # # #
+# # # # # # c(96, 110, 9999, 441, 105, 49) %>% map(plotter)
+# # # # # # # # # # # # # # #
+# # # # # # # # # # plotter(9999)
+# # # # # # # plotter(528)
+# # # # plotter(3004)
+# plotter_data(398)
+# plotter(398)
+# # # # # plotter_data(507)
+# # # # # # # # plotter(427)
+# # # # # plotter(105)
+# # plotter(140)
 # # # # # priorityCrossings %>% map(plotter)
 
 # 

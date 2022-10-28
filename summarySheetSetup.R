@@ -2,7 +2,7 @@
 # Source this code when needing an update. 
 
 source(here::here("00_libraries.R"))
-source(here::here("utilities/photoMatchTable.R"))
+# source(here::here("utilities/photoMatchTable.R"))
 ##%######################################################%##
 #                                                          #
 ####                Summary Sheet Info                  ####
@@ -69,10 +69,11 @@ write_rds(tsdn, here::here("data/tsdn.rds"))
 # [2/18 7:23 PM] Stephen Lloyd
 # Photos are here: \\nyspatial.tnc.org\gisdata\Projects\LI\Culvert_Assessment\photos and the match table I created is in there called: match_table_021820.csv
 # 
-# fw_data <- st_read("M:/Projects/LI/Culvert_Assessment/web/FreshwaterPrioritization_for_webtool.gdb", stringsAsFactors = F, layer = "TNC_NAACC_FreshwaterPrioritization_032720") %>%
-# st_transform(crs = 4326)
+# This is the final product after some manual edits, formatting by SL.
+# fw_data <- st_read("M:/Projects/LI/Culvert_Assessment/web/Final_Freshwater_and_Tidal_Prioritizations.gdb", stringsAsFactors = F, layer = "TNC_FreshwaterProtocol_Crossing_Prioritization") %>%
+#   st_transform(crs = 4326)
 # fw_data %>% write_rds(here::here("data/fwaterPrioritizations.rds"))
-# ## @knitr freshDataRead
+# # ## @knitr freshDataRead
 
 fw_data <- read_rds(here::here("data/fwaterPrioritizations.rds")) 
 
@@ -133,10 +134,10 @@ photo_link <- function(crossingID, matchTable, subject, path, tidal = FALSE){
   imgs <- matchTable %>% filter(ID == crossingID) %>% select(ImageName) %>% as_vector()
   tidalID <- paste0("Crossing ID _",crossingID)
   switch(subject,
-         inlet = {imgs %>% str_detect(regex("inlet|US toward|upstream toward|US view toward", ignore_case = T)) -> imgname}, # make a more robust str_detect statemement.
-         outlet = {imgs %>% str_detect(regex("outlet|Downstream toward|DS toward|DS above structure|DS view toward", ignore_case = T)) -> imgname},
-         upstream = {imgs %>% str_detect(regex("US above|US away|US view from above|upstream above|US view above", ignore_case = T)) -> imgname},
-         downstream = {imgs %>% str_detect(regex("DS above|DS away|Downstream above|DS view from above", ignore_case = T)) -> imgname},
+         inlet = {imgs %>% str_detect(regex("nlet|US toward|upstream toward|US view toward", ignore_case = T)) -> imgname}, # make a more robust str_detect statemement.
+         outlet = {imgs %>% str_detect(regex("utlet|Downstream toward|DS toward|DS view toward", ignore_case = T)) -> imgname},
+         upstream = {imgs %>% str_detect(regex("pstream|US above|US away|US view from above|upstream above|US view above", ignore_case = T)) -> imgname},
+         downstream = {imgs %>% str_detect(regex("ownstream|DS above|DS away|DS above structure|Downstream above|DS view from above", ignore_case = T)) -> imgname},
          # other = {imgs %>% str_detect("")} Doesn't seem to be any 'others' as of now.
          stop("Missing subject argument.") # Return a message indicating missing argument.
          )
@@ -158,18 +159,4 @@ photo_link <- function(crossingID, matchTable, subject, path, tidal = FALSE){
 
 
 
-# Freshwater Prioritizations
-#' This might not be the best method as interating over the knitr function will require the data to be reloaded each time.
-#' 
-
-# ## Scratch BELOW:
-# LIculvertPrioritization %>% 
-#   filter(crossingID == 200) %>% 
-#   tidyr::gather(key = "field_Name", value = "dataValue") %>% 
-#   right_join(tsdn) %>% select(AssociatedText, dataValue, Section) %>% 
-#   gt(rowname_col = "AssociatedText", 
-#      groupname_col = "Section") %>%
-#   tab_header(
-#     title = "Tidal Prioritization"
-#   )
 

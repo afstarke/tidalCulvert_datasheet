@@ -150,7 +150,7 @@ surveyHtCorrection <-
       shotCode == "R" ~ as.numeric(sum(Lidarht, roadCentHt, na.rm = F)) +-as.numeric(rawHeight), # Ran into bug when road center height was not collected in the field- returned uncorrected values.
       shotCode == "U" ~ as.numeric(sum(Lidarht, roadCentHt, na.rm = F)) +-as.numeric(TPforsight_upSt) + as.numeric(TPbacksight_upSt) +-as.numeric(rawHeight),
       shotCode == "D" ~ as.numeric(sum(Lidarht, roadCentHt, na.rm = F)) +-as.numeric(TPforsight_dwSt) + as.numeric(TPbacksight_dwSt) +-as.numeric(rawHeight),
-      shotCode == "X" ~ as.numeric(NA),
+      shotCode == "X" ~ as.numeric(sum(Lidarht, roadCentHt, na.rm = F)) +-as.numeric(TPforsight_upSt) + as.numeric(TPbacksight_upSt) +-as.numeric(rawHeight),
       # missing data value for the 'X' code that I don't know how to deal with yet.
       is.na(shotCode) ~ as.numeric(NA)
     ) # if missing shot code, it's likely missing other data.

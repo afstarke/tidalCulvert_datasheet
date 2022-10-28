@@ -6,7 +6,7 @@ output:
   self_contained: false
 css: summary_v2.css
 params:
-  crossingCode: 441
+  crossingCode: 427
 
 ---
 
@@ -35,9 +35,7 @@ source(here::here("summarySheetSetup.R"), local = knitr::knit_global())
 
 ccode = params$crossingCode
 
-# TODO: Move 'structure condition' to the proper section.
 
-# TODO: ADD THE RELEVENT TIDAL DATA HERE
 # Prioritization data
 tidalPrioritization <- read_rds(here::here("data", "/LIculvertPrioritizations.rds")) %>% filter(crossingID == ccode) 
 # Full Assessment data
@@ -470,7 +468,7 @@ pic <- function(img, caption){htmltools::HTML(glue::glue("<div class='image'>
 down
 ```
 
-# Downstream view toward structure
+# Upstream view toward structure
 
 ```{r fig.show="hold", message=FALSE, warning=FALSE, out.width="48%", paged.print=FALSE, fig.align='center'}
 # 
@@ -488,7 +486,7 @@ down
 inlet
 ```
 
-# Upstream view toward structure
+# Downstream view toward structure
 
 ```{r fig.show="hold", message=FALSE, warning=FALSE, out.width="48%", paged.print=FALSE, fig.align='center'}
 

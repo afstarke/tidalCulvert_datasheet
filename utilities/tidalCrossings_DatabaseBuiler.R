@@ -194,6 +194,7 @@ includedAttributes <-
 # 
 # 
 writeGIS <-  FALSE
+
 if(writeGIS){
   ## Generate the geoDB from the tibbles above.
   arcgisbinding::arc.check_product()
@@ -237,5 +238,13 @@ masterMeta <- includedAttributes %>% as_tibble() %>% rename(FieldName = value) %
                                  FieldName %in% names(crossSectionalFieldSurvey) ~ "crossSectionalFieldSurvey",
                                  FieldName %in% names(crossSectional_corrected) ~ "crossSectional_corrected",
                                  TRUE ~ "Not included")) %>% left_join({keysheet %>% select(dataName, `Data Dictionary`)}, by = c("FieldName" = "dataName")) 
+
+
+## Published tidal data-- 
+tidal_pub_link <- arcgisbinding::arc.open("https://services.arcgis.com/F7DSX1DSNSiWmOqh/arcgis/rest/services/TNC_TidalProtocol_Crossing_Prioritization/FeatureServer/0")
+tidal_pub <- tidal_pub_link %>% arc.select()
+tidal_pub_ddict <- tibble(FieldName = names(tidal_pub), publishedField = T, Data_Dictionary_pub = NA)
+
+masterMeta <- masterMeta %>% full_join(tidal_pub_ddict, by = "FieldName")
 write_xlsx(masterMeta, "datadictionary.xlsx", col_names = T)
 

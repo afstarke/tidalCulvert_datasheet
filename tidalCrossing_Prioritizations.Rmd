@@ -3,6 +3,9 @@ title: "Tidal Crossing Priotization"
 subtitle: Suffolk County- Long Island
 always_allow_html: true
 output:
+  word_document:
+    toc: no
+    reference_docx: styletemplate.docx
   html_document: 
     code_folding: hide
     css: styles.css
@@ -15,9 +18,6 @@ output:
     toc_float: yes
     toc_depth: 3
     number_sections: false
-  word_document:
-    toc: no
-    reference_docx: styletemplate.docx
 editor_options: 
   chunk_output_type: inline
   markdown: 
@@ -27,7 +27,7 @@ editor_options:
 ```{r setup, message=FALSE, warning=FALSE, include=FALSE}
 # To knit both HTML and Word doc use render("tidalCrossing_Prioritizations.Rmd", format = "all") in console.
 knitr::opts_chunk$set(
-	echo = TRUE,
+	echo = FALSE, # set to T for outputing the code chunks in html.
 	fig.height = 3,
 	fig.width = 3,
 	message = FALSE,
@@ -46,7 +46,7 @@ It also summarizes the metrics that are used in the scoring which may be useful 
 source("functions/prioritization_functions.R")
 source("00_libraries.R") # libraries used elsewhere and stored here for convienence
 source("utilities/helpers.R") # mostly for QA there are a few helpers that can be used- openDS/openPics/openField
-source("code/rmdSetup.R") # Enable to update data as needed. This script extracts data from AGOL and all the datasheets.
+# source("code/rmdSetup.R") # Enable to update data as needed. This script extracts data from AGOL and all the datasheets.
 library(GGally)
 library(naniar)
 # library(plotly)
@@ -530,7 +530,7 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 # Total Ecological Benefit Score
 
 To be scored, a crossing will need to have been assessed in the field with at least most of a field survey containing mesaures of high water indicators, structure opening widths, and vegetation classification.
-The Total Ecological Benefit Score is the rescaled (1 to 5) *SUM* of the 4 ecological benefit metrics.
+The Total Ecological Benefit Score is the rescaled (1 to 5) *SUM* of the 4 ecological benefit metrics.T
 
 ```{r ecobenefitScore, message=FALSE, warning=FALSE, paged.print=FALSE}
 
@@ -1063,6 +1063,7 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 For a crossing to be scored there needs to be either a cross sectional profile surveyed or the crossing needs to be identified as submerged at low tide.
 Essentially the crossing would need to be visited and some level of assessment would be needed.
 
+
 ```{r highwater, message=FALSE, warning=FALSE, paged.print=TRUE}
 # high water is wrack line - lowest road elevation. Indicates that periodic flooding risk
 # lack of clearance = ceiling ht - HWI stain, Indicates the regular level of inundation to the crossing structure
@@ -1211,13 +1212,11 @@ LIculvertPrioritization <- LIculvertPrioritization %>%
 
 #### SPECIAL NOTE:
 
-After discovering coding bug, this submetric was reran to include 2 scoring methodologies to determine the change that these methods have in the final scoring, as well as within the Infrastructure Condition Benefit Score.
-version a (\*\*\_va) is taking the approach of using as much data as possible for the high-water risk/lack of clearance sub-metric score.
+After discovering coding bug, this submetric was reran to taking the approach of using as much data as possible for the high-water risk/lack of clearance sub-metric score.
 That means that when a field assessment was performed and sufficient HWI (both stain or wrack) measurements were collected a *risk of highwater/lack of clearance* submetric score was calculated and included in the Total Infrastructure Benefit score.
 **IF** there was a lack of data, then the *Total Infrastructure Benefit* score was calculated based on only the other 3 available metrics (C1, C2, C4).
 
-Version B (\*\*\_vb) drops the *risk of highwater/lack of clearance* submetric score for all crossings regardless of their being suffecient data.
-This is a simpler approach.
+
 
 ```{r finalConditionSc, message=FALSE, warning=FALSE, paged.print=FALSE}
 

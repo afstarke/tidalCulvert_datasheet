@@ -12,7 +12,7 @@ saveSumary <- function(summaryDF){
 openDS <- function(crossing) {
   if (!exists(x = 'LIculvertAssessments'))
   {
-    print("Must run rmdSetup.R or load LIculvertsAssessments into the environment")
+    print("Must run rmdSetup.R or load LIculvertsAssessments into the environment; try: LIculvertAssessments <- readRDS('~/R/roadstreamCrossings/data/LIculvertAssessments.rds') ")
   } else {
     path <-
       LIculvertAssessments %>% filter(crossingID == crossing) %>% pull(filePath)
